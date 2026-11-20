@@ -9,6 +9,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { FileText } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
@@ -58,7 +59,7 @@ export function ClientStructurePage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.bankFile ? "Entities, governance and documents as entered by staff; no value on this screen comes from the bank file" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -621,6 +622,9 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
 const OWN_LOOK: CardChart = { kind: null, own: true, picker: null };
 
 function FileContainers({ name, accounts, data }: { name: string; accounts: StructureFileAccount[]; data: ClientStructure }) {
+  // His accounts' holdings either added up in dollars at the latest FX rates, or summed as the bank sent them.
+  const [view, setView] = useState<FileView>("converted");
+  const conv = view === "converted" ? data.converted : null;
   return (
     <>
       {staffEntered(data) ? (
@@ -635,7 +639,10 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
           ))}
         </div>
       )}
-      <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them">
+      <Card title="Ownership Structure" lead={conv
+        ? `Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""}`
+        : "Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them"}
+        action={data.converted && <FileViewToggle value={view} onChange={setView} />}>
         <div className="overflow-x-auto">
           <div className="flex min-w-[44rem] items-center">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
@@ -655,7 +662,21 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
                       <p className="text-2xs text-ink-muted">Account in {one.accountCurrency}{one.asOf && ` · as of ${formatDate(one.asOf)}`}</p>
                     </div>
                     <div className="text-right text-xs font-semibold tabular-nums">
-                      {one.holdings.length === 0 ? <NotInFile /> : one.holdings.map((amount) => (
+                      {/* Named in the bank's file (its account list or a movement) with no holdings stated for it. */}
+                      {one.holdings.length === 0 ? (
+                        <Marker>in the bank file · no holdings stated{one.movements > 0 ? ` · ${one.movements} movement${one.movements === 1 ? "" : "s"}` : ""}</Marker>
+                      ) : conv ? (() => {
+                        const sum = sumInUsd(one.holdings.map((amount) => ({ amount: amount.amount, currency: amount.currency })), conv);
+                        return (
+                          <>
+                            <span className="block">{exact(sum.total, conv.currency)}</span>
+                            {one.holdings.filter((amount) => amount.currency !== conv.currency || one.holdings.length > 1).map((amount) => (
+                              <span key={amount.currency} className="block text-2xs font-normal text-ink-muted">{exact(amount.amount, amount.currency)}</span>
+                            ))}
+                            {sum.missing.length > 0 && <span className="block text-2xs font-normal text-amber-700">{sum.missing.join(", ")} left out: no FX rate</span>}
+                          </>
+                        );
+                      })() : one.holdings.map((amount) => (
                         <span key={amount.currency} className="block">{exact(amount.amount, amount.currency)}</span>
                       ))}
                     </div>
@@ -666,7 +687,8 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
           </div>
         </div>
         <p className="mt-3 text-3xs text-ink-muted italic">
-          Each account's holdings summed in the currency the bank wrote them in, as sent; masked numbers as the bank sent them.
+          {conv ? `Each account's holdings added up in ${conv.currency} at the latest FX rates, the bank's own amounts beneath`
+            : "Each account's holdings summed in the currency the bank wrote them in, as sent"}; masked numbers as the bank sent them. An account the file names (in its account list or a movement) without stating holdings for it says so.
         </p>
       </Card>
       <RegisterCard data={data} />
@@ -772,6 +794,15 @@ function Toggle<T extends string>({ label, value, onChange, options }: {
         </button>
       ))}
     </div>
+  );
+}
+
+/** A short note in the same dashed tag as "not in bank file", for what the file does say. */
+function Marker({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-3xs font-medium whitespace-nowrap text-ink-muted">
+      {children}
+    </span>
   );
 }
 

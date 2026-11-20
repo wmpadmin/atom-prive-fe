@@ -7,7 +7,9 @@ import {
   type ClientWorkspace,
   type WorkspaceBankFile,
   type WorkspaceSlice,
+  type ConvertedSlice,
 } from "@atomprive/api-client/backoffice";
+import { ConvertedNote, FileViewToggle, MissingRates, type FileView } from "../../components/converted-usd";
 import { Alert, Button, TextArea, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -97,7 +99,7 @@ export function ClientOverviewPage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {file ? `Values in ${file.converted.currency}, converted from the bank's own currencies at FX rates${file.converted.ratesOn ? ` of ${formatDate(file.converted.ratesOn)}` : ""}` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -204,8 +206,8 @@ function Headline({ data }: { data: ClientWorkspace }) {
   if (rows) {
     return (
       <FigureStrip>
-        <FigureRow label="Total net worth" value={file ? file.holdings.map((one) => compact(one.amount, one.currency)).join(" · ") : h.netWorth == null ? "—" : compact(h.netWorth, cur)}
-          note={file ? "As in bank file · not converted" : `Investable ${money(h.investable, cur)} · Owned outright ${money(h.ownedOutright, cur)} · Liabilities ${money(h.liabilities, cur)}`} />
+        <FigureRow label="Total net worth" value={file ? compact(file.converted.total, file.converted.currency) : h.netWorth == null ? "—" : compact(h.netWorth, cur)}
+          note={file ? `Bank holdings converted to ${file.converted.currency}${file.converted.ratesOn ? ` at FX rates of ${formatDate(file.converted.ratesOn)}` : ""}` : `Investable ${money(h.investable, cur)} · Owned outright ${money(h.ownedOutright, cur)} · Liabilities ${money(h.liabilities, cur)}`} />
         {stats}
       </FigureStrip>
     );
@@ -217,11 +219,9 @@ function Headline({ data }: { data: ClientWorkspace }) {
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Total net worth · consolidated</p>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {file ? (
-          <div className="flex flex-wrap items-baseline gap-x-4">
-            {file.holdings.map((one) => (
-              <span key={one.currency} className="text-2xl font-bold tabular-nums">{compact(one.amount, one.currency)}</span>
-            ))}
-            <Marker>as in bank file · not converted</Marker>
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            <span className="text-4xl font-bold tabular-nums">{compact(file.converted.total, file.converted.currency)}</span>
+            <Marker>bank holdings in {file.converted.currency}{file.converted.ratesOn ? ` · FX rates of ${formatDate(file.converted.ratesOn)}` : ""}</Marker>
           </div>
         ) : (
           <>
@@ -238,7 +238,7 @@ function Headline({ data }: { data: ClientWorkspace }) {
       <p className="mt-1 text-xs text-ink-muted">
         {file ? (
           <>
-            Investable <NotInFile /> · Owned outright <NotInFile /> · Liabilities <NotInFile />
+            Investable {money(file.converted.total, file.converted.currency)} · Owned outright <NotInFile /> · Liabilities <NotInFile />
             {data.entityCount > 0 && <>{" · "}{data.entityCount} {data.entityCount === 1 ? "entity" : "entities"} (entered by staff)</>}
             {" · "}{h.accounts} accounts · {h.custodians} custodian{h.custodians === 1 ? "" : "s"} · as of {file.asOf ? formatDate(file.asOf) : "—"}
           </>
@@ -251,6 +251,7 @@ function Headline({ data }: { data: ClientWorkspace }) {
         )}
       </p>
       </div>
+      {file && <div className="mt-2"><MissingRates converted={file.converted} /></div>}
       <div data-figure-strip className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats}
       </div>
@@ -323,9 +324,12 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
   // Quarter ends within the range, and today's reading last, as the design draws them.
   const cut = (points: BookAumPoint[]) => points.filter((one, at) =>
     one.on >= from && (at === points.length - 1 || [3, 6, 9, 12].includes(Number(one.on.slice(5, 7)))));
-  const worth = cut(data.worth);
-  const bench = cut(data.benchmarkEquivalent);
-  const total = cut(data.totalWorth ?? []);
+  // A bank-file client's worth is his bank's files in dollars, every day they state, each at today's rates.
+  const conv = data.bankFile?.converted ?? null;
+  const cur = conv ? conv.currency : data.currency;
+  const worth = conv ? conv.history : cut(data.worth);
+  const bench = conv ? [] : cut(data.benchmarkEquivalent);
+  const total = conv ? [] : cut(data.totalWorth ?? []);
   const flows = data.externalFlows.filter((one) => one.on >= from).reduce((sum, one) => sum + one.amount, 0);
   const option = useMemo(() => {
     const colours = ink();
@@ -338,7 +342,7 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
       textStyle: { fontFamily: colours.font },
       grid: { left: 8, right: 16, top: 28, bottom: 8, containLabel: true },
       legend: { top: 0, textStyle: { color: colours.muted, fontSize: 11 } },
-      tooltip: { trigger: "axis", valueFormatter: (value: number) => compact(value, data.currency) },
+      tooltip: { trigger: "axis", valueFormatter: (value: number) => compact(value, cur) },
       xAxis: {
         type: "category", boundaryGap: single,
         data: days,
@@ -350,13 +354,13 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
         type: "value",
         scale: true,
         splitNumber: 4,
-        axisLabel: { color: colours.muted, formatter: axisMoney([...worth, ...bench, ...total].map((one) => one.amount), data.currency) },
+        axisLabel: { color: colours.muted, formatter: axisMoney([...worth, ...bench, ...total].map((one) => one.amount), cur) },
         splitLine: { lineStyle: { color: colours.line } },
       },
       series: [
         {
           type: "line", name: "Investable assets", data: worth.map((one) => one.amount), showSymbol: single, symbolSize: 8,
-          label: { show: single, position: "top", color: colours.text, formatter: ({ value }: { value: number }) => compact(value, data.currency) },
+          label: { show: single, position: "top", color: colours.text, formatter: ({ value }: { value: number }) => compact(value, cur) },
           lineStyle: { color: colours.text, width: 1.5 }, itemStyle: { color: colours.text }, areaStyle: { color: colours.canvas },
         },
         ...(total.length > 1 ? [{
@@ -369,7 +373,7 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
         }] : []),
       ],
     };
-  }, [worth, bench, total, data.currency]);
+  }, [worth, bench, total, cur]);
   const figures = useMemo<ChartData>(() => {
     const benchOn = new Map(bench.map((one) => [one.on, one.amount]));
     const totalOn = new Map(total.map((one) => [one.on, one.amount]));
@@ -383,25 +387,27 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
       ],
     };
   }, [worth, bench, total]);
-  const format = useMemo(() => (value: number) => compact(value, data.currency), [data.currency]);
+  const format = useMemo(() => (value: number) => compact(value, cur), [cur]);
   return (
-    <Card title="Net Worth Evaluation" picker={!data.bankFile && chart.picker}
-      lead={data.bankFile ? undefined : `Quarter-end values, ${data.currency} · after net external flows of ${signedCompact(flows, data.currency)}`}
+    <Card title="Net Worth Evaluation" picker={(!data.bankFile || conv) && chart.picker}
+      lead={conv ? `Bank holdings in ${cur} · each day the bank's files state, at today's FX rates` : data.bankFile ? undefined
+        : `Quarter-end values, ${cur} · after net external flows of ${signedCompact(flows, cur)}`}
       action={!data.bankFile && <Toggle label="Period shown" value={range} onChange={setRange} options={RANGES.map((one) => [one.id, one.id])} />}>
-      {data.bankFile ? <FileBlock /> : (
+      {data.bankFile && !conv ? <FileBlock /> : (
         <>
           {worth.length === 0 ? <Empty>There is no valuation history to draw yet.</Empty> : chart.own ? (
             <Chart option={option} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
           ) : (
             <KindChart data={figures} kind={chart.kind!} format={format} height={260} label="The portfolio's worth at each quarter end, beside its benchmark-equivalent" />
           )}
-          <p className="mt-2 text-3xs text-ink-muted italic">
+          {conv && <ConvertedNote converted={conv} />}
+          {!conv && <p className="mt-2 text-3xs text-ink-muted italic">
             {worth.length === 1 && "One reading on file so far: it is marked as a point, and the line starts with the next. "}
             {total.length > 1
               ? "Total net worth adds what is owned outright, valued at each month end between its appraisals (demo history), and loans at today's balance. "
               : "Total net worth is not drawn: what is owned outright and what is owed have no history on file."}
             {worth.length > 1 && data.benchmarkEquivalent.length < 2 && " No benchmark history is on file for this mandate."}
-          </p>
+          </p>}
         </>
       )}
     </Card>
@@ -410,14 +416,21 @@ function WorthCard({ data, chart }: { data: ClientWorkspace; chart: CardChart })
 
 function AllocationCard({ data, chart }: { data: ClientWorkspace; chart: CardChart }) {
   const [by, setBy] = useState<"class" | "entity" | "currency">("class");
-  const slices = by === "class" ? data.byAssetClass : by === "entity" ? data.byEntity : data.byCurrency;
-  const total = slices.reduce((sum, one) => sum + one.amount, 0);
   const file = data.bankFile;
+  // A bank-file client's lines in dollars, by the bank's own class or by the currency the bank wrote them in.
+  const conv = file?.converted ?? null;
+  const asSlices = (list: ConvertedSlice[]): WorkspaceSlice[] =>
+    list.map((one) => ({ key: one.name, name: one.name, amount: one.usd, sharePercent: one.share }));
+  const slices = conv ? (by === "class" ? asSlices(conv.byClass) : by === "currency" ? asSlices(conv.byCurrency) : [])
+    : by === "class" ? data.byAssetClass : by === "entity" ? data.byEntity : data.byCurrency;
+  const cur = conv ? conv.currency : data.currency;
+  const total = slices.reduce((sum, one) => sum + one.amount, 0);
   const drill = useDrill();
   const navigate = useNavigate();
   // A class, currency or entity opens its breakdown (what no entity holds opens the holdings); what is owned outright
   // opens the screen that registers it.
   const pick = (slice: WorkspaceSlice) => {
+    if (conv) return;
     if (by === "entity") {
       if (slice.key) drill?.({ by: "legalEntity", key: slice.key, name: slice.name });
       else navigate(`/client-workspace/${data.customerId}/holdings`);
@@ -426,9 +439,9 @@ function AllocationCard({ data, chart }: { data: ClientWorkspace; chart: CardCha
     else drill?.({ by, key: slice.key, name: slice.name });
   };
   return (
-    <Card title="Asset Allocation" picker={!file && chart.picker}
+    <Card title="Asset Allocation" picker={(!file || (conv && by !== "entity")) && chart.picker}
       action={<Toggle label="Broken down by" value={by} onChange={setBy} options={[["class", "Asset class"], ["entity", "Entity"], ["currency", "Currency"]]} />}>
-      {file ? (
+      {file && (!conv || by === "entity") ? (
         by !== "currency" ? <FileBlock /> : (
           <>
             <table className="w-full text-sm">
@@ -445,14 +458,15 @@ function AllocationCard({ data, chart }: { data: ClientWorkspace; chart: CardCha
           </>
         )
       ) : !chart.own ? (
-        <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={260} label={`Breakdown by ${by}`}
+        <KindChart kind={chart.kind!} format={(value) => compact(value, cur)} height={260} label={`Breakdown by ${by}`}
           data={{ shape: "shares", items: slices.map((one) => ({ name: one.name, value: one.amount })) }}
           onPick={(at) => { const slice = slices[at]; if (slice) pick(slice); }} />
       ) : (
-        <Donut slices={slices} currency={data.currency} onPick={pick}
-          centre={compact(by === "currency" || data.headline.netWorth == null ? total : data.headline.netWorth, data.currency)}
-          centreLabel={by === "currency" ? "Holdings" : "Net worth"} />
+        <Donut slices={slices} currency={cur} onPick={conv ? undefined : pick}
+          centre={compact(conv || by === "currency" || data.headline.netWorth == null ? total : data.headline.netWorth, cur)}
+          centreLabel={conv ? "Bank holdings" : by === "currency" ? "Holdings" : "Net worth"} />
       )}
+      {conv && by !== "entity" && <ConvertedNote converted={conv} />}
       {!file && by === "entity" && <p className="mt-2 text-3xs text-ink-muted italic">Each top-level entity at look-through value; what no entity holds is a slice of its own.</p>}
       {!file && by === "currency" && <p className="mt-2 text-3xs text-ink-muted italic">The portfolio's lines by the currency each is exposed to; what is owned outright is not in it.</p>}
     </Card>
@@ -521,16 +535,20 @@ function Donut({ slices, currency, centre, centreLabel, onPick }: {
 function BandsCard({ data, chart }: { data: ClientWorkspace; chart: CardChart }) {
   const bands = data.bands;
   const scale = Math.max(10, ...bands.map((one) => Math.max(one.upper, one.actual))) * 1.1;
-  const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
+  // A share below nothing (a class a loan outweighs) is drawn at the axis, never off the left of it.
+  const at = (value: number) => `${Math.max(0, Math.min(100, (value / scale) * 100))}%`;
+  const conv = data.bankFile?.converted ?? null;
   return (
-    <Card title="Target vs Actual Allocation" picker={!data.bankFile && chart.picker}
-      lead={data.bankFile ? undefined : `% of investable assets (${money(data.headline.investable, data.currency)}) · owned outright excluded`}
+    <Card title="Target vs Actual Allocation" picker={(!data.bankFile || bands.length > 0) && chart.picker}
+      lead={data.bankFile
+        ? (bands.length === 0 ? undefined : `EFG's classes read as the house's · his bank lines in ${conv?.currency ?? "USD"} at FX rates${conv?.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""}, as IPS Monitoring reads them`)
+        : `% of investable assets (${money(data.headline.investable, data.currency)}) · owned outright excluded`}
       action={!data.bankFile && (
         <Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">
           Sub-class detail ({data.subClasses})
         </Link>
       )}>
-      {data.bankFile ? <FileBlock /> : bands.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
+      {data.bankFile && bands.length === 0 ? <FileBlock /> : bands.length === 0 ? <Empty>No model to measure against yet.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each asset class's actual weight against its target"
           data={{ shape: "series", categories: bands.map((one) => one.name), series: [
             { name: "Actual", values: bands.map((one) => one.actual) },
@@ -693,10 +711,14 @@ function TopPositionsCard({ data, chart }: { data: ClientWorkspace; chart: CardC
   const largest = Math.max(1, ...positions.map((one) => one.weightPercent));
   const total = positions.reduce((sum, one) => sum + one.value, 0);
   const weight = positions.reduce((sum, one) => sum + one.weightPercent, 0);
+  const [fileView, setFileView] = useState<FileView>("converted");
   return (
-    <Card title="Top 10 Positions" lead="Look-through across all entities" picker={!data.bankFile && chart.picker}
-      action={<Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">All holdings</Link>}>
-      {data.bankFile ? <FilePositions file={data.bankFile} /> : positions.length === 0 ? <Empty>No holdings written down yet.</Empty> : !chart.own ? (
+    <Card title="Top 10 Positions" lead={data.bankFile ? undefined : "Look-through across all entities"} picker={!data.bankFile && chart.picker}
+      action={<div className="flex flex-wrap items-center gap-2">
+        {data.bankFile && <FileViewToggle value={fileView} onChange={setFileView} />}
+        <Link to={`/client-workspace/${data.customerId}/holdings`} className="text-xs font-semibold text-primary-700 hover:underline">All holdings</Link>
+      </div>}>
+      {data.bankFile ? (fileView === "converted" ? <ConvertedPositions file={data.bankFile} /> : <FilePositions file={data.bankFile} />) : positions.length === 0 ? <Empty>No holdings written down yet.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={300} label="The ten largest positions by value"
           data={{ shape: "shares", items: positions.map((one) => ({ name: one.name, value: one.value })) }}
           onPick={(at) => {
@@ -954,6 +976,48 @@ function FilePositions({ file }: { file: WorkspaceBankFile }) {
       <p className="mt-2 px-5 text-3xs text-ink-muted italic">
         {file.banks.join(", ") || "No bank"} · as of {file.asOf ? formatDate(file.asOf) : "—"} · ranked within each currency, not across them: that would need a rate the bank did not send.
       </p>
+    </div>
+  );
+}
+
+/** His file's ten largest lines across every currency, each converted to dollars at the latest rate in FX rates. */
+function ConvertedPositions({ file }: { file: WorkspaceBankFile }) {
+  const conv = file.converted;
+  if (conv.top.length === 0) return <>{conv.missing.length > 0 ? <MissingRates converted={conv} /> : <FileBlock />}</>;
+  // The same columns as the bank's own view, so switching between the two moves nothing but the figures.
+  return (
+    <div className="-mx-5 overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+            <th scope="col" className="py-2 pr-2 pl-5">#</th>
+            <th scope="col" className="px-3 py-2">Position</th>
+            <th scope="col" className="px-3 py-2">Held by</th>
+            <th scope="col" className="px-3 py-2 text-right">Value · {conv.currency}</th>
+            <th scope="col" className="px-3 py-2 text-right">Weight</th>
+            <th scope="col" className="py-2 pr-5 pl-3 text-right">YTD</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {conv.top.map((one, at) => (
+            <tr key={`${one.name}-${at}`}>
+              <td className="py-2 pr-2 pl-5 text-xs text-ink-muted tabular-nums">{String(at + 1).padStart(2, "0")}</td>
+              <td className="px-3 py-2">
+                <span className="font-semibold">{one.name}</span>
+                <span className="block text-xs text-ink-muted">{one.assetClass ?? "Class not in bank file"}</span>
+              </td>
+              <td className="px-3 py-2"><NotInFile /></td>
+              <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">
+                {exact(one.usd, conv.currency)}
+                {one.currency !== conv.currency && <span className="block text-2xs font-normal text-ink-muted">{exact(one.asSent, one.currency)}</span>}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums">{one.share.toFixed(1)}%</td>
+              <td className="py-2 pr-5 pl-3 text-right"><NotInFile /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="px-5"><ConvertedNote converted={conv} /></div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
 import { Alert, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
@@ -95,7 +96,7 @@ export function ClientEquityPage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {file && data.converted ? `Values in ${data.converted.currency} at FX rates${data.converted.ratesOn ? ` of ${formatDate(data.converted.ratesOn)}` : ""}; tables offer the bank's own view` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -109,20 +110,23 @@ export function ClientEquityPage() {
 function Strip({ data, view, setView }: { data: ClientEquity; view: string; setView: (next: "LOOK_THROUGH" | "DIRECT") => void }) {
   const s = data.strip;
   const file = data.bankFile;
+  // A bank-file client's equity lines added up in dollars at the latest FX rates.
+  const sleeve = file && data.converted ? sumInUsd(s.fileValues, data.converted) : null;
   return (
     <section className="rounded-2xl border border-line bg-white px-5 py-3.5">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm">
         <span className="flex items-baseline gap-2">
           <span className="text-xs text-ink-muted">Equity sleeve</span>
           {file ? (
-            s.fileValues.length === 0 ? <NotInFile /> : s.fileValues.map((one) => (
+            s.fileValues.length === 0 ? <NotInFile /> : !sleeve ? s.fileValues.map((one) => (
               <b key={one.currency} className="tabular-nums">{exact(one.amount, one.currency)}</b>
-            ))
+            )) : <b className="text-lg tabular-nums">{compact(sleeve.total, data.converted!.currency)}</b>
           ) : <b className="text-lg tabular-nums">{s.value == null ? "—" : compact(s.value, data.currency)}</b>}
         </span>
         <span className="flex items-baseline gap-2">
-          <span className="text-xs text-ink-muted">% of net worth</span>
-          {file ? <NotInFile /> : <b className="tabular-nums">{s.netWorthPercent == null ? "—" : `${s.netWorthPercent.toFixed(1)}%`}</b>}
+          <span className="text-xs text-ink-muted">{file ? "% of his holdings" : "% of net worth"}</span>
+          {file ? (sleeve && data.converted!.total !== 0 ? <b className="tabular-nums">{((sleeve.total / Math.abs(data.converted!.total)) * 100).toFixed(1)}%</b> : <NotInFile />)
+            : <b className="tabular-nums">{s.netWorthPercent == null ? "—" : `${s.netWorthPercent.toFixed(1)}%`}</b>}
         </span>
         <span className="flex items-baseline gap-2">
           <span className="text-xs text-ink-muted">YTD</span>
@@ -410,6 +414,7 @@ type Tab = (typeof TABS)[number][0];
 function Holdings({ data }: { data: ClientEquity }) {
   const drill = useDrill();
   const [tab, setTab] = useState<Tab>("fundamentals");
+  const [fileView, setFileView] = useState<FileView>("converted");
   const rows = [...data.holdings, ...(data.portfolio ? [data.portfolio] : []), ...(data.benchmarkRow ? [data.benchmarkRow] : [])];
   const cur = data.currency;
   const x = (value: number | null) => (value == null ? "—" : `${value.toFixed(1)}×`);
@@ -429,7 +434,7 @@ function Holdings({ data }: { data: ClientEquity }) {
   ];
   return (
     <Card title="Equity Holdings · Fundamentals" lead="Demo fundamentals per security, seeded, not a market-data feed · ROE on average equity" flush
-      action={
+      action={data.bankFile ? <FileViewToggle value={fileView} onChange={setFileView} /> :
         <div role="tablist" aria-label="Columns shown" className="flex rounded-lg border border-line p-0.5">
           {TABS.map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
@@ -439,7 +444,7 @@ function Holdings({ data }: { data: ClientEquity }) {
           ))}
         </div>
       }>
-      {data.bankFile ? <FileLines data={data} /> : (
+      {data.bankFile ? <FileLines data={data} view={fileView} /> : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -490,8 +495,10 @@ function Holdings({ data }: { data: ClientEquity }) {
   );
 }
 
-function FileLines({ data }: { data: ClientEquity }) {
+function FileLines({ data, view }: { data: ClientEquity; view: FileView }) {
   if (data.fileLines.length === 0) return <div className="px-5"><FileBlock /></div>;
+  const conv = view === "converted" ? data.converted : null;
+  const sleeve = conv ? sumInUsd(data.fileLines.map((one) => ({ amount: one.value, currency: one.currency })), conv).total : 0;
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
@@ -500,7 +507,7 @@ function FileLines({ data }: { data: ClientEquity }) {
             <th scope="col" className="py-2 pr-2 pl-5">Company</th>
             <th scope="col" className="px-1.5 py-2">Sector</th>
             <th scope="col" className="px-1.5 py-2">Country</th>
-            <th scope="col" className="px-1.5 py-2 text-right">Value</th>
+            <th scope="col" className="px-1.5 py-2 text-right">Value{conv ? ` · ${conv.currency}` : ""}</th>
             {["Wt.", "Mkt cap", "P/E", "Fwd P/E", "P/B", "ROE", "YTD"].map((one) => (
               <th key={one} scope="col" className="px-1.5 py-2 text-right">{one}</th>
             ))}
@@ -515,13 +522,23 @@ function FileLines({ data }: { data: ClientEquity }) {
               </th>
               <td className="px-1.5 py-2"><NotInFile tight /></td>
               <td className="px-1.5 py-2"><NotInFile tight /></td>
-              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.value, one.currency)}</td>
-              {Array.from({ length: 7 }, (_, cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile tight /></td>)}
+              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">
+                {!conv ? exact(one.value, one.currency) : inUsd(one.value, one.currency, conv) == null ? "no FX rate" : (
+                  <>{exact(inUsd(one.value, one.currency, conv)!, conv.currency)}
+                    {one.currency !== conv.currency && <span className="block text-2xs text-ink-muted">{exact(one.value, one.currency)}</span>}</>
+                )}
+              </td>
+              {conv && <td className="px-1.5 py-2 text-right tabular-nums">{sleeve === 0 || inUsd(one.value, one.currency, conv) == null ? "—" : `${((inUsd(one.value, one.currency, conv)! / Math.abs(sleeve)) * 100).toFixed(1)}%`}</td>}
+              {!conv && <td className="px-1.5 py-2 text-right"><NotInFile tight /></td>}
+              {Array.from({ length: 6 }, (_, cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile tight /></td>)}
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-5 text-3xs text-ink-muted italic">His file's equity lines as the bank states them, by the bank's own class.</p>
+      <p className="mt-2 px-5 text-3xs text-ink-muted italic">
+        {conv ? `His file's equity lines in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""}, the bank's own amount beneath.`
+          : "His file's equity lines as the bank states them, by the bank's own class."}
+      </p>
     </div>
   );
 }

@@ -76,7 +76,7 @@ export function ClientCollectiblesPage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
+          {file ? "Nothing on this screen is in the bank file or entered by staff for this client" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>

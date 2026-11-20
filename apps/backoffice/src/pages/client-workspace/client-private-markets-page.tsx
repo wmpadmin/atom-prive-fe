@@ -6,6 +6,7 @@ import {
   type PmFund,
   type PmHedgeFund,
   type PmKpi,
+  type WorkspaceConverted,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { ScatterChart } from "echarts/charts";
@@ -13,6 +14,7 @@ import { MarkLineComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { LabelLayout } from "echarts/features";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
@@ -95,7 +97,7 @@ export function ClientPrivateMarketsPage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
+          {file && data.converted ? `Values in ${data.converted.currency} at FX rates${data.converted.ratesOn ? ` of ${day(data.converted.ratesOn)}` : ""}; tables offer the amounts as entered` : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -110,17 +112,34 @@ const KPI_LABELS = ["Commitments", "Paid-in capital", "Distributions", "Net asse
 
 function Kpis({ data }: { data: ClientPrivateMarkets }) {
   const rows = useFiguresAsTable();
-  const kpis: (PmKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
+  // A bank-file client's commitments as staff entered them, added up in dollars at the latest FX rates: what was
+  // committed, paid in and is still unfunded. Distributions, NAV and IRR are in no file and no record of his.
+  const conv = data.bankFile ? data.converted : null;
+  const usdKpi = (key: string, label: string, amounts: { amount: number; currency: string }[]): PmKpi | null => {
+    if (!conv || data.fileCommitments.length === 0) return null;
+    const sum = sumInUsd(amounts, conv);
+    return { key, label, value: sum.total, unit: "MONEY", text: null, extra: null, extraTone: null, bar: null,
+      detail: `Entered by staff · ${conv.currency} at FX rates${conv.ratesOn ? ` of ${day(conv.ratesOn)}` : ""}${sum.missing.length ? ` · ${sum.missing.join(", ")} left out: no rate` : ""}` };
+  };
+  const fileKpis: (PmKpi | null)[] = [
+    usdKpi("COMMITTED", "Commitments", data.fileCommitments.map((one) => ({ amount: one.committed, currency: one.currency }))),
+    usdKpi("PAID_IN", "Paid-in capital", data.fileCommitments.map((one) => ({ amount: one.called, currency: one.currency }))),
+    null, null,
+    usdKpi("UNFUNDED", "Unfunded", data.fileCommitments.map((one) => ({ amount: one.unfunded, currency: one.currency }))),
+    null,
+  ];
+  const kpis: (PmKpi | null)[] = data.bankFile ? fileKpis : data.kpis;
+  const cur = conv ? conv.currency : data.currency;
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : kpiValue(one, data.currency)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}</>} />
+        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : kpiValue(one, cur)} note={one?.detail && <>{one.detail}{one.extra && <> <span className={cn("font-semibold", one.extraTone === "UP" ? "text-emerald-700" : "text-red-700")}>{one.extra}</span></>}</>} />
       ) : (
         <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
-              <p className="mt-1.5 text-2xl font-bold tabular-nums">{kpiValue(one, data.currency)}</p>
+              <p className="mt-1.5 text-2xl font-bold tabular-nums">{kpiValue(one, cur)}</p>
               {one.detail && (
                 <p className="mt-1 text-xs text-ink-muted">
                   {one.detail}
@@ -382,6 +401,7 @@ const TABS: [string, string][] = [["PE_CREDIT", "Private equity & credit"], ["RE
 function FundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardChart }) {
   const drill = useDrill();
   const [tab, setTab] = useState("PE_CREDIT");
+  const [fileView, setFileView] = useState<FileView>("converted");
   const rows = data.funds.filter((one) => tab === "ALL" || one.tab === tab);
   const total = data.totals.find((one) => one.tab === tab);
   return (
@@ -389,7 +409,7 @@ function FundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardCha
       lead={data.bankFile ? undefined : data.funds.some((one) => one.quartile)
         ? "Quartile on TVPI against demo vintage break-points by strategy and vintage · IRR not meaningful (n.m.) under 3 years"
         : "Quartile not measured: no vintage benchmarks on file · IRR not meaningful (n.m.) under 3 years"}
-      action={!data.bankFile && (
+      action={data.bankFile ? (data.fileCommitments.length > 0 && <><StaffEntered /><FileViewToggle value={fileView} onChange={setFileView} /></>) : (
         <div className="flex rounded-lg border border-line p-0.5 text-xs font-semibold" role="tablist">
           {TABS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
@@ -399,7 +419,7 @@ function FundsCard({ data, chart }: { data: ClientPrivateMarkets; chart: CardCha
           ))}
         </div>
       )}>
-      {data.bankFile ? <FileCommitments data={data} /> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : !chart.own ? (
+      {data.bankFile ? <FileCommitments data={data} view={fileView} /> : rows.length === 0 ? <Empty>No funds in this group.</Empty> : !chart.own ? (
         <div className="px-5">
           <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={60 + rows.length * 26} label="Each fund's value: what it has paid back and what it holds"
             data={chart.kind === "stacked-bar"
@@ -591,9 +611,11 @@ const NOTICE_TONE: Record<string, string> = {
 
 function NoticesCard({ data }: { data: ClientPrivateMarkets }) {
   const drill = useDrill();
+  const [fileView, setFileView] = useState<FileView>("converted");
   return (
-    <Card title="Notices & Cash Events" lead={data.bankFile ? undefined : "From the capital calls and distributions on file"} flush>
-      {data.bankFile ? <FileCalls data={data} /> : data.notices.length === 0 ? <Empty>No calls or distributions from 60 days back to 90 days ahead.</Empty> : (
+    <Card title="Notices & Cash Events" lead={data.bankFile ? undefined : "From the capital calls and distributions on file"} flush
+      action={data.bankFile && data.fileCalls.length > 0 && <><StaffEntered /><FileViewToggle value={fileView} onChange={setFileView} /></>}>
+      {data.bankFile ? <FileCalls data={data} view={fileView} /> : data.notices.length === 0 ? <Empty>No calls or distributions from 60 days back to 90 days ahead.</Empty> : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -764,11 +786,12 @@ function NotInFile() {
  * A bank-file client's commitments as staff entered them, each in its own currency. Nothing is valued: NAV,
  * distributions and multiples would mix what the bank's files state with what they do not.
  */
-function FileCommitments({ data }: { data: ClientPrivateMarkets }) {
+function FileCommitments({ data, view }: { data: ClientPrivateMarkets; view: FileView }) {
   if (data.fileCommitments.length === 0) return <div className="px-5"><FileBlock /></div>;
+  const conv = view === "converted" ? data.converted : null;
+  const shown = (amount: number, currency: string) => <Both amount={amount} currency={currency} conv={conv} />;
   return (
     <>
-      <div className="px-5 pb-2"><StaffEntered /></div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
@@ -785,10 +808,10 @@ function FileCommitments({ data }: { data: ClientPrivateMarkets }) {
             {data.fileCommitments.map((one) => (
               <tr key={`${one.fund}-${one.currency}`}>
                 <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
-                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.committed, one.currency)}</td>
-                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.called, one.currency)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{shown(one.committed, one.currency)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{shown(one.called, one.currency)}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{one.committed > 0 ? `${((one.called / one.committed) * 100).toFixed(1)}%` : "—"}</td>
-                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.unfunded, one.currency)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{shown(one.unfunded, one.currency)}</td>
                 <td className="py-2 pr-5 pl-2"><NotInFile /></td>
               </tr>
             ))}
@@ -800,11 +823,11 @@ function FileCommitments({ data }: { data: ClientPrivateMarkets }) {
 }
 
 /** A bank-file client's capital calls as staff entered them, each in its own currency. */
-function FileCalls({ data }: { data: ClientPrivateMarkets }) {
+function FileCalls({ data, view }: { data: ClientPrivateMarkets; view: FileView }) {
   if (data.fileCalls.length === 0) return <div className="px-5"><FileBlock /></div>;
+  const conv = view === "converted" ? data.converted : null;
   return (
     <>
-      <div className="px-5 pb-2"><StaffEntered /></div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
@@ -822,13 +845,27 @@ function FileCalls({ data }: { data: ClientPrivateMarkets }) {
                 <th scope="row" className="py-2 pr-3 pl-5 text-left font-semibold">{one.fund}</th>
                 <td className="px-2 py-2"><Pill tone="bg-red-50 text-red-700">Capital call</Pill></td>
                 <td className="px-2 py-2 whitespace-nowrap tabular-nums">{day(one.dueOn)}</td>
-                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums text-red-700">−{exact(one.amount, one.currency)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums text-red-700"><Both amount={one.amount} currency={one.currency} conv={conv} minus /></td>
                 <td className="py-2 pr-5 pl-4"><Pill tone={NOTICE_TONE[one.status] ?? "bg-slate-100 text-ink-soft"}>{one.status}</Pill></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
+
+/** An amount in dollars at the screen's rates with the amount as entered beneath, or as entered alone. */
+function Both({ amount, currency, conv, minus }: { amount: number; currency: string; conv: WorkspaceConverted | null; minus?: boolean }) {
+  const sign = minus ? "−" : "";
+  if (!conv) return <>{sign}{exact(amount, currency)}</>;
+  const usd = inUsd(amount, currency, conv);
+  if (usd == null) return <>{sign}{exact(amount, currency)} <span className="text-2xs text-amber-700">no FX rate</span></>;
+  return (
+    <>
+      {sign}{exact(usd, conv.currency)}
+      {currency !== conv.currency && <span className="block text-2xs text-ink-muted">{sign}{exact(amount, currency)}</span>}
     </>
   );
 }

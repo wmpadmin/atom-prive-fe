@@ -5,6 +5,7 @@ import {
   type ClientPerformance,
   type PerformanceGrowth,
   type PerformanceMonth,
+  type PerformanceFileFees,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { useMemo, useRef, useState, type ReactNode } from "react";
@@ -52,7 +53,7 @@ export function ClientPerformancePage() {
       {data.bankFile ? <FileClient data={data} /> : <Board data={data} view={view} />}
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.fileFees ? `Fees in ${data.fileFees.currency} at FX rates${data.fileFees.ratesOn ? ` of ${formatDate(data.fileFees.ratesOn)}` : ""}; returns not in bank file` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -83,7 +84,8 @@ function FileClient({ data }: { data: ClientPerformance }) {
       <Card title="Monthly Returns"><FileBlock /></Card>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Risk-adjusted Statistics"><FileBlock /></Card>
-        {data.fees ? <FileFees fees={data.fees} /> : <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>}
+        {data.fileFees && (data.fileFees.rates.length > 0 || data.fileFees.paid.length > 0) ? <FileFeesCard fees={data.fileFees} />
+          : data.fees ? <FileFees fees={data.fees} /> : <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>}
       </div>
     </>
   );
@@ -859,6 +861,7 @@ function RiskCard({ data }: { data: ClientPerformance }) {
 }
 
 function FeesCard({ data, chart }: { data: ClientPerformance; chart: CardChart }) {
+  if (data.fileFees) return <FileFeesCard fees={data.fileFees} />;
   const f = data.fees;
   const largest = Math.max(0.01, ...(f?.byType ?? []).map((one) => one.ytdPercent));
   return (
@@ -898,6 +901,75 @@ function FeesCard({ data, chart }: { data: ClientPerformance; chart: CardChart }
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/**
+ * A bank-file client's fees in dollars: his agreed rates on his gross assets in the bank's files at the latest FX
+ * rates, and what the bank's movements show taken. No return drag: his file holds no return to drag on.
+ */
+function FileFeesCard({ fees }: { fees: PerformanceFileFees }) {
+  const largest = Math.max(0.01, ...fees.rates.map((one) => one.annualAmount));
+  const usd = (value: number) => money(value, fees.currency);
+  return (
+    <Card title="Fee Impact · YTD" lead={`Agreed rates on his gross assets in ${fees.currency}, and fees the bank's movements show taken`}
+      action={fees.rates.length > 0 && <StaffEntered />}>
+      {fees.rates.length === 0 && fees.paid.length === 0 ? <Empty>No fees are recorded for this client.</Empty> : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <Small label="Annual cost" value={usd(fees.annualAmount)} big />
+            <Small label="Total rate" value={`${(fees.annualBp / 100).toFixed(2)}%`} big />
+            <Small label="Taken per bank" value={usd(fees.paidAmount)} tone="text-red-700" big />
+          </div>
+          {fees.rates.length > 0 && (
+            <ul className="mt-4 divide-y divide-line">
+              {fees.rates.map((one) => (
+                <li key={one.type} className="grid min-h-9 grid-cols-[170px_minmax(0,1fr)_64px_90px] items-center gap-2 py-1.5 text-sm">
+                  <span className="leading-snug break-words">{one.label}</span>
+                  <span className="block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
+                    <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.annualAmount / largest) * 100}%` }} />
+                  </span>
+                  <span className="text-right text-xs text-ink-muted tabular-nums">{one.annualBp} bp</span>
+                  <span className="text-right tabular-nums">{usd(one.annualAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {fees.paid.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Fees in the bank's movements</p>
+              <table className="w-full table-fixed text-sm">
+                <colgroup><col className="w-28" /><col /><col className="w-32" /><col className="w-28" /></colgroup>
+                <thead>
+                  <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    <th scope="col" className="py-1.5 pr-2">Booked</th>
+                    <th scope="col" className="py-1.5 pr-2">Movement</th>
+                    <th scope="col" className="py-1.5 pr-2 text-right">As sent</th>
+                    <th scope="col" className="py-1.5 text-right">{fees.currency}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {fees.paid.map((one, at) => (
+                    <tr key={`${one.on}-${at}`}>
+                      <td className="py-1.5 pr-2 whitespace-nowrap text-ink-muted">{formatDate(one.on)}</td>
+                      <td className="py-1.5 pr-2 break-words">{one.description}</td>
+                      <td className="py-1.5 pr-2 text-right whitespace-nowrap tabular-nums">{one.currency} {one.asSent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="py-1.5 text-right whitespace-nowrap tabular-nums">{one.amount == null ? "no FX rate" : usd(one.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-3 text-xs text-ink-muted">
+            Gross assets {usd(fees.grossAssets)}: his lines worth something, as a fee is charged on what is held, not on a loan ·
+            {` ${fees.currency}`} at FX rates{fees.ratesOn ? ` of ${formatDate(fees.ratesOn)}` : ""}
+            {fees.noRate.length > 0 ? ` · ${fees.noRate.join(", ")} left out: no FX rate` : ""}
+          </p>
+          <p className="mt-1 text-3xs text-ink-muted italic">No return drag: the bank's file holds one day, so there is no return to measure it against.</p>
+        </>
+      )}
+    </Card>
+  );
+}
 
 /** The bridge's bars that are one Brinson effect; the benchmark, the residual and the portfolio open all of them. */
 const EFFECTS: Record<string, string> = { Allocation: "allocation", Selection: "selection", Interaction: "interaction" };

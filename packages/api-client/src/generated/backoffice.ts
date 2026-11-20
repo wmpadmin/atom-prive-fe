@@ -7783,6 +7783,8 @@ export interface HoldingsOverview {
   rows: ClientComparison[];
 }
 
+export type ClientHoldingsCheckPerUsd = {[key: string]: number};
+
 export type HoldingLineStatus = typeof HoldingLineStatus[keyof typeof HoldingLineStatus];
 
 
@@ -7829,6 +7831,9 @@ export interface ClientHoldingsCheck {
   accounts: string[];
   lines: HoldingLine[];
   inUse: string[];
+  perUsd: ClientHoldingsCheckPerUsd;
+  /** @nullable */
+  ratesOn: string | null;
 }
 
 export interface FormPage {
@@ -9103,6 +9108,53 @@ export interface WorkspaceFileMovement {
   currency: string;
 }
 
+export interface ConvertedCurrency {
+  currency: string;
+  asSent: number;
+  perUsd: number;
+  usd: number;
+  /** @nullable */
+  rateOn: string | null;
+}
+
+export interface ConvertedSlice {
+  name: string;
+  usd: number;
+  share: number;
+}
+
+export interface ConvertedLine {
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  asSent: number;
+  currency: string;
+  usd: number;
+  share: number;
+}
+
+export type WorkspaceConvertedPerUsd = {[key: string]: number};
+
+export type WorkspaceConvertedHouseClasses = {[key: string]: string};
+
+export interface WorkspaceConverted {
+  currency: string;
+  /** @nullable */
+  ratesOn: string | null;
+  total: number;
+  currencies: ConvertedCurrency[];
+  missing: BookCurrencyAmount[];
+  byClass: ConvertedSlice[];
+  byCurrency: ConvertedSlice[];
+  top: ConvertedLine[];
+  lines: ConvertedLine[];
+  history: BookAumPoint[];
+  perUsd: WorkspaceConvertedPerUsd;
+  houseClasses: WorkspaceConvertedHouseClasses;
+}
+
 export interface WorkspaceBankFile {
   banks: string[];
   /** @nullable */
@@ -9111,6 +9163,7 @@ export interface WorkspaceBankFile {
   byCurrency: WorkspaceFileCurrency[];
   accounts: WorkspaceFileAccount[];
   movements: WorkspaceFileMovement[];
+  converted: WorkspaceConverted;
 }
 
 export interface WorkspaceEntity {
@@ -9291,6 +9344,7 @@ export interface StructureFileAccount {
   /** @nullable */
   asOf: string | null;
   holdings: BookCurrencyAmount[];
+  movements: number;
 }
 
 export interface ClientStructure {
@@ -9315,6 +9369,7 @@ export interface ClientStructure {
   settlors: string[];
   /** @nullable */
   jurisdictionNote: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface RiskNotMeasured {
@@ -9471,6 +9526,7 @@ export interface ClientRisk {
   classRisk: RiskClassShare[];
   factors: RiskFactor[];
   correlationMatrix: RiskCorrelation | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface PmKpi {
@@ -9669,6 +9725,7 @@ export interface ClientPrivateMarkets {
   note: string | null;
   fileCommitments: PmFileCommitment[];
   fileCalls: PmFileCall[];
+  converted: WorkspaceConverted | null;
 }
 
 export interface AttributionRow {
@@ -9858,6 +9915,35 @@ export interface PerformanceAttribution {
   periods: AttributionPeriod[];
 }
 
+export interface PerformanceFileFeeRate {
+  type: string;
+  label: string;
+  annualBp: number;
+  annualAmount: number;
+}
+
+export interface PerformanceFeePaid {
+  on: string;
+  description: string;
+  asSent: number;
+  currency: string;
+  /** @nullable */
+  amount: number | null;
+}
+
+export interface PerformanceFileFees {
+  currency: string;
+  /** @nullable */
+  ratesOn: string | null;
+  grossAssets: number;
+  annualBp: number;
+  annualAmount: number;
+  rates: PerformanceFileFeeRate[];
+  paid: PerformanceFeePaid[];
+  paidAmount: number;
+  noRate: string[];
+}
+
 export interface ClientPerformance {
   customerId: string;
   name: string;
@@ -9881,6 +9967,7 @@ export interface ClientPerformance {
   attribution: PerformanceAttribution | null;
   /** @nullable */
   classNote: string | null;
+  fileFees: PerformanceFileFees | null;
 }
 
 export interface IpsSummary {
@@ -10032,6 +10119,7 @@ export interface ClientIps {
   bandRule: string;
   checkedAt: string;
   fileLines: IpsFileGroup[];
+  converted: WorkspaceConverted | null;
 }
 
 export interface HoldingsKpis {
@@ -10186,6 +10274,27 @@ export interface HoldingsGroup {
   yearToDate: number | null;
 }
 
+export interface HoldingsConverted {
+  file: WorkspaceConverted;
+  /** @nullable */
+  costUsd: number | null;
+  costed: number;
+  byBank: ConvertedSlice[];
+  unrealisedByClass: ConvertedSlice[];
+}
+
+export interface HoldingsLookThroughPart {
+  name: string;
+  value: number;
+  sovereign: boolean;
+  rest: boolean;
+}
+
+export interface HoldingsLookThrough {
+  positionId: string;
+  parts: HoldingsLookThroughPart[];
+}
+
 export interface ClientHoldingsBook {
   customerId: string;
   name: string;
@@ -10204,6 +10313,8 @@ export interface ClientHoldingsBook {
   fileCostTotals: BookCurrencyAmount[];
   total: HoldingsTotal | null;
   groups: HoldingsGroup[];
+  converted: HoldingsConverted | null;
+  lookThrough: HoldingsLookThrough[];
 }
 
 export interface HoldingDay {
@@ -10428,6 +10539,7 @@ export interface ClientFixedIncome {
   fileLines: FiFileLine[];
   /** @nullable */
   note: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface EquityStrip {
@@ -10591,6 +10703,7 @@ export interface ClientEquity {
   fileLines: EquityFileLine[];
   /** @nullable */
   note: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface CoKpi {
@@ -17094,6 +17207,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateFxRateMutationOptions(options), queryClient);
+    }
+
+export const getAddMissingFxRateUrl = (code: string,) => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/${code}/missing`
+}
+
+export const addMissingFxRate = async (code: string,
+    updateFxRateRequest: UpdateFxRateRequest, options?: Parameters<typeof http>[1]): Promise<FxRateRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FxRateRow>(getAddMissingFxRateUrl(code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateFxRateRequest)
+  }
+);}
+
+
+
+
+
+export const getAddMissingFxRateMutationKey = () => ['addMissingFxRate'] as const;
+
+export const getAddMissingFxRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext> => {
+
+const mutationKey = getAddMissingFxRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMissingFxRate>>, AddMissingFxRateMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  addMissingFxRate(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMissingFxRateMutationResult = NonNullable<Awaited<ReturnType<typeof addMissingFxRate>>>
+    export type AddMissingFxRateMutationBody = UpdateFxRateRequest
+    export type AddMissingFxRateMutationError = unknown
+    export type AddMissingFxRateMutationVariables = {code: string;data: UpdateFxRateRequest}
+
+    export const useAddMissingFxRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMissingFxRate>>,
+        TError,
+        AddMissingFxRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMissingFxRateMutationOptions(options), queryClient);
     }
 
 export const getGetBankFieldMappingUrl = (bankId: string,) => {
