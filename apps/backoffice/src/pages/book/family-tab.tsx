@@ -4,7 +4,10 @@ import { Alert, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
+import { formatDate } from "../../lib/labels";
 import { useRelationshipTypes } from "../../lib/relationship-types";
+import { opens } from "../portfolios/figure-opens";
 import { axisMoney, money, short } from "./book-figures";
 import { CategoryChart, TimeChart } from "./overview-charts";
 import { column as col, row as exportRow, useExportSheet } from "./overview-export";
@@ -21,6 +24,7 @@ export function FamilyTab({ context, family }: { context: PanelContext; family: 
   const { customerId, sources } = context;
   const [picked, setPicked] = useState<string | null>(null);
   const { labelFor } = useRelationshipTypes();
+  const panel = useBookPanel();
   const read = useGetFamilyWealth<FamilyWealth, ApiError>(customerId,
     { from: sources.from, to: sources.to, currency: sources.overview.currency },
     { query: { placeholderData: keepPreviousData } });
@@ -52,6 +56,52 @@ export function FamilyTab({ context, family }: { context: PanelContext; family: 
     : [[`Family net worth (${ccy})`, data.netWorth], [`Managed portfolios (${ccy})`, data.managed], [`Owned assets (${ccy})`, data.owned], [`Loans (${ccy})`, data.loans, true]];
   const slices = (member ? member.byAssetClass : data.byAssetClass).map((one) => ({ key: one.key, label: one.name, value: one.value }));
   const line = member ? member.netWorthLine : data.netWorthLine;
+  const whose = member ? member.name : "Whole family";
+  const people = member ? [member] : data.members;
+  const links = people.map((one) => `/book/${one.customerId}`);
+  // Each card read member by member, in the card's order: net worth, managed, owned, loans.
+  const pickOf = [(one: (typeof data.members)[number]) => one.netWorth, (one: (typeof data.members)[number]) => one.managed,
+    (one: (typeof data.members)[number]) => one.owned, (one: (typeof data.members)[number]) => one.loans];
+  const showCard = (at: number, label: string, value: number | null) => {
+    const of = pickOf[at]!;
+    panel?.({
+      name: whose,
+      figure: {
+        label,
+        value: value === null ? undefined : money(value),
+        note: member ? `${member.name}'s figure, beside the rest of what they have.` : "The family's figure, member by member.",
+        facts: member ? cards.map(([name, figure]) => ({ label: name, value: figure === null ? "—" : money(figure) })) : undefined,
+        chart: !member && at < 3 ? { title: "By member", data: { shape: "shares", items: data.members.map((one) => ({ name: one.name, value: of(one) ?? 0 })) }, kind: "donut", format: "money", currency: ccy } : undefined,
+        table: { columns: ["Member", label], rows: people.map((one) => [one.name, of(one) === null ? null : money(of(one)!)]),
+          total: member ? undefined : ["Whole family", value === null ? null : money(value)], links },
+      },
+    });
+  };
+  const showSlice = (key: string, label: string, value: number) => {
+    const total = slices.reduce((sum, one) => sum + one.value, 0) || 1;
+    const rest = key === "OTHERS" ? [...slices].filter((one) => one.value > 0).sort((a, b) => b.value - a.value).slice(3) : [];
+    panel?.({
+      name: label,
+      figure: {
+        label: `${whose} by asset class`,
+        value: money(value),
+        facts: [{ label: "Share", value: `${((value / total) * 100).toFixed(2)}%` }],
+        table: key === "OTHERS"
+          ? { columns: ["Asset class", `Value (${ccy})`], rows: rest.map((one) => [one.label, money(one.value)]) }
+          : { title: "By member", columns: ["Member", `Value (${ccy})`], rows: people.map((one) => [one.name, money(one.byAssetClass.find((slice) => slice.key === key)?.value ?? 0)]), links },
+      },
+    });
+  };
+  const showDay = (on: string, value: number) =>
+    panel?.({
+      name: formatDate(on),
+      figure: {
+        label: `${whose} net worth`,
+        value: money(value),
+        table: { title: "By member", columns: ["Member", `Net worth (${ccy})`], links,
+          rows: people.map((one) => { const found = one.netWorthLine.find((point) => point.on === on); return [one.name, found ? money(found.value) : null]; }) },
+      },
+    });
 
   return (
     <div className="space-y-4">
@@ -66,8 +116,9 @@ export function FamilyTab({ context, family }: { context: PanelContext; family: 
       </div>
 
       <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-white sm:grid-cols-4 sm:divide-x sm:divide-line">
-        {cards.map(([label, value, owed]) => (
-          <div key={label} className="px-4 py-4 text-center">
+        {cards.map(([label, value, owed], at) => (
+          <div key={label} className={cn("px-4 py-4 text-center", panel && "cursor-pointer hover:bg-canvas")}
+            {...(panel ? opens(() => showCard(at, label, value)) : {})}>
             <p className="text-xs font-semibold text-ink-muted">{label}</p>
             <p className={cn("mt-1 text-xl font-bold tabular-nums", value === null ? "text-ink-muted/70" : owed && value < 0 ? "text-danger" : "text-ink")}>
               {value === null ? "—" : money(value)}
@@ -134,14 +185,16 @@ export function FamilyTab({ context, family }: { context: PanelContext; family: 
         <section aria-label="By asset class" className="flex min-h-72 flex-col rounded-2xl border border-line bg-white px-5 py-4">
           <h2 className="mb-2 text-base font-bold">{member ? `${member.name} by asset class` : "Family by asset class"}</h2>
           {slices.length === 0 ? <p className="text-sm text-ink-muted">Nothing to show.</p>
-            : <div className="min-h-0 flex-1"><CategoryChart rows={slices} type="PIE" format={money} classes={context.classes} label="By asset class" /></div>}
+            : <div className="min-h-0 flex-1"><CategoryChart rows={slices} type="PIE" format={money} classes={context.classes} label="By asset class"
+              onPick={panel ? (one) => showSlice(one.key, one.label, one.value) : undefined} /></div>}
         </section>
       </div>
 
       <section aria-label="Net worth over time" className="flex h-80 flex-col rounded-2xl border border-line bg-white px-5 py-4">
         <h2 className="mb-2 text-base font-bold">{member ? `${member.name}'s net worth over time` : "Family net worth over time"}</h2>
         <div className="min-h-0 flex-1">
-          <TimeChart key={`${picked ?? "all"}-${data.from}-${data.to}-${ccy}`} points={line} label="Net worth" axisTitle={ccy} format={short} axisFormat={axisMoney} />
+          <TimeChart key={`${picked ?? "all"}-${data.from}-${data.to}-${ccy}`} points={line} label="Net worth" axisTitle={ccy} format={short} axisFormat={axisMoney}
+            onPick={panel ? (point) => showDay(point.on, point.value) : undefined} />
         </div>
       </section>
 

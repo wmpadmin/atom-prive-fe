@@ -8,12 +8,15 @@ import {
   type Currency,
   type DirectoryClient,
   type DirectoryNamed,
+  type DirectorySlice,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Pagination, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { CalendarClock, Clock, Search, ShieldCheck, Target, type LucideIcon } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent as KeyPress, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta, type ViewLayoutState } from "../layout/custom-view";
@@ -130,6 +133,8 @@ function Kpis({ data }: { data: ClientDirectory }) {
   const cur = data.currency;
   const { kpis } = data;
   const fileNote = data.bankFileClients.join(", ");
+  const panel = useBookPanel();
+  const open = (name: string, figure: () => FigureDetail) => panel ? () => panel({ name, figure: figure() }) : undefined;
   const segments = kpis.segments
     .filter((one) => one.segment != null)
     .map((one) => `${one.clients} ${segmentLabel(one.segment)}`)
@@ -137,8 +142,8 @@ function Kpis({ data }: { data: ClientDirectory }) {
   return (
     <>
       <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-        <Kpi label="Client families" value={String(kpis.clients)} note={segments || "No segment recorded yet"} />
-        <Kpi label="Assets under management" value={compact(kpis.totalAum, cur)}
+        <Kpi label="Client families" value={String(kpis.clients)} onOpen={open("Client families", () => familiesFigure(data))} note={segments || "No segment recorded yet"} />
+        <Kpi label="Assets under management" value={compact(kpis.totalAum, cur)} onOpen={open("Assets under management", () => aumFigure(data))}
           note={
             <>
               {kpis.averageAum == null ? "No AUM on file" : `Average ${compact(kpis.averageAum, cur)} · median ${compact(kpis.medianAum ?? 0, cur)}`}
@@ -146,6 +151,7 @@ function Kpis({ data }: { data: ClientDirectory }) {
             </>
           } />
         <Kpi label="Outperforming benchmark" value={`${kpis.outperforming} of ${kpis.measured}`}
+          onOpen={open("Outperforming benchmark", () => outperformingFigure(data))}
           note={
             <>
               YTD, net of fees
@@ -153,13 +159,14 @@ function Kpis({ data }: { data: ClientDirectory }) {
             </>
           } />
         <Kpi label="Reviews due · 30 days" value={String(kpis.reviewsOverdue + kpis.reviewsScheduled)}
+          onOpen={open("Reviews due · 30 days", () => reviewsFigure(data))}
           note={
             <>
               <span className={kpis.reviewsOverdue > 0 ? "font-semibold text-red-700" : undefined}>{kpis.reviewsOverdue} overdue</span>
               {" · "}{kpis.reviewsScheduled} scheduled
             </>
           } />
-        <Kpi label="IPS status"
+        <Kpi label="IPS status" onOpen={open("IPS status", () => ipsFigure(data))}
           value={
             <>
               <span className="text-red-700">{kpis.deviations}</span>
@@ -168,7 +175,7 @@ function Kpis({ data }: { data: ClientDirectory }) {
             </>
           }
           note="Deviation · near edge" />
-        <Kpi label="Onboarding pipeline" value={String(kpis.prospects)}
+        <Kpi label="Onboarding pipeline" value={String(kpis.prospects)} onOpen={open("Onboarding pipeline", () => pipelineFigure(data))}
           note={
             <>
               {kpis.prospectsValued > 0 ? `${compact(kpis.prospectValue, cur)} prospective` : "No expected value recorded"}
@@ -445,14 +452,15 @@ function SegmentCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
     };
   }, [slices, data.currency]);
   const total = slices.reduce((sum, one) => sum + one.aum, 0);
+  const pick = useSlicePick(data, slices, "Segment", (one, slice) => (one.segment ?? "") === slice.key);
   return (
     <Card title="By Segment" picker={slices.length > 0 && chart.picker}>
       {slices.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
-        <AumChart rows={slices} currency={data.currency} chart={chart} label="AUM by segment" />
+        <AumChart rows={slices} currency={data.currency} chart={chart} label="AUM by segment" onPick={pick} />
       ) : (
         <>
           <div className="relative mx-auto w-full max-w-48">
-            <Chart option={option} height={180} label="AUM by segment" />
+            <Chart option={option} height={180} label="AUM by segment" onPick={pick && ((_, at) => pick(at))} />
             <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
               <div>
                 <p className="text-lg font-bold tabular-nums">{compact(total, data.currency)}</p>
@@ -463,7 +471,7 @@ function SegmentCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
           <table className="mt-3 w-full text-sm">
             <tbody className="divide-y divide-line">
               {slices.map((one, at) => (
-                <tr key={one.key}>
+                <tr key={one.key} onClick={pick && (() => pick(at))} className={cn(pick && "cursor-pointer hover:bg-canvas")}>
                   <td className="py-2">
                     <span className="flex items-center gap-2">
                       <span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
@@ -484,14 +492,16 @@ function SegmentCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
 
 function RegionCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
   const largest = Math.max(1, ...data.byRegion.map((one) => one.aum));
+  const pick = useSlicePick(data, data.byRegion, "Region of residence", (one, slice) => one.region === slice.key);
   return (
     <Card title="By Region of Residence" picker={data.byRegion.length > 0 && chart.picker}>
       {data.byRegion.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
-        <AumChart rows={data.byRegion} currency={data.currency} chart={chart} label="AUM by region of residence" />
+        <AumChart rows={data.byRegion} currency={data.currency} chart={chart} label="AUM by region of residence" onPick={pick} />
       ) : (
         <ul className="space-y-2.5">
-          {data.byRegion.map((one) => (
-            <li key={one.key} className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3 text-sm">
+          {data.byRegion.map((one, at) => (
+            <li key={one.key} {...pressable(pick && (() => pick(at)))}
+              className={cn("grid grid-cols-[7rem_1fr_5rem] items-center gap-3 text-sm", pick && "cursor-pointer rounded-md hover:bg-canvas")}>
               <span className="truncate">{one.name}</span>
               <span className="block h-2 rounded-full bg-slate-100" aria-hidden="true">
                 <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.aum / largest) * 100}%` }} />
@@ -508,10 +518,15 @@ function RegionCard({ data, chart }: { data: ClientDirectory; chart: CardChart }
 }
 
 function MandateCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
+  const panel = useBookPanel();
+  const pick = panel ? (at: number) => {
+    const mandate = data.byMandate[at];
+    if (mandate) panel({ name: mandate.name, figure: mandateFigure(data, at) });
+  } : undefined;
   return (
     <Card title="By Mandate" picker={data.byMandate.length > 0 && chart.picker}>
       {data.byMandate.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
-        <AumChart rows={data.byMandate} currency={data.currency} chart={chart} label="AUM by mandate" />
+        <AumChart rows={data.byMandate} currency={data.currency} chart={chart} label="AUM by mandate" onPick={pick} />
       ) : (
         <div className="-mx-5 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -524,8 +539,8 @@ function MandateCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.byMandate.map((one) => (
-                <tr key={one.name}>
+              {data.byMandate.map((one, at) => (
+                <tr key={one.name} onClick={pick && (() => pick(at))} className={cn(pick && "cursor-pointer hover:bg-canvas")}>
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium">{one.name}</th>
                   <td className="px-3 py-2 text-right tabular-nums">{one.clients}</td>
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">{compact(one.aum, data.currency)}</td>
@@ -544,14 +559,16 @@ function MandateCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
 }
 
 function ManagerCard({ data, chart }: { data: ClientDirectory; chart: CardChart }) {
+  const pick = useSlicePick(data, data.byRelationshipManager, "Relationship manager", (one, slice) => (one.relationshipManager ?? "") === slice.key);
   return (
     <Card title="By Relationship Manager" picker={data.byRelationshipManager.length > 0 && chart.picker}>
       {data.byRelationshipManager.length === 0 ? <Empty>No client families yet.</Empty> : !chart.own ? (
-        <AumChart rows={data.byRelationshipManager} currency={data.currency} chart={chart} label="AUM by relationship manager" />
+        <AumChart rows={data.byRelationshipManager} currency={data.currency} chart={chart} label="AUM by relationship manager" onPick={pick} />
       ) : (
         <ul className="divide-y divide-line">
-          {data.byRelationshipManager.map((one) => (
-            <li key={one.key} className="flex items-center gap-3 py-2.5">
+          {data.byRelationshipManager.map((one, at) => (
+            <li key={one.key} {...pressable(pick && (() => pick(at)))}
+              className={cn("flex items-center gap-3 py-2.5", pick && "cursor-pointer hover:bg-canvas")}>
               <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary-50 text-xs font-bold text-primary-700" aria-hidden="true">
                 {initials(one.name)}
               </span>
@@ -574,12 +591,248 @@ function ManagerCard({ data, chart }: { data: ClientDirectory; chart: CardChart 
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+/* What each figure opens in the side panel, read from the screen's own figures                                  */
+
+/** A tile, a row or a list entry that opens the side panel: a button to the keyboard as well as the mouse. */
+function pressable(open: (() => void) | undefined) {
+  if (!open) return {};
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: open,
+    onKeyDown: (event: KeyPress) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    },
+  };
+}
+
+const WORKSPACE = (customerId: string) => `/client-workspace/${customerId}`;
+
+function statusLabel(one: DirectoryClient) {
+  if (one.status == null) return one.bankFile ? "not in bank file" : "Not measured";
+  return one.status === "DEVIATION" ? "Deviation" : one.status === "NEAR_EDGE" ? "Near edge"
+    : one.status === "DATA_DELAYED" ? "Data delayed" : "Within policy";
+}
+
+/** A client's AUM as the screen shows it: the directory's currency, or a bank-file client's own currencies, unconverted. */
+function clientAum(one: DirectoryClient, currency: string) {
+  if (one.bankFile) return one.bankFile.holdings.length === 0 ? "not in bank file" : one.bankFile.holdings.map((amount) => compact(amount.amount, amount.currency)).join(" · ");
+  return one.aum == null ? null : compact(one.aum, currency);
+}
+
+function signed(value: number | null, unit: "%" | " pp") {
+  return value == null ? null : `${value > 0 ? "+" : ""}${value.toFixed(1)}${unit}`;
+}
+
+/** The clients behind a figure, each opening their workspace. */
+function clientsTable(data: ClientDirectory, rows: DirectoryClient[], title: string): NonNullable<FigureDetail["table"]> {
+  const cur = data.currency;
+  const share = (one: DirectoryClient) => (one.aum == null || one.bankFile || data.kpis.totalAum <= 0 ? null : `${((one.aum / data.kpis.totalAum) * 100).toFixed(1)}%`);
+  return {
+    title,
+    columns: ["Client", "AUM", "Share", "Segment", "Mandate", "YTD", "vs Bench", "IPS status", "Next review"],
+    rows: rows.map((one) => [
+      one.name,
+      clientAum(one, cur),
+      share(one),
+      one.bankFile ? "not in bank file" : segmentLabel(one.segment),
+      one.bankFile ? "not in bank file" : one.mandate ?? "No model",
+      one.bankFile ? null : signed(one.yearToDate, "%"),
+      one.bankFile ? null : signed(one.versusBenchmark, " pp"),
+      statusLabel(one),
+      one.nextReviewOn ? formatDate(one.nextReviewOn) : null,
+    ]),
+    links: rows.map((one) => WORKSPACE(one.customerId)),
+  };
+}
+
+function byAum(rows: DirectoryClient[]) {
+  return [...rows].sort((a, b) => (b.aum ?? -1) - (a.aum ?? -1));
+}
+
+/** Opens a breakdown's slice — a segment, a region, a relationship manager — with the clients in it. */
+function useSlicePick(data: ClientDirectory, slices: DirectorySlice[], label: string, holds: (one: DirectoryClient, slice: DirectorySlice) => boolean) {
+  const panel = useBookPanel();
+  if (!panel) return undefined;
+  return (at: number) => {
+    const slice = slices[at];
+    if (!slice) return;
+    const cur = data.currency;
+    const clients = byAum(data.clients.filter((one) => holds(one, slice)));
+    panel({
+      name: slice.name,
+      figure: {
+        label,
+        value: compact(slice.aum, cur),
+        note: `The AUM of the ${slice.clients} client ${slice.clients === 1 ? "family" : "families"} in ${slice.name}, in ${cur}.${data.bankFileClients.length > 0 ? ` ${data.bankFileClients.join(", ")}: bank-file holdings are unconverted and not in the AUM.` : ""}`,
+        facts: [
+          { label: "Share of AUM", value: `${slice.sharePercent.toFixed(1)}%` },
+          { label: "Client families", value: String(slice.clients) },
+        ],
+        chart: clients.some((one) => one.aum != null && !one.bankFile) ? {
+          title: `Clients in ${slice.name}`, kind: "donut", format: "money", currency: cur,
+          data: { shape: "shares", items: clients.filter((one) => one.aum != null && !one.bankFile).map((one) => ({ name: one.name, value: one.aum! })) },
+        } : undefined,
+        table: clientsTable(data, clients, `Clients in ${slice.name}`),
+      },
+    });
+  };
+}
+
+function familiesFigure(data: ClientDirectory): FigureDetail {
+  const { kpis } = data;
+  const order = new Map(data.bySegment.map((one, at) => [one.key, at]));
+  const clients = [...data.clients].sort((a, b) => (order.get(a.segment ?? "") ?? 99) - (order.get(b.segment ?? "") ?? 99) || (b.aum ?? -1) - (a.aum ?? -1));
+  return {
+    label: "Key figure",
+    value: String(kpis.clients),
+    note: "Every client family under coverage, by the segment on their own record.",
+    facts: kpis.segments.map((one) => ({ label: segmentLabel(one.segment) ?? "No segment", value: String(one.clients) })),
+    chart: data.bySegment.length > 0 ? {
+      title: "Client families by segment", kind: "donut", format: "number",
+      data: { shape: "shares", items: data.bySegment.map((one) => ({ name: one.name, value: one.clients })) },
+    } : undefined,
+    table: clientsTable(data, clients, "Clients by segment"),
+  };
+}
+
+function aumFigure(data: ClientDirectory): FigureDetail {
+  const cur = data.currency;
+  const { kpis } = data;
+  return {
+    label: "Key figure",
+    value: compact(kpis.totalAum, cur),
+    note: `Every client family's AUM in ${cur}, added up.${data.bankFileClients.length > 0 ? ` ${data.bankFileClients.join(", ")}: bank-file holdings are unconverted and not in these figures.` : ""}`,
+    facts: [
+      { label: "Client families", value: String(kpis.clients) },
+      { label: "Average", value: kpis.averageAum == null ? "—" : compact(kpis.averageAum, cur) },
+      { label: "Median", value: kpis.medianAum == null ? "—" : compact(kpis.medianAum, cur) },
+    ],
+    chart: data.bySegment.length > 0 ? {
+      title: "AUM by segment", kind: "donut", format: "money", currency: cur,
+      data: { shape: "shares", items: data.bySegment.map((one) => ({ name: one.name, value: one.aum })) },
+    } : undefined,
+    table: { ...clientsTable(data, byAum(data.clients), "Clients by AUM"), total: ["All families", compact(kpis.totalAum, cur), null, null, null, null, null, null, null] },
+  };
+}
+
+function outperformingFigure(data: ClientDirectory): FigureDetail {
+  const { kpis } = data;
+  const ahead = data.clients.filter((one) => !one.bankFile && one.versusBenchmark != null && one.versusBenchmark > 0)
+    .sort((a, b) => (b.versusBenchmark ?? 0) - (a.versusBenchmark ?? 0));
+  return {
+    label: "Key figure",
+    value: `${kpis.outperforming} of ${kpis.measured}`,
+    note: "Client families whose year-to-date return, net of fees, is ahead of their mandate's benchmark, out of those with both on file.",
+    facts: [
+      { label: "Outperforming", value: String(kpis.outperforming) },
+      { label: "Measured", value: String(kpis.measured) },
+      { label: "Not measured", value: String(kpis.clients - kpis.measured) },
+    ],
+    chart: kpis.clients > 0 ? {
+      title: "Client families against their benchmark", kind: "donut", format: "number",
+      data: { shape: "shares", items: [
+        { name: "Outperforming", value: kpis.outperforming },
+        { name: "Not outperforming", value: kpis.measured - kpis.outperforming },
+        { name: "Not measured", value: kpis.clients - kpis.measured },
+      ].filter((one) => one.value > 0) },
+    } : undefined,
+    table: clientsTable(data, ahead, "Clients ahead of their benchmark"),
+  };
+}
+
+function reviewsFigure(data: ClientDirectory): FigureDetail {
+  const { kpis } = data;
+  const horizon = new Date();
+  horizon.setDate(horizon.getDate() + 30);
+  const last = horizon.toISOString().slice(0, 10);
+  const due = data.clients.filter((one) => one.nextReviewOn != null && one.nextReviewOn <= last)
+    .sort((a, b) => (a.nextReviewOn ?? "").localeCompare(b.nextReviewOn ?? ""));
+  return {
+    label: "Key figure",
+    value: String(kpis.reviewsOverdue + kpis.reviewsScheduled),
+    note: "IPS reviews overdue or falling in the next thirty days, as the server counts them. The clients below are those whose next review date falls on or before thirty days from today.",
+    facts: [
+      { label: "Overdue", value: String(kpis.reviewsOverdue) },
+      { label: "Scheduled", value: String(kpis.reviewsScheduled) },
+    ],
+    table: clientsTable(data, due, "Clients by next review"),
+  };
+}
+
+function ipsFigure(data: ClientDirectory): FigureDetail {
+  const { kpis } = data;
+  const watched = byAum(data.clients.filter((one) => one.status === "DEVIATION" || one.status === "NEAR_EDGE"))
+    .sort((a, b) => (a.status === b.status ? 0 : a.status === "DEVIATION" ? -1 : 1));
+  const counts = new Map<string, number>();
+  data.clients.forEach((one) => counts.set(statusLabel(one), (counts.get(statusLabel(one)) ?? 0) + 1));
+  return {
+    label: "Key figure",
+    value: `${kpis.deviations} · ${kpis.nearEdge}`,
+    note: "Client families outside their IPS band, and those near its edge — the server's reading of each.",
+    facts: [
+      { label: "Deviation", value: String(kpis.deviations) },
+      { label: "Near edge", value: String(kpis.nearEdge) },
+    ],
+    chart: counts.size > 0 ? {
+      title: "Client families by IPS status", kind: "donut", format: "number",
+      data: { shape: "shares", items: [...counts].map(([name, value]) => ({ name, value })) },
+    } : undefined,
+    table: clientsTable(data, watched, "Clients in deviation or near the edge"),
+  };
+}
+
+function pipelineFigure(data: ClientDirectory): FigureDetail {
+  const { kpis } = data;
+  return {
+    label: "Key figure",
+    value: String(kpis.prospects),
+    note: "Every open prospect at the firm, from Client Onboarding. The directory carries only these counts — there is no prospect list on this screen.",
+    facts: [
+      { label: "Open prospects", value: String(kpis.prospects) },
+      { label: "With an expected value", value: String(kpis.prospectsValued) },
+      { label: "Prospective value", value: kpis.prospectsValued > 0 ? compact(kpis.prospectValue, data.currency) : "—" },
+    ],
+  };
+}
+
+function mandateFigure(data: ClientDirectory, at: number): FigureDetail {
+  const cur = data.currency;
+  const mandate = data.byMandate[at]!;
+  const clients = byAum(data.clients.filter((one) => !one.bankFile && (one.mandate ?? "No model") === mandate.name));
+  return {
+    label: "By mandate",
+    value: compact(mandate.aum, cur),
+    note: `The AUM of the client families on ${mandate.name}, in ${cur}, with their average year-to-date return and excess over the benchmark.${data.bankFileClients.length > 0 ? ` ${data.bankFileClients.join(", ")}: no mandate in the bank file.` : ""}`,
+    facts: [
+      { label: "Client families", value: String(mandate.clients) },
+      { label: "Avg. YTD", value: signed(mandate.averageYearToDate, "%") ?? "—" },
+      { label: "Avg. excess YTD", value: signed(mandate.averageVersusBenchmark, " pp") ?? "—" },
+    ],
+    chart: clients.some((one) => one.aum != null) ? {
+      title: `Clients on ${mandate.name}`, kind: "donut", format: "money", currency: cur,
+      data: { shape: "shares", items: clients.filter((one) => one.aum != null).map((one) => ({ name: one.name, value: one.aum! })) },
+    } : undefined,
+    table: clientsTable(data, clients, `Clients on ${mandate.name}`),
+  };
+}
+
+/* ------------------------------------------------------------------------------------------------------------ */
 /* Small pieces                                                                                                  */
 
 /** A breakdown of the book's AUM drawn as the kind picked for its card. */
-function AumChart({ rows, currency, chart, label }: { rows: { name: string; aum: number }[]; currency: string; chart: CardChart; label: string }) {
+function AumChart({ rows, currency, chart, label, onPick }: {
+  rows: { name: string; aum: number }[];
+  currency: string;
+  chart: CardChart;
+  label: string;
+  onPick?: (index: number) => void;
+}) {
   return (
-    <KindChart kind={chart.kind!} format={(value) => compact(value, currency)} height={240} label={label}
+    <KindChart kind={chart.kind!} format={(value) => compact(value, currency)} height={240} label={label} onPick={onPick}
       data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: one.aum })) }} />
   );
 }
@@ -616,10 +869,14 @@ function Card({ title, lead, picker, children }: { title: string; lead?: string;
   );
 }
 
-function Kpi({ label, value, note }: { label: string; value: ReactNode; note: ReactNode }) {
-  if (useFigureRow()) return <FigureRow label={label} value={value} note={note} />;
+/** @param onOpen opens the side panel with what the figure is made of */
+function Kpi({ label, value, note, onOpen }: { label: string; value: ReactNode; note: ReactNode; onOpen?: () => void }) {
+  if (useFigureRow()) {
+    return <FigureRow value={value} note={note}
+      label={onOpen ? <button type="button" onClick={onOpen} className="cursor-pointer text-left uppercase hover:text-primary-700 hover:underline">{label}</button> : label} />;
+  }
   return (
-    <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
+    <div {...pressable(onOpen)} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", onOpen && "cursor-pointer transition-colors hover:bg-canvas")}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className="mt-1.5 text-2xl font-bold tabular-nums">{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>

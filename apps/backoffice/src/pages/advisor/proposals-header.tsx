@@ -41,8 +41,7 @@ export function ProposalsHeader(props: {
         <ListReportButton list={props.report.list} load={props.report.load} filters={props.report.filters} columns={props.report.columns} />
       ) : (
         <ReportMenu busy={props.exporting} problem={null} onPick={props.onExport}
-          excel="A sheet for each table: the moves, the plan, the holdings"
-          note="This proposal and the client's portfolio. Recorded in the audit log." />
+          excel="A sheet for each table: the moves, the plan, the holdings" />
       )}
     </QueueActions>
   );

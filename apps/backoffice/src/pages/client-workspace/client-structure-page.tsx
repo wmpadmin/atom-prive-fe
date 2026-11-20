@@ -8,7 +8,9 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { FileText } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { FileViewToggle, sumInUsd, type FileView } from "../../components/converted-usd";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { INK } from "../portfolios/asset-classes";
@@ -19,6 +21,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Entity & Ownership Structure, laid out the way the firm's own design draws it: the entities their wealth
@@ -57,7 +60,7 @@ export function ClientStructurePage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.bankFile ? "Entities, governance and documents as entered by staff; no value on this screen comes from the bank file" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -95,19 +98,22 @@ function Structure({ data, view }: { data: ClientStructure; view: ViewLayoutStat
 
 /** The figures across the top: entities, jurisdictions, beneficiaries, officers and what is due. */
 function Kpis({ data }: { data: ClientStructure }) {
+  const drill = useDrill();
   const { kpis } = data;
+  const open = (key: KpiKey, name: string) => (drill ? () => drill({ by: "figure", key: `kpi.${key}`, name, figure: kpiFigure(data, key) }) : undefined);
   return (
     <>
       <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-        <Kpi label="Legal entities" value={String(kpis.legalEntities)}
+        <Kpi label="Legal entities" value={String(kpis.legalEntities)} onOpen={open("entities", "Legal entities")}
           note={kpis.byType.map((one) => `${one.count} ${one.name}${one.count === 1 || one.name.endsWith("C") || one.name.endsWith("V") ? "" : "s"}`).join(" · ") || "None on file"} />
-        <Kpi label="Jurisdictions" value={kpis.jurisdictions.length === 0 ? "—" : kpis.jurisdictions.join(" · ")}
+        <Kpi label="Jurisdictions" value={kpis.jurisdictions.length === 0 ? "—" : kpis.jurisdictions.join(" · ")} onOpen={open("jurisdictions", "Jurisdictions")}
           note={data.jurisdictionNote ?? `${kpis.jurisdictions.length} ${kpis.jurisdictions.length === 1 ? "jurisdiction" : "jurisdictions"}`} />
         <Kpi label="Beneficiaries" value={`${kpis.beneficiaries - kpis.charities} ${kpis.beneficiaries - kpis.charities === 1 ? "individual" : "individuals"}`}
+          onOpen={open("beneficiaries", "Beneficiaries")}
           note={`${kpis.generations} ${kpis.generations === 1 ? "generation" : "generations"}${kpis.charities > 0 ? ` + ${kpis.charities} ${kpis.charities === 1 ? "charity" : "charities"}` : ""}`} />
-        <Kpi label="Trustees & directors" value={String(kpis.trusteesAndDirectors)}
+        <Kpi label="Trustees & directors" value={String(kpis.trusteesAndDirectors)} onOpen={open("officers", "Trustees & directors")}
           note={`${kpis.corporateTrustees} corporate ${kpis.corporateTrustees === 1 ? "trustee" : "trustees"} · ${kpis.directors} ${kpis.directors === 1 ? "director" : "directors"}`} />
-        <Kpi label="KYC / CRS refresh due" value={String(kpis.refreshDue.length)}
+        <Kpi label="KYC / CRS refresh due" value={String(kpis.refreshDue.length)} onOpen={open("refresh", "KYC / CRS refresh due")}
           tone={kpis.refreshDue.length > 0 ? "text-amber-700" : undefined}
           note={
             <>
@@ -125,6 +131,7 @@ function Kpis({ data }: { data: ClientStructure }) {
 type Show = "value" | "owned" | "tax";
 
 function OwnershipCard({ data }: { data: ClientStructure }) {
+  const drill = useDrill();
   const [view, setView] = useState<"tree" | "table">("tree");
   const [show, setShow] = useState<Show>("value");
   const cur = data.currency;
@@ -197,7 +204,10 @@ function OwnershipCard({ data }: { data: ClientStructure }) {
             <tbody className="divide-y divide-line">
               {data.register.map((one) => (
                 <tr key={one.id}>
-                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium" style={{ paddingLeft: `${1.25 + one.depth * 1.25}rem` }}>{one.name}</th>
+                  <th scope="row" className="py-2 pr-3 pl-5 text-left font-medium" style={{ paddingLeft: `${1.25 + one.depth * 1.25}rem` }}>
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "legalEntity", key: one.id, name: one.name })}>{one.name}</button>
+                  </th>
                   <td className="px-3 py-2 text-ink-soft">{typeName(one.type)}</td>
                   <td className="py-2 pr-5 pl-3 text-right tabular-nums">{figure(one, show, cur)}</td>
                 </tr>
@@ -423,8 +433,15 @@ function InterestCard({ data, chart }: { data: ClientStructure; chart: CardChart
                     <button type="button" className="text-left hover:text-primary-700 hover:underline"
                       onClick={() => drill?.({ by: "legalEntity", key: row.entityId, name: row.entity })}>{row.entity}</button>
                   </th>
-                  {(row.cells as (number | null)[]).map((cell, at) => (
-                    <td key={at} className="px-1 py-1">
+                  {(row.cells as (number | null)[]).map((cell, at) => {
+                    const beneficiary = data.beneficiaries[at];
+                    const openCell = cell != null && beneficiary && drill
+                      ? () => drill({ by: "figure", key: `${row.entityId}/${beneficiary.id}`, name: `${row.entity} · ${beneficiary.name}`, figure: interestFigure(data, row, at) })
+                      : undefined;
+                    return (
+                    <td key={at} className={cn("px-1 py-1", openCell && "cursor-pointer")} onClick={openCell}
+                      {...(openCell ? { role: "button", tabIndex: 0, title: `Open ${row.entity} · ${beneficiary!.name}`,
+                        onKeyDown: (event: KeyboardEvent<HTMLTableCellElement>) => { if (event.key === "Enter") openCell(); } } : {})}>
                       {/* A tint of the theme's blue, from faint for the smallest share to a third for the largest, under
                           the page's own ink: a heat map read as cells, never a solid block that looks like a button. */}
                       <span className="flex h-9 w-full items-center justify-center rounded-md text-xs font-semibold text-ink tabular-nums"
@@ -434,14 +451,18 @@ function InterestCard({ data, chart }: { data: ClientStructure; chart: CardChart
                         {cell == null ? <span className="text-ink-muted">—</span> : compact(cell, cur)}
                       </span>
                     </td>
-                  ))}
+                    );
+                  })}
                   <td className="py-1 pr-5 pl-3 text-right font-semibold tabular-nums">{compact(row.value, cur)}</td>
                 </tr>
               ))}
               <tr className="border-t border-line font-semibold">
                 <th scope="row" className="py-2 pr-3 pl-5 text-left">Total</th>
                 {data.beneficiaries.map((one) => (
-                  <td key={one.id} className="px-1 py-2 text-center tabular-nums">{compact(one.value, cur)}</td>
+                  <td key={one.id} className="px-1 py-2 text-center tabular-nums">
+                    <button type="button" className="tabular-nums hover:text-primary-700 hover:underline"
+                      onClick={() => drill?.({ by: "beneficiary", key: one.id, name: one.name })}>{compact(one.value, cur)}</button>
+                  </td>
                 ))}
                 <td className="py-2 pr-5 pl-3 text-right tabular-nums">
                   {compact(data.interests.reduce((sum, row) => sum + row.value, 0), cur)}
@@ -486,6 +507,8 @@ function FileBeneficiaries({ data }: { data: ClientStructure }) {
 function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
   const drill = useDrill();
   const names = [...new Set(data.assetMix.flatMap((row) => row.slices.map((one) => one.name)))];
+  // Each class's own key, for the key below; what is owned outright is not in the holdings book, so it stays a label.
+  const classOf = (name: string) => data.assetMix.flatMap((row) => row.slices).find((one) => one.name === name && one.key !== "OWNED_OUTRIGHT")?.key;
   const colour = (name: string) => INK[names.indexOf(name) % INK.length];
   return (
     <Card title="Asset Mix by Entity" lead="% of each entity's value" picker={!data.bankFile && data.assetMix.length > 0 && chart.picker}>
@@ -499,7 +522,9 @@ function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
             : { shape: "series", categories: data.assetMix.map((row) => row.entity), series: names.map((name) => ({
                 name, values: data.assetMix.map((row) => row.slices.find((one) => one.name === name)?.sharePercent ?? null),
               })) }}
-          onPick={chart.kind === "heatmap" ? undefined : (at) => { const row = data.assetMix[at]; if (row) drill?.({ by: "legalEntity", key: row.entityId, name: row.entity }); }} />
+          onPick={chart.kind === "heatmap"
+            ? (drill ? (at) => { const name = names[at]; if (name) drill({ by: "figure", key: `mix.${name}`, name, figure: mixFigure(data, name) }); } : undefined)
+            : (at) => { const row = data.assetMix[at]; if (row) drill?.({ by: "legalEntity", key: row.entityId, name: row.entity }); }} />
       ) : (
         <>
           <ul className="space-y-2.5">
@@ -508,21 +533,33 @@ function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
                 {/* Wrapped rather than cut: an entity's name is how it is told apart from the next. */}
                 <button type="button" className="text-left leading-snug break-words hover:text-primary-700 hover:underline"
                   onClick={() => drill?.({ by: "legalEntity", key: row.entityId, name: row.entity })}>{row.entity}</button>
-                <span className="flex h-3 overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
+                <button type="button" className="flex h-3 cursor-pointer overflow-hidden rounded-sm bg-slate-100" aria-label={`Open ${row.entity}`}
+                  onClick={() => drill?.({ by: "legalEntity", key: row.entityId, name: row.entity })}>
                   {row.slices.map((one) => (
                     <span key={one.key} title={`${one.name} ${one.sharePercent}%`} style={{ width: `${one.sharePercent}%`, background: colour(one.name) }} />
                   ))}
-                </span>
+                </button>
               </li>
             ))}
           </ul>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-            {names.map((name) => (
-              <li key={name} className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-xs" style={{ background: colour(name) }} aria-hidden="true" />
-                {name}
-              </li>
-            ))}
+            {names.map((name) => {
+              const key = classOf(name);
+              return key ? (
+                <li key={name}>
+                  <button type="button" className="flex items-center gap-1.5 hover:text-primary-700 hover:underline"
+                    onClick={() => drill?.({ by: "class", key, name })}>
+                    <span className="size-2.5 rounded-xs" style={{ background: colour(name) }} aria-hidden="true" />
+                    {name}
+                  </button>
+                </li>
+              ) : (
+                <li key={name} className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-xs" style={{ background: colour(name) }} aria-hidden="true" />
+                  {name}
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -531,41 +568,92 @@ function MixCard({ data, chart }: { data: ClientStructure; chart: CardChart }) {
 }
 
 function GovernanceCard({ data }: { data: ClientStructure }) {
+  const drill = useDrill();
+  // The calendar names an entity, not its id: the register's own row of that name, where there is one.
+  const entityOf = (name: string | null) => (name == null ? undefined : data.register.find((one) => one.name === name));
   return (
     <Card title="Governance Calendar & Documents"
       action={data.bankFile && staffEntered(data) && <StaffEntered />}>
       {data.bankFile && data.governance.length === 0 && data.documents.length === 0 ? <FileBlock /> : (<>
       {data.governance.length === 0 ? <Empty>Nothing is on the governance calendar.</Empty> : (
-        <ul className="divide-y divide-line">
-          {data.governance.map((one, at) => (
-            <li key={`${one.dueOn}-${at}`} className="flex items-center gap-4 py-2.5">
-              <span className="w-24 shrink-0 text-xs text-ink-muted">{formatDate(one.dueOn)}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{one.entity ?? "Client"}</p>
-                <p className="text-xs text-ink-muted">{one.title}</p>
-              </div>
-              <span className={cn("rounded-md px-2 py-0.5 text-2xs font-semibold",
-                one.status === "DUE" ? "bg-amber-50 text-amber-700" : one.status === "DONE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-ink-soft")}>
-                {one.status === "DUE" ? "Due" : one.status === "DONE" ? "Done" : "Scheduled"}
-              </span>
-            </li>
-          ))}
-        </ul>
+        // Fixed widths, the same on every row, so the entity, the task and its status line up in columns.
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-32" />
+              <col className="w-[30%]" />
+              <col />
+              <col className="w-28" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3">Due</th>
+                <th scope="col" className="py-2 pr-3">Entity</th>
+                <th scope="col" className="py-2 pr-3">What</th>
+                <th scope="col" className="py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.governance.map((one, at) => (
+                <tr key={`${one.dueOn}-${at}`}>
+                  <td className="py-2.5 pr-3 whitespace-nowrap text-ink-muted tabular-nums">{formatDate(one.dueOn)}</td>
+                  <td className="py-2.5 pr-3 font-semibold break-words">
+                    {(() => {
+                      const entity = entityOf(one.entity);
+                      return entity ? (
+                        <button type="button" className="text-left break-words hover:text-primary-700 hover:underline"
+                          onClick={() => drill?.({ by: "legalEntity", key: entity.id, name: entity.name })}>{entity.name}</button>
+                      ) : one.entity ?? "Client";
+                    })()}
+                  </td>
+                  <td className="py-2.5 pr-3 break-words text-ink-soft">{one.title}</td>
+                  <td className="py-2.5">
+                    <span className={cn("inline-block rounded-md px-2 py-0.5 text-2xs font-semibold",
+                      one.status === "DUE" ? "bg-amber-50 text-amber-700" : one.status === "DONE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-ink-soft")}>
+                      {one.status === "DUE" ? "Due" : one.status === "DONE" ? "Done" : "Scheduled"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-      <p className="mt-4 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Constitutional documents</p>
+      <p className="mt-5 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Constitutional documents</p>
       {data.documents.length === 0 ? <Empty>No constitutional document is recorded.</Empty> : (
-        <ul className="mt-1 divide-y divide-line">
-          {data.documents.map((one, at) => (
-            <li key={`${one.title}-${at}`} className="flex items-center gap-3 py-2 text-sm">
-              <FileText className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{one.title}</span>
-              <span className="text-xs text-ink-muted">
-                {[one.executedOn && `Executed ${year(one.executedOn)}`, one.amendedOn && `updated ${formatDate(one.amendedOn)}`, one.note]
-                  .filter(Boolean).join(" · ")}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="mt-1 w-full min-w-[40rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[40%]" />
+              <col className="w-28" />
+              <col className="w-32" />
+              <col />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                <th scope="col" className="py-2 pr-3">Document</th>
+                <th scope="col" className="py-2 pr-3">Executed</th>
+                <th scope="col" className="py-2 pr-3">Updated</th>
+                <th scope="col" className="py-2">Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {data.documents.map((one, at) => (
+                <tr key={`${one.title}-${at}`}>
+                  <td className="py-2 pr-3">
+                    <span className="flex items-center gap-2">
+                      <FileText className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+                      <span className="min-w-0 break-words">{one.title}</span>
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 text-ink-muted tabular-nums">{one.executedOn ? year(one.executedOn) : "—"}</td>
+                  <td className="py-2 pr-3 whitespace-nowrap text-ink-muted tabular-nums">{one.amendedOn ? formatDate(one.amendedOn) : "—"}</td>
+                  <td className="py-2 break-words text-ink-muted">{one.note ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <p className="mt-2 text-3xs text-ink-muted italic">Dates and status only; the papers themselves are kept with the client's documents.</p>
       </>)}
@@ -580,6 +668,9 @@ function GovernanceCard({ data }: { data: ClientStructure }) {
 const OWN_LOOK: CardChart = { kind: null, own: true, picker: null };
 
 function FileContainers({ name, accounts, data }: { name: string; accounts: StructureFileAccount[]; data: ClientStructure }) {
+  // His accounts' holdings either added up in dollars at the latest FX rates, or summed as the bank sent them.
+  const [view, setView] = useState<FileView>("converted");
+  const conv = view === "converted" ? data.converted : null;
   return (
     <>
       {staffEntered(data) ? (
@@ -594,7 +685,10 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
           ))}
         </div>
       )}
-      <Card title="Ownership Structure" lead="Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them">
+      <Card title="Ownership Structure" lead={conv
+        ? `Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${formatDate(conv.ratesOn)}` : ""}`
+        : "Settlors → trusts & personal holdings → companies, SPVs and accounts · his accounts as the bank's files state them"}
+        action={data.converted && <FileViewToggle value={view} onChange={setView} />}>
         <div className="overflow-x-auto">
           <div className="flex min-w-[44rem] items-center">
             <div className="w-52 shrink-0 rounded-xl border-2 border-ink p-3">
@@ -614,7 +708,21 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
                       <p className="text-2xs text-ink-muted">Account in {one.accountCurrency}{one.asOf && ` · as of ${formatDate(one.asOf)}`}</p>
                     </div>
                     <div className="text-right text-xs font-semibold tabular-nums">
-                      {one.holdings.length === 0 ? <NotInFile /> : one.holdings.map((amount) => (
+                      {/* Named in the bank's file (its account list or a movement) with no holdings stated for it. */}
+                      {one.holdings.length === 0 ? (
+                        <Marker>in the bank file · no holdings stated{one.movements > 0 ? ` · ${one.movements} movement${one.movements === 1 ? "" : "s"}` : ""}</Marker>
+                      ) : conv ? (() => {
+                        const sum = sumInUsd(one.holdings.map((amount) => ({ amount: amount.amount, currency: amount.currency })), conv);
+                        return (
+                          <>
+                            <span className="block">{exact(sum.total, conv.currency)}</span>
+                            {one.holdings.filter((amount) => amount.currency !== conv.currency || one.holdings.length > 1).map((amount) => (
+                              <span key={amount.currency} className="block text-2xs font-normal text-ink-muted">{exact(amount.amount, amount.currency)}</span>
+                            ))}
+                            {sum.missing.length > 0 && <span className="block text-2xs font-normal text-amber-700">{sum.missing.join(", ")} left out: no FX rate</span>}
+                          </>
+                        );
+                      })() : one.holdings.map((amount) => (
                         <span key={amount.currency} className="block">{exact(amount.amount, amount.currency)}</span>
                       ))}
                     </div>
@@ -625,7 +733,8 @@ function FileContainers({ name, accounts, data }: { name: string; accounts: Stru
           </div>
         </div>
         <p className="mt-3 text-3xs text-ink-muted italic">
-          Each account's holdings summed in the currency the bank wrote them in, as sent; masked numbers as the bank sent them.
+          {conv ? `Each account's holdings added up in ${conv.currency} at the latest FX rates, the bank's own amounts beneath`
+            : "Each account's holdings summed in the currency the bank wrote them in, as sent"}; masked numbers as the bank sent them. An account the file names (in its account list or a movement) without stating holdings for it says so.
         </p>
       </Card>
       <RegisterCard data={data} />
@@ -685,10 +794,119 @@ function structureFigures(data: ClientStructure): Figures {
   };
 }
 
+type KpiKey = "entities" | "jurisdictions" | "beneficiaries" | "officers" | "refresh";
+
+/**
+ * The entities, people or dates behind a key figure, from the register and the calendar on this screen. A bank-file
+ * client's entities are staff's record and never valued, so no value is shown for them.
+ */
+function kpiFigure(data: ClientStructure, key: KpiKey): FigureDetail {
+  const { kpis } = data;
+  const valued = !data.bankFile;
+  const cur = data.currency;
+  const count = (items: string[]) => {
+    const counts = new Map<string, number>();
+    items.forEach((one) => counts.set(one, (counts.get(one) ?? 0) + 1));
+    return [...counts.entries()].map(([name, value]) => ({ name, value }));
+  };
+  switch (key) {
+    case "entities":
+      return { label: "Structure", value: String(kpis.legalEntities),
+        note: "Every entity on file for this family, as the register holds them.",
+        facts: kpis.byType.map((one) => ({ label: one.name, value: String(one.count) })),
+        chart: kpis.byType.length === 0 ? undefined : { title: "Entities by type", kind: "donut", format: "number",
+          data: { shape: "shares", items: kpis.byType.map((one) => ({ name: one.name, value: one.count })) } },
+        table: data.register.length === 0 ? undefined : { columns: ["Entity", "Type", "Jurisdiction", "Parent", ...(valued ? ["Value"] : [])],
+          rows: data.register.map((one) => [one.name, typeName(one.type), one.jurisdiction, one.parent ?? "Settlors", ...(valued ? [compact(one.value, cur)] : [])]) },
+        link: { to: "structure", label: "Open Entity Structure" } };
+    case "jurisdictions": {
+      const byPlace = count(data.register.map((one) => one.jurisdiction));
+      return { label: "Structure", value: String(kpis.jurisdictions.length),
+        note: data.jurisdictionNote ?? "The jurisdictions the family's entities are set up in.",
+        facts: byPlace.map((one) => ({ label: one.name, value: `${one.value} ${one.value === 1 ? "entity" : "entities"}` })),
+        chart: byPlace.length === 0 ? undefined : { title: "Entities by jurisdiction", kind: "donut", format: "number", data: { shape: "shares", items: byPlace } },
+        table: data.register.length === 0 ? undefined : { columns: ["Jurisdiction", "Entity", "Type", ...(valued ? ["Value"] : [])],
+          rows: [...data.register].sort((a, b) => a.jurisdiction.localeCompare(b.jurisdiction))
+            .map((one) => [one.jurisdiction, one.name, typeName(one.type), ...(valued ? [compact(one.value, cur)] : [])]) },
+        link: { to: "structure", label: "Open Entity Structure" } };
+    }
+    case "beneficiaries":
+      return { label: "Beneficiaries", value: String(kpis.beneficiaries),
+        note: `${kpis.beneficiaries - kpis.charities} individuals across ${kpis.generations} ${kpis.generations === 1 ? "generation" : "generations"}${kpis.charities > 0 ? `, and ${kpis.charities} ${kpis.charities === 1 ? "charity" : "charities"}` : ""}, as recorded.`,
+        chart: !valued || data.beneficiaries.length === 0 ? undefined : { title: "Economic interest by beneficiary", kind: "donut", format: "money", currency: cur,
+          data: { shape: "shares", items: data.beneficiaries.map((one) => ({ name: one.name, value: one.value })) } },
+        table: data.beneficiaries.length === 0 ? undefined : { columns: ["Beneficiary", "Generation", "Kind", ...(valued ? ["Interest", "Share"] : [])],
+          rows: data.beneficiaries.map((one) => [one.name, one.generation, one.kind === "CHARITY" ? "Charity" : "Person",
+            ...(valued ? [compact(one.value, cur), `${one.sharePercent.toFixed(1)}%`] : [])]) },
+        link: { to: "structure", label: "Open Entity Structure" } };
+    case "officers": {
+      const rows = data.register.flatMap((entity) => entity.officers.map((one) => [one.name, titleCase(one.role), one.corporate ? "Corporate" : "Individual", entity.name]));
+      return { label: "Governance", value: String(kpis.trusteesAndDirectors),
+        note: "The trustees and directors on the family's entities, as the register records them.",
+        facts: [{ label: "Corporate trustees", value: String(kpis.corporateTrustees) }, { label: "Directors", value: String(kpis.directors) }],
+        table: rows.length === 0 ? undefined : { columns: ["Name", "Role", "Kind", "Entity"], rows },
+        link: { to: "structure", label: "Open Entity Structure" } };
+    }
+    case "refresh":
+      return { label: "Governance", value: String(kpis.refreshDue.length),
+        note: "KYC and CRS refreshes coming due on the governance calendar.",
+        table: kpis.refreshDue.length === 0 ? undefined : { columns: ["Due", "Entity", "What", "Status"],
+          rows: kpis.refreshDue.map((one) => [formatDate(one.dueOn), one.entity ?? "Client", one.title, titleCase(one.status)]) },
+        link: { to: "structure", label: "Open Entity Structure" } };
+  }
+}
+
+/** One cell of the interest matrix: a beneficiary's interest in one entity, and what that entity holds. */
+function interestFigure(data: ClientStructure, row: ClientStructure["interests"][number], at: number): FigureDetail {
+  const cur = data.currency;
+  const beneficiary = data.beneficiaries[at]!;
+  const cell = (row.cells as (number | null)[])[at] ?? 0;
+  const mix = data.assetMix.find((one) => one.entityId === row.entityId);
+  return {
+    label: "Beneficial interest",
+    value: compact(cell, cur),
+    note: `${beneficiary.name}'s economic interest in ${row.entity}, as recorded.`,
+    facts: [
+      { label: "Share of the entity", value: row.value === 0 ? "—" : `${((cell / row.value) * 100).toFixed(1)}%` },
+      { label: "Entity's value", value: compact(row.value, cur) },
+      { label: `${beneficiary.name}, all entities`, value: compact(beneficiary.value, cur) },
+      { label: "Share of every interest", value: `${beneficiary.sharePercent.toFixed(1)}%` },
+    ],
+    chart: !mix || mix.slices.length === 0 ? undefined : { title: `${row.entity} by asset class`, kind: "donut", format: "money", currency: cur,
+      data: { shape: "shares", items: mix.slices.map((one) => ({ name: one.name, value: one.value })) } },
+    table: !mix || mix.slices.length === 0 ? undefined : { title: `What ${row.entity} holds`, columns: ["Asset class", "Value", "Share"],
+      rows: mix.slices.map((one) => [one.name, compact(one.value, cur), `${one.sharePercent.toFixed(1)}%`]) },
+  };
+}
+
+/** One asset class across the family's entities, as the mix holds it. */
+function mixFigure(data: ClientStructure, name: string): FigureDetail {
+  const cur = data.currency;
+  const rows = data.assetMix.flatMap((row) => {
+    const slice = row.slices.find((one) => one.name === name);
+    return slice ? [{ entity: row.entity, slice }] : [];
+  });
+  return {
+    label: "Asset mix by entity",
+    value: compact(rows.reduce((sum, one) => sum + one.slice.value, 0), cur),
+    note: `${name} in each entity: its value and its share of that entity's value.`,
+    facts: [{ label: "Entities holding it", value: `${rows.length} of ${data.assetMix.length}` }],
+    chart: rows.length === 0 ? undefined : { title: `${name}, % of each entity`, kind: "horizontal-bar", format: "percent",
+      data: { shape: "series", categories: rows.map((one) => one.entity), series: [{ name, values: rows.map((one) => one.slice.sharePercent) }] } },
+    table: rows.length === 0 ? undefined : { columns: ["Entity", "Value", "% of entity"],
+      rows: rows.map((one) => [one.entity, compact(one.slice.value, cur), `${one.slice.sharePercent.toFixed(1)}%`]) },
+  };
+}
+
+function titleCase(text: string) {
+  return text.toLowerCase().replace(/_/g, " ").replace(/^\w/, (first) => first.toUpperCase());
+}
+
 /** @param picker the chart type switcher, beside the card's own action, for a card that draws a chart */
 function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -696,17 +914,19 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }
 
-function Kpi({ label, value, note, tone }: { label: string; value: ReactNode; note: ReactNode; tone?: string }) {
+function Kpi({ label, value, note, tone, onOpen }: { label: string; value: ReactNode; note: ReactNode; tone?: string; onOpen?: () => void }) {
   if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
-    <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
+    <div className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", onOpen && "cursor-pointer hover:border-primary-300")}
+      {...(onOpen ? { role: "button", tabIndex: 0, title: `Open ${label}`, onClick: onOpen,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter") onOpen(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("mt-1.5 truncate text-2xl font-bold", tone)}>{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>
@@ -730,6 +950,15 @@ function Toggle<T extends string>({ label, value, onChange, options }: {
         </button>
       ))}
     </div>
+  );
+}
+
+/** A short note in the same dashed tag as "not in bank file", for what the file does say. */
+function Marker({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-3xs font-medium whitespace-nowrap text-ink-muted">
+      {children}
+    </span>
   );
 }
 

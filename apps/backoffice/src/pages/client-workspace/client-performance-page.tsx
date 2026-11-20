@@ -5,9 +5,13 @@ import {
   type ClientPerformance,
   type PerformanceGrowth,
   type PerformanceMonth,
+  type PerformanceFileFees,
+  type PerformanceFee,
+  type PerformanceMeasure,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
@@ -18,6 +22,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Performance & Attribution, laid out the way the firm's own design draws it. Every figure is worked out on
@@ -51,7 +56,7 @@ export function ClientPerformancePage() {
       {data.bankFile ? <FileClient data={data} /> : <Board data={data} view={view} />}
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.fileFees ? `Fees in ${data.fileFees.currency} at FX rates${data.fileFees.ratesOn ? ` of ${formatDate(data.fileFees.ratesOn)}` : ""}; returns not in bank file` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -82,7 +87,8 @@ function FileClient({ data }: { data: ClientPerformance }) {
       <Card title="Monthly Returns"><FileBlock /></Card>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Risk-adjusted Statistics"><FileBlock /></Card>
-        {data.fees ? <FileFees fees={data.fees} /> : <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>}
+        {data.fileFees && (data.fileFees.rates.length > 0 || data.fileFees.paid.length > 0) ? <FileFeesCard fees={data.fileFees} />
+          : data.fees ? <FileFees fees={data.fees} /> : <Card title="Fee Impact · YTD" lead="Return drag by fee type"><FileBlock /></Card>}
       </div>
     </>
   );
@@ -267,30 +273,38 @@ function Board({ data, view }: { data: ClientPerformance; view: ViewLayoutState<
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function Kpis({ data, weighting, basis }: { data: ClientPerformance; weighting: "twr" | "mwr"; basis: "net" | "gross" }) {
+  const drill = useDrill();
   const k = data.kpis;
   if (!k) return null;
   const ytd = basis === "gross" ? k.ytdGross : k.ytd;
   const window = k.window ?? "3Y";
+  const year = data.asOf.slice(0, 4);
+  const openYear = drill ? () => drill({ by: "period", key: year, name: year }) : undefined;
+  const openKpi = (key: KpiKey, name: string) => (drill ? () => drill({ by: "figure", key: `kpi.${key}`, name, figure: kpiFigure(data, key) }) : undefined);
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      <Kpi label={`Return · YTD (TWR${basis === "gross" ? ", gross" : ""})`} value={pct(ytd)} tone={toneOf(ytd)}
+      <Kpi label={`Return · YTD (TWR${basis === "gross" ? ", gross" : ""})`} value={pct(ytd)} tone={toneOf(ytd)} onOpen={openYear}
         note={k.ytdBenchmark == null ? "No benchmark on the mandate" : <>Benchmark {pct(k.ytdBenchmark)}{k.ytdExcess != null && <span className={toneOf(k.ytdExcess)}> · {pp(k.ytdExcess)}</span>}</>} />
       <Kpi label="Money-weighted · YTD" value={pct(k.ytdMoneyWeighted)} tone={toneOf(k.ytdMoneyWeighted)}
-        emphasised={weighting === "mwr"}
+        emphasised={weighting === "mwr"} onOpen={openYear}
         note={k.ytdMoneyWeighted == null ? "Nothing to solve over this year" : `IRR incl. timing of ${money(k.netFlowsYtd ?? 0, data.currency)} net flows`} />
       <Kpi label={k.itdAnnualised ? "Annualised · ITD" : "Since inception · ITD"} value={pct(k.itd)} tone={toneOf(k.itd)}
+        onOpen={openKpi("itd", k.itdAnnualised ? "Annualised return · ITD" : "Return since inception")}
         note={<>{k.itdAnnualised ? null : "Under a year: not annualised · "}{k.itdBenchmark != null && `Benchmark ${pct(k.itdBenchmark)}`}{k.since && ` · since ${monthYear(k.since)}`}</>} />
-      <Kpi label={`Sharpe ratio · ${window}`} value={num(k.sharpe)}
+      <Kpi label={`Sharpe ratio · ${window}`} value={num(k.sharpe)} onOpen={openKpi("sharpe", `Sharpe ratio · ${window}`)}
         note={k.sharpe == null ? (k.riskWhyNot ?? "—") : <>Benchmark {num(k.sharpeBenchmark)} · Sortino {num(k.sortino)}</>} />
-      <Kpi label={`Information ratio · ${window}`} value={num(k.informationRatio)}
+      <Kpi label={`Information ratio · ${window}`} value={num(k.informationRatio)} onOpen={openKpi("information", `Information ratio · ${window}`)}
         note={k.informationRatio == null ? (k.riskWhyNot ?? "—") : `Tracking error ${pct(k.trackingError, false)}`} />
       <Kpi label="Max drawdown" value={pct(k.maxDrawdown)} tone={k.maxDrawdown != null && k.maxDrawdown < 0 ? "text-red-700" : undefined}
+        onOpen={openKpi("drawdown", "Max drawdown")}
         note={k.drawdownPeak && k.drawdownTrough
           ? `${shortMonth(k.drawdownPeak, k.drawdownTrough)}–${monthYear(k.drawdownTrough)} · ${k.recoveredOn ? `recovered in ${monthsBetween(k.drawdownTrough, k.recoveredOn)} months` : "not yet recovered"}`
           : "No fall on month-end values"} />
       <Kpi label="Up / down capture" value={k.upCapture == null ? "—" : `${k.upCapture.toFixed(0)}% / ${k.downCapture == null ? "—" : `${k.downCapture.toFixed(0)}%`}`}
+        onOpen={openKpi("capture", "Up / down capture")}
         note={k.upCapture == null ? (k.riskWhyNot ?? "—") : `vs policy benchmark, ${window} monthly`} />
       <Kpi label="Value added · ITD" value={k.valueAdded == null ? "—" : signedMoney(k.valueAdded, data.currency)} tone={toneOf(k.valueAdded)}
+        onOpen={openKpi("value", "Value added · ITD")}
         note={k.valueAdded == null ? "No benchmark history on the mandate" : "vs benchmark-equivalent after flows"} />
     </FigureStrip>
   );
@@ -299,6 +313,9 @@ function Kpis({ data, weighting, basis }: { data: ClientPerformance; weighting: 
 function BenchmarkCard({ data, chart }: { data: ClientPerformance; chart: CardChart }) {
   const b = data.benchmark;
   const toMonth = useMonthDrill();
+  const drill = useDrill();
+  const year = data.asOf.slice(0, 4);
+  const openYear = drill ? () => drill({ by: "period", key: year, name: year }) : undefined;
   const option = useMemo(() => {
     const colours = ink();
     const line = b?.ytdLine ?? [];
@@ -328,9 +345,9 @@ function BenchmarkCard({ data, chart }: { data: ClientPerformance; chart: CardCh
         <div className="rounded-xl border border-line p-4">
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Live result · YTD {data.asOf.slice(0, 4)}</p>
           <div className="mt-1 grid grid-cols-3 gap-2">
-            <Small label="Portfolio" value={pct(b?.ytdPortfolio)} tone={toneOf(b?.ytdPortfolio)} />
-            <Small label="Benchmark" value={pct(b?.ytdBenchmark)} />
-            <Small label="Excess" value={b?.ytdExcess == null ? "—" : pp(b.ytdExcess)} tone={toneOf(b?.ytdExcess)} />
+            <Small label="Portfolio" value={pct(b?.ytdPortfolio)} tone={toneOf(b?.ytdPortfolio)} onOpen={openYear} />
+            <Small label="Benchmark" value={pct(b?.ytdBenchmark)} onOpen={openYear} />
+            <Small label="Excess" value={b?.ytdExcess == null ? "—" : pp(b.ytdExcess)} tone={toneOf(b?.ytdExcess)} onOpen={openYear} />
           </div>
           {(b?.ytdLine.length ?? 0) < 2 ? <Empty>Not enough months this year to draw.</Empty> : chart.own ? (
             <Chart option={option} height={170} label="This year's return, month by month, against the benchmark"
@@ -525,6 +542,7 @@ function BrinsonCard({ data, chart }: { data: ClientPerformance; chart: CardChar
     interaction: sum.interaction + row.interactionBp, total: sum.total + row.totalBp,
   }), { allocation: 0, selection: 0, interaction: 0, total: 0 });
   const excess = period.portfolio - period.benchmark;
+  const openEffect = (key: string, name: string) => (drill ? () => drill({ by: "effect", key, name }) : undefined);
   return (
     <Card title={`Brinson-Fachler Attribution · ${period.label}`}
       lead="Average weights · effects in basis points · investable assets, owned outright excluded"
@@ -566,10 +584,10 @@ function BrinsonCard({ data, chart }: { data: ClientPerformance; chart: CardChar
                 <td className="px-2 py-2 text-right tabular-nums">{row.benchmarkWeight.toFixed(1)}%</td>
                 <td className="px-2 py-2 text-right tabular-nums">{signed(row.portfolioReturn)}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{signed(row.benchmarkReturn)}</td>
-                <Bp value={row.allocationBp} />
-                <Bp value={row.selectionBp} />
-                <Bp value={row.interactionBp} />
-                <Bp value={row.totalBp} last />
+                <Bp value={row.allocationBp} onOpen={openEffect("allocation", "Allocation")} />
+                <Bp value={row.selectionBp} onOpen={openEffect("selection", "Selection")} />
+                <Bp value={row.interactionBp} onOpen={openEffect("interaction", "Interaction")} />
+                <Bp value={row.totalBp} last onOpen={openEffect("total", "All effects")} />
               </tr>
             ))}
           </tbody>
@@ -580,10 +598,10 @@ function BrinsonCard({ data, chart }: { data: ClientPerformance; chart: CardChar
               <td className="px-2 py-2 text-right tabular-nums">100.0%</td>
               <td className="px-2 py-2 text-right tabular-nums">{signed(period.portfolio)}</td>
               <td className="px-2 py-2 text-right tabular-nums">{signed(period.benchmark)}</td>
-              <Bp value={totals.allocation} />
-              <Bp value={totals.selection} />
-              <Bp value={totals.interaction} />
-              <Bp value={totals.total} last />
+              <Bp value={totals.allocation} onOpen={openEffect("allocation", "Allocation")} />
+              <Bp value={totals.selection} onOpen={openEffect("selection", "Selection")} />
+              <Bp value={totals.interaction} onOpen={openEffect("interaction", "Interaction")} />
+              <Bp value={totals.total} last onOpen={openEffect("total", "All effects")} />
             </tr>
           </tfoot>
         </table>
@@ -597,10 +615,13 @@ function BrinsonCard({ data, chart }: { data: ClientPerformance; chart: CardChar
   );
 }
 
-function Bp({ value, last }: { value: number; last?: boolean }) {
+function Bp({ value, last, onOpen }: { value: number; last?: boolean; onOpen?: () => void }) {
+  const shown = <>{value > 0 ? "+" : ""}{value}</>;
   return (
     <td className={cn("py-2 text-right tabular-nums", last ? "pr-5 pl-2 font-semibold" : "px-2", value > 0 ? "text-emerald-700" : value < 0 ? "text-red-700" : "")}>
-      {value > 0 ? "+" : ""}{value}
+      {onOpen ? (
+        <button type="button" className="block w-full rounded-sm text-right hover:ring-2 hover:ring-primary-300" onClick={onOpen}>{shown}</button>
+      ) : shown}
     </td>
   );
 }
@@ -621,7 +642,8 @@ function ClassCard({ data, chart }: { data: ClientPerformance; chart: CardChart 
       {data.byClass.length === 0 ? <Empty>Nothing written down to measure yet.</Empty> : chart.kind === "heatmap" ? (
         // Each class a row, each period a column, as the table has them.
         <KindChart kind="heatmap" format={percent} height={60 + classes.length * 34} label="Each asset class's return over each period"
-          data={{ shape: "series", categories: PERIODS, series: classes.map((row) => ({ name: row.name, values: row.figures })) }} />
+          data={{ shape: "series", categories: PERIODS, series: classes.map((row) => ({ name: row.name, values: row.figures })) }}
+          onPick={drill ? (at) => { if (PERIODS[at]) drill({ by: "figure", key: `period.${PERIODS[at]}`, name: `Returns · ${PERIODS[at]}`, figure: periodFigure(data, at) }); } : undefined} />
       ) : chart.kind === "bar" ? (
         <KindChart kind="bar" format={percent} height={240} label="Each asset class's return this year"
           data={{ shape: "series", categories: classes.map((row) => row.name), series: [{ name: "YTD", values: classes.map((row) => row.figures[ytd] ?? null) }] }}
@@ -646,12 +668,21 @@ function ClassCard({ data, chart }: { data: ClientPerformance; chart: CardChart 
                     )}
                   </th>
                   <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{row.value == null ? "—" : money(row.value, data.currency)}</td>
-                  {row.figures.map((figure, at) => (
-                    <td key={at} className="px-2 py-2 text-right tabular-nums">
+                  {row.figures.map((figure, at) => {
+                    const shown = <>
                       <span className={cn("block", toneOf(figure))}>{figure == null ? "—" : signed(figure)}</span>
                       <span className="block text-3xs font-normal text-ink-muted">{row.benchmark[at] != null ? signed(row.benchmark[at] as number) : "—"}</span>
-                    </td>
-                  ))}
+                    </>;
+                    return (
+                      <td key={at} className="px-2 py-2 text-right tabular-nums">
+                        {row.total || row.key === "OWNED_OUTRIGHT" ? shown : (
+                          <button type="button" disabled={!drill} className="block w-full rounded-sm text-right enabled:hover:ring-2 enabled:hover:ring-primary-300"
+                            aria-label={`${row.name} · ${PERIODS[at]}: ${figure == null ? "—" : signed(figure)}`}
+                            onClick={() => drill?.({ by: "class", key: row.key, name: row.name })}>{shown}</button>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -824,6 +855,7 @@ function Heat({ value, largest, partial, strong }: { value: number; largest: num
 }
 
 function RiskCard({ data }: { data: ClientPerformance }) {
+  const drill = useDrill();
   const risk = data.risk;
   return (
     <Card title={`Risk-adjusted Statistics · ${risk?.window ?? "3Y"}`}
@@ -839,16 +871,22 @@ function RiskCard({ data }: { data: ClientPerformance }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {risk.measures.map((one) => (
-                <tr key={one.key}>
+              {risk.measures.map((one) => {
+                const open = drill ? () => drill({ by: "figure", key: `risk.${one.key}`, name: one.label, figure: measureFigure(data, one) }) : undefined;
+                return (
+                <tr key={one.key} className={cn(open && "cursor-pointer hover:bg-canvas")} onClick={open}>
                   <th scope="row" className="py-2 pr-3 pl-5 text-left font-normal">
-                    {one.label}
+                    {open ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={(event) => { event.stopPropagation(); open(); }}>{one.label}</button>
+                    ) : one.label}
                     {one.note && <span className="block text-3xs text-ink-muted">{one.note}</span>}
                   </th>
                   <td className="px-2 py-2 text-right font-semibold tabular-nums">{one.portfolio == null ? "—" : one.percent ? `${one.portfolio.toFixed(1)}%` : one.portfolio.toFixed(2)}</td>
                   <td className="py-2 pr-5 pl-2 text-right tabular-nums text-ink-soft">{one.benchmark == null ? "—" : one.percent ? `${one.benchmark.toFixed(1)}%` : one.benchmark.toFixed(2)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -858,27 +896,38 @@ function RiskCard({ data }: { data: ClientPerformance }) {
 }
 
 function FeesCard({ data, chart }: { data: ClientPerformance; chart: CardChart }) {
+  const drill = useDrill();
+  if (data.fileFees) return <FileFeesCard fees={data.fileFees} />;
   const f = data.fees;
+  const openAll = f && drill ? () => drill({ by: "figure", key: "fees", name: "Fee Impact · YTD", figure: feesFigure(f, data.currency) }) : undefined;
+  const openFee = (one: PerformanceFee | undefined) => { if (one && f && drill) drill({ by: "figure", key: `fee.${one.type}`, name: one.label, figure: feeFigure(one, f) }); };
   const largest = Math.max(0.01, ...(f?.byType ?? []).map((one) => one.ytdPercent));
   return (
     <Card title="Fee Impact · YTD" lead="Return drag by fee type" picker={!!f && f.byType.length > 0 && chart.picker}>
       {!f ? <Empty>No fees are recorded for this client.</Empty> : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Small label="Gross" value={pct(f.gross)} big />
-            <Small label="Total fees" value={`−${f.totalPercent.toFixed(2)}%`} tone="text-red-700" big />
-            <Small label="Net" value={pct(f.net)} tone={toneOf(f.net)} big />
+            <Small label="Gross" value={pct(f.gross)} big onOpen={openAll} />
+            <Small label="Total fees" value={`−${f.totalPercent.toFixed(2)}%`} tone="text-red-700" big onOpen={openAll} />
+            <Small label="Net" value={pct(f.net)} tone={toneOf(f.net)} big onOpen={openAll} />
           </div>
           {!chart.own ? (
             <div className="mt-4">
               <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(2)}%`} height={220} label="This year's return drag by fee type"
-                data={{ shape: "shares", items: f.byType.map((one) => ({ name: one.label, value: one.ytdPercent })) }} />
+                data={{ shape: "shares", items: f.byType.map((one) => ({ name: one.label, value: one.ytdPercent })) }}
+                onPick={drill ? (at) => openFee(f.byType[at]) : undefined} />
             </div>
           ) : (
           <ul className="mt-4 divide-y divide-line">
             {f.byType.map((one) => (
-              <li key={one.type} className="grid min-h-9 grid-cols-[170px_minmax(0,1fr)_54px] items-center gap-2 py-1.5 text-sm">
-                <span className="leading-snug break-words" title={`${one.annualBp} bp a year`}>{one.label}</span>
+              <li key={one.type} className={cn("grid min-h-9 grid-cols-[170px_minmax(0,1fr)_54px] items-center gap-2 py-1.5 text-sm", drill && "cursor-pointer hover:bg-canvas")}
+                onClick={drill ? () => openFee(one) : undefined}>
+                <span className="leading-snug break-words" title={`${one.annualBp} bp a year`}>
+                  {drill ? (
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                      onClick={(event) => { event.stopPropagation(); openFee(one); }}>{one.label}</button>
+                  ) : one.label}
+                </span>
                 <span className="block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
                   <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.ytdPercent / largest) * 100}%` }} />
                 </span>
@@ -898,6 +947,295 @@ function FeesCard({ data, chart }: { data: ClientPerformance; chart: CardChart }
 
 /* ------------------------------------------------------------------------------------------------------------ */
 
+/**
+ * A bank-file client's fees in dollars: his agreed rates on his gross assets in the bank's files at the latest FX
+ * rates, and what the bank's movements show taken. No return drag: his file holds no return to drag on.
+ */
+function FileFeesCard({ fees }: { fees: PerformanceFileFees }) {
+  const drill = useDrill();
+  const openAll = drill ? () => drill({ by: "figure", key: "fees", name: "Fee Impact · YTD", figure: fileFeesFigure(fees) }) : undefined;
+  const openRate = (one: PerformanceFileFees["rates"][number]) => drill?.({ by: "figure", key: `fee.${one.type}`, name: one.label, figure: fileRateFigure(one, fees) });
+  const openPaid = (one: PerformanceFileFees["paid"][number], at: number) => drill?.({ by: "figure", key: `paid.${one.on}.${at}`, name: one.description, figure: filePaidFigure(one, fees) });
+  const largest = Math.max(0.01, ...fees.rates.map((one) => one.annualAmount));
+  const usd = (value: number) => money(value, fees.currency);
+  return (
+    <Card title="Fee Impact · YTD" lead={`Agreed rates on his gross assets in ${fees.currency}, and fees the bank's movements show taken`}
+      action={fees.rates.length > 0 && <StaffEntered />}>
+      {fees.rates.length === 0 && fees.paid.length === 0 ? <Empty>No fees are recorded for this client.</Empty> : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <Small label="Annual cost" value={usd(fees.annualAmount)} big onOpen={openAll} />
+            <Small label="Total rate" value={`${(fees.annualBp / 100).toFixed(2)}%`} big onOpen={openAll} />
+            <Small label="Taken per bank" value={usd(fees.paidAmount)} tone="text-red-700" big onOpen={openAll} />
+          </div>
+          {fees.rates.length > 0 && (
+            <ul className="mt-4 divide-y divide-line">
+              {fees.rates.map((one) => (
+                <li key={one.type} className={cn("grid min-h-9 grid-cols-[170px_minmax(0,1fr)_64px_90px] items-center gap-2 py-1.5 text-sm", drill && "cursor-pointer hover:bg-canvas")}
+                  onClick={drill ? () => openRate(one) : undefined}>
+                  <span className="leading-snug break-words">
+                    {drill ? (
+                      <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                        onClick={(event) => { event.stopPropagation(); openRate(one); }}>{one.label}</button>
+                    ) : one.label}
+                  </span>
+                  <span className="block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
+                    <span className="block h-full rounded-full bg-primary-600" style={{ width: `${(one.annualAmount / largest) * 100}%` }} />
+                  </span>
+                  <span className="text-right text-xs text-ink-muted tabular-nums">{one.annualBp} bp</span>
+                  <span className="text-right tabular-nums">{usd(one.annualAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {fees.paid.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-1 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Fees in the bank's movements</p>
+              <table className="w-full table-fixed text-sm">
+                <colgroup><col className="w-28" /><col /><col className="w-32" /><col className="w-28" /></colgroup>
+                <thead>
+                  <tr className="border-b border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
+                    <th scope="col" className="py-1.5 pr-2">Booked</th>
+                    <th scope="col" className="py-1.5 pr-2">Movement</th>
+                    <th scope="col" className="py-1.5 pr-2 text-right">As sent</th>
+                    <th scope="col" className="py-1.5 text-right">{fees.currency}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {fees.paid.map((one, at) => (
+                    <tr key={`${one.on}-${at}`} className={cn(drill && "cursor-pointer hover:bg-canvas")} onClick={drill ? () => openPaid(one, at) : undefined}>
+                      <td className="py-1.5 pr-2 whitespace-nowrap text-ink-muted">{formatDate(one.on)}</td>
+                      <td className="py-1.5 pr-2 break-words">
+                        {drill ? (
+                          <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                            onClick={(event) => { event.stopPropagation(); openPaid(one, at); }}>{one.description}</button>
+                        ) : one.description}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right whitespace-nowrap tabular-nums">{one.currency} {one.asSent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="py-1.5 text-right whitespace-nowrap tabular-nums">{one.amount == null ? "no FX rate" : usd(one.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-3 text-xs text-ink-muted">
+            Gross assets {usd(fees.grossAssets)}: his lines worth something, as a fee is charged on what is held, not on a loan ·
+            {` ${fees.currency}`} at FX rates{fees.ratesOn ? ` of ${formatDate(fees.ratesOn)}` : ""}
+            {fees.noRate.length > 0 ? ` · ${fees.noRate.join(", ")} left out: no FX rate` : ""}
+          </p>
+          <p className="mt-1 text-3xs text-ink-muted italic">No return drag: the bank's file holds one day, so there is no return to measure it against.</p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+type KpiKey = "itd" | "sharpe" | "information" | "drawdown" | "capture" | "value";
+
+/** The month-end returns the screen holds, as a chart: each month's net TWR. */
+function monthlyChart(data: ClientPerformance): FigureDetail["chart"] {
+  return data.monthly.length === 0 ? undefined : { title: "Monthly returns · net TWR", kind: "bar", format: "percent",
+    data: { shape: "series", categories: data.monthly.map((one) => periodName(one.month)), series: [{ name: "Net TWR", values: data.monthly.map((one) => one.value) }] } };
+}
+
+/** The trailing twelve-month return against the benchmark, as the Rolling card draws it. */
+function rollingChart(data: ClientPerformance): FigureDetail["chart"] {
+  return data.rolling.length === 0 ? undefined : { title: "Rolling 12-month return against the benchmark", kind: "line", format: "percent",
+    data: { shape: "series", categories: data.rolling.map((one) => monthLabel(one.on)), series: [
+      { name: "Portfolio", values: data.rolling.map((one) => one.portfolio) },
+      { name: "Policy benchmark", values: data.rolling.map((one) => one.benchmark) },
+    ] } };
+}
+
+/** Growth of 100 against the benchmark, as the Growth card draws it (net). */
+function growthChart(data: ClientPerformance): FigureDetail["chart"] {
+  return data.growth.length < 2 ? undefined : { title: "Growth of 100 since inception", kind: "line", format: "number",
+    data: { shape: "series", categories: data.growth.map((one) => monthLabel(one.on)), series: [
+      { name: "Portfolio (net)", values: data.growth.map((one) => one.portfolio) },
+      { name: "Policy benchmark", values: data.growth.map((one) => one.benchmark) },
+    ] } };
+}
+
+/** A key figure in the breakdown panel: the figures beside it on the screen, and the months behind it. */
+function kpiFigure(data: ClientPerformance, key: KpiKey): FigureDetail {
+  const k = data.kpis!;
+  const window = k.window ?? "3Y";
+  const link = { to: "performance", label: "Open Performance" };
+  const riskFree = data.riskFreePercent != null ? [{ label: "Risk-free", value: `${data.riskFreePercent}%` }] : [];
+  switch (key) {
+    case "itd":
+      return { label: "Return", value: pct(k.itd), link,
+        note: `Time-weighted since inception, net of fees${k.itdAnnualised ? ", annualised" : "; under a year, so not annualised"}.`,
+        facts: [
+          ...(k.itdBenchmark != null ? [{ label: "Benchmark", value: pct(k.itdBenchmark) }] : []),
+          ...(k.since ? [{ label: "Since", value: formatDate(k.since) }] : []),
+          { label: "Months on file", value: String(data.months) },
+        ],
+        chart: growthChart(data) };
+    case "sharpe":
+      return { label: "Risk measure", value: num(k.sharpe), link,
+        note: k.sharpe == null ? (k.riskWhyNot ?? undefined) : `Return over the risk-free rate per unit of volatility, from ${window} of monthly returns.`,
+        facts: [{ label: "Benchmark", value: num(k.sharpeBenchmark) }, { label: "Sortino", value: num(k.sortino) }, { label: "Window", value: window }, ...riskFree],
+        chart: monthlyChart(data) };
+    case "information":
+      return { label: "Risk measure", value: num(k.informationRatio), link,
+        note: k.informationRatio == null ? (k.riskWhyNot ?? undefined) : `Excess return over the policy benchmark per unit of tracking error, from ${window} of monthly returns.`,
+        facts: [{ label: "Tracking error", value: pct(k.trackingError, false) }, { label: "Window", value: window }],
+        chart: rollingChart(data) };
+    case "drawdown": {
+      // The fall from the highest point before each month end, on the growth of 100 the screen draws.
+      let peak = -Infinity;
+      const path = data.growth.map((one) => { peak = Math.max(peak, one.portfolio); return peak > 0 ? (one.portfolio / peak - 1) * 100 : null; });
+      return { label: "Risk measure", value: pct(k.maxDrawdown), link,
+        note: "The largest fall from a peak to a later trough, on month-end values, net of fees.",
+        facts: [
+          ...(k.drawdownPeak ? [{ label: "Peak", value: monthYear(k.drawdownPeak) }] : []),
+          ...(k.drawdownTrough ? [{ label: "Trough", value: monthYear(k.drawdownTrough) }] : []),
+          { label: "Recovered", value: k.recoveredOn ? monthYear(k.recoveredOn) : k.drawdownTrough ? "Not yet" : "—" },
+          ...(k.drawdownTrough && k.recoveredOn ? [{ label: "Months to recover", value: String(monthsBetween(k.drawdownTrough, k.recoveredOn)) }] : []),
+        ],
+        chart: data.growth.length < 2 ? undefined : { title: "Drawdown from the previous peak, on the growth of 100", kind: "area", format: "percent",
+          data: { shape: "series", categories: data.growth.map((one) => monthLabel(one.on)), series: [{ name: "Drawdown", values: path }] } } };
+    }
+    case "capture":
+      return { label: "Risk measure", value: k.upCapture == null ? "—" : `${k.upCapture.toFixed(0)}% / ${k.downCapture == null ? "—" : `${k.downCapture.toFixed(0)}%`}`, link,
+        note: k.upCapture == null ? (k.riskWhyNot ?? undefined) : `How much of the policy benchmark's rising and falling months the portfolio took, from ${window} of monthly returns.`,
+        facts: [
+          { label: "Up capture", value: k.upCapture == null ? "—" : `${k.upCapture.toFixed(0)}%` },
+          { label: "Down capture", value: k.downCapture == null ? "—" : `${k.downCapture.toFixed(0)}%` },
+          { label: "Window", value: window },
+        ],
+        chart: rollingChart(data) };
+    case "value":
+      return { label: "Value added", value: k.valueAdded == null ? "—" : signedMoney(k.valueAdded, data.currency), link,
+        note: k.valueAdded == null ? "No benchmark history on the mandate." : "What the portfolio is worth against the same money, with the same flows, held in the benchmark since inception.",
+        facts: [
+          { label: "Return ITD", value: pct(k.itd) },
+          ...(k.itdBenchmark != null ? [{ label: "Benchmark ITD", value: pct(k.itdBenchmark) }] : []),
+          ...(k.netFlowsYtd != null ? [{ label: "Net flows YTD", value: money(k.netFlowsYtd, data.currency) }] : []),
+          ...(k.since ? [{ label: "Since", value: formatDate(k.since) }] : []),
+        ],
+        chart: growthChart(data) };
+  }
+}
+
+/** A risk-adjusted statistic: the portfolio's and the benchmark's, and the monthly returns it is measured on. */
+function measureFigure(data: ClientPerformance, one: PerformanceMeasure): FigureDetail {
+  const shown = (value: number | null) => (value == null ? "—" : one.percent ? `${value.toFixed(1)}%` : value.toFixed(2));
+  return {
+    label: "Risk-adjusted statistic",
+    value: shown(one.portfolio),
+    note: one.note ?? `Measured on ${data.risk?.window ?? "3Y"} of monthly returns.`,
+    facts: [
+      { label: "Benchmark", value: shown(one.benchmark) },
+      { label: "Window", value: data.risk?.window ?? "3Y" },
+      ...(data.riskFreePercent != null ? [{ label: "Risk-free", value: `${data.riskFreePercent}%` }] : []),
+    ],
+    chart: monthlyChart(data),
+    link: { to: "performance", label: "Open Performance" },
+  };
+}
+
+/** The year's fees together: gross to net, and each type's drag. */
+function feesFigure(f: NonNullable<ClientPerformance["fees"]>, currency: string): FigureDetail {
+  return {
+    label: "Fees",
+    value: `−${f.totalPercent.toFixed(2)}%`,
+    note: "The return drag of this year's recorded fees: the gross return less the net.",
+    facts: [
+      { label: "Gross", value: pct(f.gross) },
+      { label: "Net", value: pct(f.net) },
+      { label: "Total cost YTD", value: money(f.totalAmount, currency) },
+      { label: "Annualised TER", value: `${f.annualPercent.toFixed(2)}%` },
+    ],
+    chart: f.byType.length === 0 ? undefined : { title: "Return drag by fee type", kind: "horizontal-bar", format: "percent",
+      data: { shape: "shares", items: f.byType.map((one) => ({ name: one.label, value: one.ytdPercent })) } },
+    table: f.byType.length === 0 ? undefined : { columns: ["Fee", "Annual rate", "YTD drag"],
+      rows: f.byType.map((one) => [one.label, `${one.annualBp} bp`, `${one.ytdPercent.toFixed(2)}%`]),
+      total: ["Total", `${f.annualPercent.toFixed(2)}%`, `${f.totalPercent.toFixed(2)}%`] },
+  };
+}
+
+/** One fee type: its agreed rate and what it has taken off this year's return. */
+function feeFigure(one: PerformanceFee, f: NonNullable<ClientPerformance["fees"]>): FigureDetail {
+  return {
+    label: "Fees",
+    value: `${one.ytdPercent.toFixed(2)}%`,
+    note: "This fee's drag on this year's return. Its amount on its own is not on the screen; the total for every fee is in the facts.",
+    facts: [
+      { label: "Type", value: one.label },
+      { label: "Annual rate", value: `${one.annualBp} bp` },
+      { label: "YTD drag", value: `${one.ytdPercent.toFixed(2)}%` },
+      { label: "All fees YTD", value: `${f.totalPercent.toFixed(2)}%` },
+    ],
+  };
+}
+
+/** A bank-file client's fees together: the agreed rates and what the bank's movements show taken. */
+function fileFeesFigure(fees: PerformanceFileFees): FigureDetail {
+  const usd = (value: number) => money(value, fees.currency);
+  return {
+    label: "Fees",
+    value: usd(fees.annualAmount),
+    note: `Agreed rates (entered by staff) on his gross assets in the bank's files, in ${fees.currency} at FX rates${fees.ratesOn ? ` of ${formatDate(fees.ratesOn)}` : ""}; no return drag, as the file holds no return.`,
+    facts: [
+      { label: "Total rate", value: `${(fees.annualBp / 100).toFixed(2)}%` },
+      { label: "Gross assets", value: usd(fees.grossAssets) },
+      { label: "Taken per bank", value: usd(fees.paidAmount) },
+      ...(fees.noRate.length > 0 ? [{ label: "Left out, no FX rate", value: fees.noRate.join(", ") }] : []),
+    ],
+    table: fees.rates.length === 0 ? undefined : { title: "Agreed rates", columns: ["Fee", "Annual rate", `Annual ${fees.currency}`],
+      rows: fees.rates.map((one) => [one.label, `${one.annualBp} bp`, usd(one.annualAmount)]),
+      total: ["Total", `${fees.annualBp} bp`, usd(fees.annualAmount)] },
+  };
+}
+
+function fileRateFigure(one: PerformanceFileFees["rates"][number], fees: PerformanceFileFees): FigureDetail {
+  return {
+    label: "Fees",
+    value: money(one.annualAmount, fees.currency),
+    note: `The agreed annual rate, entered by staff, on his gross assets in the bank's files at FX rates${fees.ratesOn ? ` of ${formatDate(fees.ratesOn)}` : ""}.`,
+    facts: [
+      { label: "Type", value: one.label },
+      { label: "Annual rate", value: `${one.annualBp} bp` },
+      { label: "Gross assets", value: money(fees.grossAssets, fees.currency) },
+    ],
+  };
+}
+
+function filePaidFigure(one: PerformanceFileFees["paid"][number], fees: PerformanceFileFees): FigureDetail {
+  const asSent = `${one.currency} ${one.asSent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return {
+    label: "Fee taken",
+    value: one.amount == null ? asSent : money(one.amount, fees.currency),
+    note: one.amount == null ? "A fee in the bank's movements, as sent; no FX rate to convert it." : `A fee in the bank's movements, converted to ${fees.currency} at FX rates${fees.ratesOn ? ` of ${formatDate(fees.ratesOn)}` : ""}.`,
+    facts: [
+      { label: "Booked", value: formatDate(one.on) },
+      { label: "As sent", value: asSent },
+      { label: fees.currency, value: one.amount == null ? "no FX rate" : money(one.amount, fees.currency) },
+    ],
+  };
+}
+
+/** One period's column of Returns by Asset Class: each class's return, with the benchmark where one is recorded. */
+function periodFigure(data: ClientPerformance, at: number): FigureDetail {
+  const classes = data.byClass.filter((row) => !row.total);
+  const total = data.byClass.find((row) => row.total);
+  const figure = (value: number | undefined | null) => (value == null ? null : signed(value));
+  return {
+    label: "Returns by asset class",
+    value: total?.figures[at] == null ? undefined : signed(total.figures[at]!),
+    note: `Each asset class's ${PERIODS[at]} return, time-weighted and net of fees, in ${data.currency}.`,
+    chart: { title: `${PERIODS[at]} return by asset class`, kind: "horizontal-bar", format: "percent",
+      data: { shape: "series", categories: classes.map((row) => row.name), series: [{ name: PERIODS[at]!, values: classes.map((row) => row.figures[at] ?? null) }] } },
+    table: { columns: ["Asset class", "Value", "Return", "Benchmark"],
+      rows: classes.map((row) => [row.name, row.value == null ? null : money(row.value, data.currency), figure(row.figures[at]), figure(row.benchmark[at])]),
+      total: total ? [total.name, total.value == null ? null : money(total.value, data.currency), figure(total.figures[at]), figure(total.benchmark[at])] : undefined },
+    link: { to: "performance", label: "Open Performance" },
+  };
+}
+
 /** The bridge's bars that are one Brinson effect; the benchmark, the residual and the portfolio open all of them. */
 const EFFECTS: Record<string, string> = { Allocation: "allocation", Selection: "selection", Interaction: "interaction" };
 
@@ -913,6 +1251,7 @@ function useMonthDrill() {
 function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -920,17 +1259,24 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }
 
-function Kpi({ label, value, note, tone, emphasised }: { label: string; value: string; note: ReactNode; tone?: string; emphasised?: boolean }) {
+/** A tile that opens the breakdown panel: a click or Enter. */
+function opener(onOpen: (() => void) | undefined, label: string) {
+  return onOpen ? { role: "button", tabIndex: 0, title: `Open ${label}`, onClick: onOpen,
+    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter") onOpen(); } } : {};
+}
+
+function Kpi({ label, value, note, tone, emphasised, onOpen }: { label: string; value: string; note: ReactNode; tone?: string; emphasised?: boolean; onOpen?: () => void }) {
   if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
-    <div className={cn("rounded-2xl border bg-white px-4 py-3.5", emphasised ? "border-primary-200 ring-1 ring-primary-200" : "border-line")}>
+    <div className={cn("rounded-2xl border bg-white px-4 py-3.5", emphasised ? "border-primary-200 ring-1 ring-primary-200" : "border-line",
+      onOpen && "cursor-pointer hover:border-primary-300")} {...opener(onOpen, label)}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>
@@ -938,9 +1284,9 @@ function Kpi({ label, value, note, tone, emphasised }: { label: string; value: s
   );
 }
 
-function Small({ label, value, tone, big }: { label: string; value: string; tone?: string; big?: boolean }) {
+function Small({ label, value, tone, big, onOpen }: { label: string; value: string; tone?: string; big?: boolean; onOpen?: () => void }) {
   return (
-    <div>
+    <div className={cn(onOpen && "cursor-pointer rounded-sm hover:ring-2 hover:ring-primary-300")} {...opener(onOpen, label)}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("font-bold tabular-nums", big ? "text-2xl" : "text-xl", tone)}>{value}</p>
     </div>

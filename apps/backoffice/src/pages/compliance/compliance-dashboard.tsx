@@ -28,9 +28,10 @@ import {
   UserCog,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { formatRelative } from "../../lib/labels";
 import { menuFor } from "../../menu";
 import { Chart, ink } from "../book/overview-charts";
@@ -47,6 +48,7 @@ import {
 import { CustomizeButton, LayoutGrid } from "../layout/custom-view";
 import { seriesFigure, sharesFigure, singleFigure } from "../layout/own-cards";
 import { KindChart, useCardChart } from "../layout/chart-kinds";
+import { ClientsInKyc, NoListYet, OwnDeclarationList, type LineLink } from "../dashboard/role-dashboard-lists";
 
 /**
  * Compliance's dashboard: the firm's KYC and AML across the whole book, what is waiting on Compliance, what is
@@ -130,13 +132,71 @@ export function ComplianceDashboard() {
   };
   const data = figures.data;
   const waiting = (data?.queue ?? []).reduce((sum, one) => sum + one.count, 0);
+  const panel = useBookPanel();
+  // A client's line opens their KYC file, or their client file, whichever the reader's menu reaches.
+  const clientLink: LineLink = (id) => (goTo("/kyc") ? `/kyc/${id}` : goTo("/clients") ? `/clients/${id}` : null);
+  const kycRows = data ? [
+    { name: "Approved", value: data.kyc.approved, statuses: ["APPROVED"] as const },
+    { name: "In review", value: data.kyc.inReview, statuses: ["PENDING"] as const },
+    { name: "Needs action", value: data.kyc.needsAction, statuses: ["REJECTED", "EXPIRED"] as const },
+    { name: "Not started", value: data.kyc.notStarted, statuses: ["NOT_SUBMITTED"] as const },
+  ] : [];
+  const openKyc = (at: number) => {
+    const row = kycRows[at];
+    if (!data || !row) return;
+    panel?.({ name: `KYC ${row.name.toLowerCase()}`, figure: {
+      label: "KYC overview",
+      value: String(row.value),
+      note: "Clients not archived, by their KYC status.",
+      facts: [{ label: "Clients", value: String(data.kyc.clients) }, { label: "Compliant", value: `${data.kyc.compliantPercent}%` }],
+      link: goTo("/kyc") ? { to: "/kyc", label: "Open the KYC review" } : undefined,
+      more: <>{row.statuses.map((status) => (
+        <ClientsInKyc key={status} status={status} title={`Clients — KYC ${status === "PENDING" ? "in review" : status.toLowerCase().replace("_", " ")}`}
+          linkFor={clientLink} />
+      ))}</>,
+    } });
+  };
+  const amlRows = data ? [
+    ...data.aml.bands.map((one) => ({ name: one.name, value: one.clients, share: one.percent as number | undefined, diligence: one.dueDiligence as string | undefined })),
+    { name: "Never scored", value: data.aml.neverScored, share: undefined, diligence: undefined },
+  ] : [];
+  const openAml = (at: number) => {
+    const row = amlRows[at];
+    if (!data || !row) return;
+    panel?.({ name: row.name, figure: {
+      label: "AML risk overview",
+      value: String(row.value),
+      note: row.diligence ? `Clients whose standing AML rating is in this band; ${row.diligence.toLowerCase()} due diligence.` : "Active clients with no AML rating on file.",
+      facts: [
+        ...(row.share !== undefined ? [{ label: "Share", value: `${row.share}%` }] : []),
+        { label: "Clients", value: String(data.aml.clients) },
+        { label: "Reassessments due", value: String(data.aml.reassessmentsDue) },
+      ],
+      link: goTo("/aml-risk") ? { to: "/aml-risk", label: "Open AML risk" } : undefined,
+      more: <NoListYet what={row.diligence ? `clients in this band` : "clients never rated"} />,
+    } });
+  };
+  const expiringFacts = data ? [
+    { label: "0–30 days", value: String(data.expiring.within30) },
+    { label: "31–60 days", value: String(data.expiring.within60) },
+    { label: "61–90 days", value: String(data.expiring.within90) },
+    { label: "Already expired", value: String(data.expiring.alreadyExpired) },
+  ] : [];
+  const openExpiring = (name: string, value: number) => panel?.({ name, figure: {
+    label: "Expiring documents",
+    value: String(value),
+    note: "Approved papers by how soon they run out.",
+    facts: expiringFacts,
+    link: goTo("/kyc") ? { to: "/kyc", label: "Open the KYC review" } : undefined,
+    more: <NoListYet what="papers expiring in this window" />,
+  } });
 
   const render: Record<CardId, ReactNode> = {
     kyc: (
       <Panel icon={IdCard} title="KYC overview" to={goTo("/kyc")}>
         {data ? (
           <div className="space-y-4">
-            <Breakdown centre={`${data.kyc.compliantPercent}%`} centreLabel="Compliant"
+            <Breakdown centre={`${data.kyc.compliantPercent}%`} centreLabel="Compliant" onPick={panel ? openKyc : undefined}
               rows={[
                 { name: "Approved", value: data.kyc.approved, colour: "#16a34a" },
                 { name: "In review", value: data.kyc.inReview, colour: "#f59e0b" },
@@ -145,7 +205,7 @@ export function ComplianceDashboard() {
               ]} />
             <Strip figures={[
               { label: "Total clients", value: data.kyc.clients, to: goTo("/clients") },
-              { label: "KYC approved", value: data.kyc.approved },
+              { label: "KYC approved", value: data.kyc.approved, onClick: panel ? () => openKyc(0) : undefined },
               { label: "Needs action", value: data.kyc.needsAction, danger: data.kyc.needsAction > 0, to: goTo("/kyc") },
             ]} />
           </div>
@@ -156,7 +216,7 @@ export function ComplianceDashboard() {
       <Panel icon={ShieldCheck} title="AML risk overview" to={goTo("/aml-risk")}>
         {data ? (
           <div className="space-y-4">
-            <Breakdown centre={String(data.aml.clients)} centreLabel="Clients"
+            <Breakdown centre={String(data.aml.clients)} centreLabel="Clients" onPick={panel ? openAml : undefined}
               rows={[
                 ...data.aml.bands.map((one) => ({ name: one.name, value: one.clients, share: one.percent,
                   colour: DILIGENCE_COLOUR[one.dueDiligence] })),
@@ -181,10 +241,15 @@ export function ComplianceDashboard() {
       <Panel icon={CalendarDays} title="Expiring documents" to={goTo("/kyc")}>
         {data ? (
           <div className="space-y-3">
-            <ExpiringChart within30={data.expiring.within30} within60={data.expiring.within60} within90={data.expiring.within90} />
+            <ExpiringChart within30={data.expiring.within30} within60={data.expiring.within60} within90={data.expiring.within90}
+              onPick={panel ? (at) => openExpiring(`Expiring in ${["0–30", "31–60", "61–90"][at] ?? ""} days`,
+                [data.expiring.within30, data.expiring.within60, data.expiring.within90][at] ?? 0) : undefined} />
             <Strip figures={[
-              { label: "Next 90 days", value: data.expiring.within30 + data.expiring.within60 + data.expiring.within90 },
-              { label: "Next 30 days", value: data.expiring.within30, danger: data.expiring.within30 > 0 },
+              { label: "Next 90 days", value: data.expiring.within30 + data.expiring.within60 + data.expiring.within90,
+                onClick: panel ? () => openExpiring("Expiring in the next 90 days",
+                  data.expiring.within30 + data.expiring.within60 + data.expiring.within90) : undefined },
+              { label: "Next 30 days", value: data.expiring.within30, danger: data.expiring.within30 > 0,
+                onClick: panel ? () => openExpiring("Expiring in the next 30 days", data.expiring.within30) : undefined },
               { label: "Already expired", value: data.expiring.alreadyExpired, danger: data.expiring.alreadyExpired > 0,
                 to: goTo("/kyc") },
             ]} />
@@ -245,7 +310,11 @@ export function ComplianceDashboard() {
 }
 
 /** Approved papers by how soon they run out, in three columns of thirty days. */
-function ExpiringChart({ within30, within60, within90 }: { within30: number; within60: number; within90: number }) {
+function ExpiringChart({ within30, within60, within90, onPick }: {
+  within30: number; within60: number; within90: number;
+  /** Opens one window's papers, by its place: 0–30, 31–60, 61–90 days. */
+  onPick?: (index: number) => void;
+}) {
   const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
@@ -268,10 +337,12 @@ function ExpiringChart({ within30, within60, within90 }: { within30: number; wit
       <KindChart kind={chart.kind!} height={200} label="Papers expiring in each of the next three months" format={(value) => String(Math.round(value))}
         data={chart.kind === "donut"
           ? { shape: "shares", items: [{ name: "0–30 days", value: within30 }, { name: "31–60 days", value: within60 }, { name: "61–90 days", value: within90 }] }
-          : { shape: "series", categories: ["0–30 days", "31–60 days", "61–90 days"], series: [{ name: "Papers expiring", values: [within30, within60, within90] }] }} />
+          : { shape: "series", categories: ["0–30 days", "31–60 days", "61–90 days"], series: [{ name: "Papers expiring", values: [within30, within60, within90] }] }}
+        onPick={onPick} />
     );
   }
-  return <Chart option={option} height={170} label={`Papers expiring: ${within30} within 30 days, ${within60} in 31 to 60, ${within90} in 61 to 90`} />;
+  return <Chart option={option} height={170} label={`Papers expiring: ${within30} within 30 days, ${within60} in 31 to 60, ${within90} in 61 to 90`}
+    onPick={onPick ? (_, index) => onPick(index) : undefined} />;
 }
 
 /** Clients whose papers are all in and approved, waiting on the signature that activates them. */
@@ -329,9 +400,23 @@ function Expired({ to }: { to?: string }) {
 function OwnDeclarations({ to }: { to?: string }) {
   const declarations = useListMine<MyDeclarationRow[], ApiError>();
   const owed = (declarations.data ?? []).filter((one) => !one.signed).length;
+  const panel = useBookPanel();
+  const open = panel && declarations.data ? () => panel({ name: "Your own declarations", figure: {
+    label: "Declarations",
+    value: owed === 0 ? "All signed" : `${owed} outstanding`,
+    facts: [
+      { label: "Asked of you", value: String(declarations.data?.length ?? 0) },
+      { label: "Outstanding", value: String(owed) },
+      { label: "Overdue", value: String((declarations.data ?? []).filter((one) => !one.signed && one.overdue).length) },
+    ],
+    link: to ? { to, label: "Open my declarations" } : undefined,
+    more: <OwnDeclarationList linkFor={(kind) => (to ? `${to}/${kind}` : null)} />,
+  } }) : undefined;
   return (
     <Panel icon={FileText} title="Your own declarations" to={to}>
-      <p className="text-sm text-ink-muted">
+      <p className={open ? "cursor-pointer text-sm text-ink-muted hover:text-primary-700" : "text-sm text-ink-muted"}
+        {...(open ? { role: "button", tabIndex: 0, onClick: open,
+          onKeyDown: (event: KeyboardEvent<HTMLParagraphElement>) => { if (event.key === "Enter") open(); } } : {})}>
         {declarations.isError ? "These couldn't be read just now."
           : !declarations.data ? "Reading…"
             : owed === 0 ? "All signed. Nothing is outstanding."

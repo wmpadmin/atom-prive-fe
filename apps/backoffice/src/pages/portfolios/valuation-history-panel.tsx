@@ -1,9 +1,12 @@
 import { ApiError } from "@atomprive/api-client";
 import { useGetClientValuations, type ValuationHistory, type ValuationPoint } from "@atomprive/api-client/backoffice";
 import { Alert } from "@atomprive/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
+import { useAssetClasses } from "./asset-classes";
+import { valuationDayFigure } from "./valuation-day-figure";
 
 /**
  * The drawing is made at the size it is shown at, never scaled to fit.
@@ -109,6 +112,9 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
   // Newest first, as the table has always read. Reversed before the page is taken, so the first page is
   // the most recent days rather than the oldest.
   const paged = usePagedRows([...points].reverse());
+  const panel = useBookPanel();
+  const { names } = useAssetClasses();
+  const showDay = panel ? (point: ValuationPoint) => panel({ name: formatDate(point.valuedOn), figure: valuationDayFigure(point, currency, names) }) : undefined;
 
   if (history.isError) {
     return <Alert tone="danger">{history.error.message}</Alert>;
@@ -133,7 +139,15 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
               viewBox={`0 0 ${width} ${HEIGHT}`}
               width={width}
               height={HEIGHT}
-              className="block max-w-full text-primary-600"
+              className={showDay ? "block max-w-full cursor-pointer text-primary-600" : "block max-w-full text-primary-600"}
+              onClick={showDay ? (event) => {
+                // The day nearest the click, as a line is read: by its date, not by hitting a dot.
+                const seen = event.currentTarget.getBoundingClientRect();
+                const across = (event.clientX - seen.left) * (width / seen.width);
+                const sited = placed(points, width);
+                const nearest = sited.reduce((best, one) => (Math.abs(one.x - across) < Math.abs(best.x - across) ? one : best), sited[0]!);
+                showDay(nearest.point);
+              } : undefined}
               role="img"
               aria-label={`What the portfolio has been worth, ${formatDate(points[0]!.valuedOn)} to ${formatDate(points.at(-1)!.valuedOn)}, in ${currency}.`}
             >
@@ -251,7 +265,18 @@ export function ValuationHistoryPanel({ customerId }: { customerId: string }) {
               </thead>
               <tbody className="divide-y divide-line">
                 {paged.shown.map((point) => (
-                  <tr key={point.valuedOn}>
+                  <tr key={point.valuedOn}
+                    {...(showDay ? {
+                      className: "cursor-pointer hover:bg-canvas",
+                      role: "button",
+                      tabIndex: 0,
+                      onClick: () => showDay(point),
+                      onKeyDown: (event: KeyboardEvent) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        showDay(point);
+                      },
+                    } : {})}>
                     <th scope="row" className="py-1.5 pr-4 text-left font-medium whitespace-nowrap text-ink">
                       {formatDate(point.valuedOn)}
                     </th>

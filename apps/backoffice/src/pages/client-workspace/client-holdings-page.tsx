@@ -7,21 +7,28 @@ import {
   type HoldingsGroup,
   type HoldingsPosition,
   type HoldingsSlice,
+  type ConvertedSlice,
+  type HoldingsConverted,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, Columns3, PanelRightOpen } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
+import { HoldingsTree } from "../../components/holdings-tree";
+import { FileViewToggle, MissingRates, type FileView } from "../../components/converted-usd";
 import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
 import { INK } from "../portfolios/asset-classes";
-import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
+import { CardColumnsContext, CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { ReportButton } from "../layout/report";
 import { FIGURE_KINDS, FigureRow, FigureStrip, useFigureRow } from "../layout/figure-strip";
 import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/chart-kinds";
 import type { Figures } from "../layout/own-cards";
 import { useDrill, type DrillBy } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
+import { ClientBankHoldings } from "../../components/client-bank-holdings";
 
 /**
  * A client's Consolidated Holdings, laid out the way the firm's own design draws it: what the lines are worth, cost and
@@ -54,6 +61,8 @@ export function ClientHoldingsPage() {
     document.getElementById("holdings-lines")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } : null;
 
+  // A bank-file client's cards add his lines up in dollars, at the latest rates in FX rates; his tables offer both.
+  const inUsd = usdCopy(data);
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -70,16 +79,18 @@ export function ClientHoldingsPage() {
       </header>
       <LayoutGrid view={view} screen="Consolidated Holdings" figures={data.bankFile ? undefined : holdingsFigures(data)} render={{
         kpis: <Kpis data={data} reconciliation={reconciliation} />,
-        custodian: <CustodianCard data={data} chart={cardChart(view, "custodian")} />,
-        currency: <CurrencyCard data={data} chart={cardChart(view, "currency")} />,
-        pnl: <PnlCard data={data} chart={cardChart(view, "pnl")} />,
+        custodian: <CustodianCard data={inUsd} chart={cardChart(view, "custodian")} />,
+        currency: <CurrencyCard data={inUsd} chart={cardChart(view, "currency")} />,
+        pnl: <PnlCard data={inUsd} chart={cardChart(view, "pnl")} />,
+        tree: <TreeCard data={data} customerId={customerId} />,
         lines: <Tabs data={data} reconciliation={reconciliation} tab={tab} onTab={setTab} picked={picked} onPick={(one) => setPickedId(one.id)} />,
         lots: <LotsCard data={data} picked={tab === "positions" ? picked : null} />,
         recent: <RecentCard data={data} onFullLedger={fullLedger} />,
       }} />
+      <ClientBankHoldings customerId={customerId} />
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {data.bankFile ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
+          {data.converted ? `Figures in ${data.converted.file.currency} at FX rates${data.converted.file.ratesOn ? ` of ${formatDate(data.converted.file.ratesOn)}` : ""}; tables offer the bank's own view` : `Values in ${data.currency} unless stated`}; market data as of {formatDate(data.asOf)} close.
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
       </footer>
@@ -87,7 +98,7 @@ export function ClientHoldingsPage() {
   );
 }
 
-type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots" | "recent";
+type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "tree" | "lines" | "lots" | "recent";
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
@@ -95,6 +106,7 @@ const CARDS: Record<HoldingsCard, LayoutMeta> = {
   custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
   currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "mindmap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
+  tree: { title: "Holdings by class", group: "Lines", wide: true },
   lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
   lots: { title: "Tax Lots of the selected line", group: "Lines", wide: true },
   recent: { title: "Recent Transactions", group: "Lines", wide: true },
@@ -113,34 +125,177 @@ function Kpis({ data, reconciliation }: { data: ClientHoldingsBook; reconciliati
   const cur = data.currency;
   const file = data.bankFile;
   const summary = reconciliation.kind === "data" ? reconciliation.data.summary : null;
+  const conv = data.converted;
+  const usd = conv?.file.currency ?? "USD";
+  const fileGain = conv && conv.unrealisedByClass.length > 0 ? conv.unrealisedByClass.reduce((sum, one) => sum + one.usd, 0) : null;
+  const drill = useDrill();
+  const open = (key: string, name: string, figure: FigureDetail) => (drill ? () => drill({ by: "figure", key, name, figure }) : undefined);
+  const link = { to: "holdings", label: "Consolidated Holdings" };
+  // The server's own totals for each asset class, as the Positions table groups them.
+  const classes = data.groups.filter((one) => one.grouping === "ASSET_CLASS");
+  const orNone = (value: number | null, signed = false) => (value == null ? "—" : signed ? signedCompact(value, cur) : compact(value, cur));
+  const byClass = (columns: string[], row: (one: HoldingsGroup) => (string | number | null)[], total?: (string | number | null)[]): FigureDetail["table"] =>
+    classes.length === 0 ? undefined : { title: "By asset class", columns: ["Asset class", ...columns], rows: classes.map((one) => [one.key, ...row(one)]), total };
+  const t = data.total;
+  const year = data.asOf.slice(0, 4);
+  const income = data.transactions.filter((one) => one.on.startsWith(year) && /coupon|dividend|distribution|income/i.test(one.type));
+  const pc = (value: number | null) => (value == null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(1)}%`);
   return (
+    <>
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-      <Kpi label="Market value" value={file ? <Marker>per currency below</Marker> : compact(k.marketValue ?? 0, cur)}
-        note={`${k.positions} positions · ${k.accounts} accounts`} />
+      <Kpi label="Market value"
+        onPick={file ? (conv ? open("market-value", "Market value", {
+          label: "Holdings", value: compact(conv.file.total, usd),
+          note: `The bank's lines in ${usd}${conv.file.ratesOn ? ` at FX rates of ${formatDate(conv.file.ratesOn)}` : ""}.`,
+          facts: [{ label: "Positions", value: String(k.positions) }, { label: "Accounts", value: String(k.accounts) }],
+          table: conv.file.byCurrency.length === 0 ? undefined : { title: "By currency of the bank's lines", columns: ["Currency", usd, "Share"],
+            rows: conv.file.byCurrency.map((one) => [one.name, compact(one.usd, usd), `${one.share.toFixed(1)}%`]) },
+          link,
+        }) : undefined) : open("market-value", "Market value", {
+          label: "Holdings", value: compact(k.marketValue ?? 0, cur), note: "Every line at its latest market value, across all entities and custodians.",
+          facts: [{ label: "Positions", value: String(k.positions) }, { label: "Accounts", value: String(k.accounts) }],
+          table: byClass(["Value", "Weight"], (one) => [compact(one.value, cur), `${one.weight.toFixed(1)}%`], t ? ["Total", compact(t.value, cur), "100.0%"] : undefined),
+          link,
+        })}
+        value={file ? (conv ? compact(conv.file.total, usd) : <NotInFile />) : compact(k.marketValue ?? 0, cur)}
+        note={`${k.positions} positions · ${k.accounts} accounts${conv?.file.ratesOn ? ` · ${usd} at FX rates of ${formatDate(conv.file.ratesOn)}` : ""}`} />
       <Kpi label="Cost basis"
+        onPick={file ? undefined : open("cost-basis", "Cost basis", {
+          label: "Holdings", value: k.costBasis == null ? "—" : compact(k.costBasis, cur), note: "What the lines cost, from their tax lots.",
+          facts: [{ label: "Lines costed", value: `${k.costed} of ${k.positions}` },
+            { label: "Average holding", value: k.averageHoldingYears == null ? "—" : `${k.averageHoldingYears} years` }],
+          table: byClass(["Cost", "Value"], (one) => [orNone(one.cost), compact(one.value, cur)], t ? ["Total", orNone(t.cost), compact(t.value, cur)] : undefined),
+          link,
+        })}
         value={file
-          ? (data.fileCostTotals.length === 0 ? <NotInFile /> : (
-            <span className="flex flex-col text-base">
-              {data.fileCostTotals.map((one) => <span key={one.currency}>{exact(one.amount, one.currency)}</span>)}
-            </span>
-          ))
+          ? (conv?.costUsd == null ? <NotInFile /> : compact(conv.costUsd, usd))
           : k.costBasis == null ? "—" : compact(k.costBasis, cur)}
         note={file
-          ? (data.fileCostTotals.length === 0 ? null : `The bank's own total cost, for ${k.costed} of ${k.positions} lines · per currency; the rest not in bank file`)
+          ? (conv?.costUsd == null ? null : `The bank's own cost, for ${conv.costed} of ${k.positions} lines, in ${usd}; the rest not in bank file`)
           : k.averageHoldingYears == null ? "No tax lots on file" : `Average holding period ${k.averageHoldingYears} years${k.costed < k.positions ? ` · ${k.costed} of ${k.positions} lines costed` : ""}`} />
-      <Kpi label="Unrealised P&L" tone={file ? undefined : toneOf(k.unrealised ?? 0)}
-        value={file ? <NotInFile /> : k.unrealised == null ? "—" : signedCompact(k.unrealised, cur)}
-        note={file ? null : k.unrealisedPercent == null ? null : `${k.unrealisedPercent > 0 ? "+" : ""}${k.unrealisedPercent}% on cost`} />
-      <Kpi label="Realised P&L · YTD" tone={file ? undefined : toneOf(k.realisedYearToDate ?? 0)}
+      <Kpi label="Unrealised P&L"
+        onPick={file ? undefined : open("unrealised", "Unrealised P&L", {
+          label: "Gains", value: k.unrealised == null ? "—" : signedCompact(k.unrealised, cur), note: "Market value less cost basis, for the costed lines.",
+          facts: [{ label: "On cost", value: pc(k.unrealisedPercent) }, { label: "Cost basis", value: orNone(k.costBasis) }, { label: "Lines costed", value: `${k.costed} of ${k.positions}` }],
+          chart: data.unrealisedByClass.length === 0 ? undefined : { title: "By asset class", kind: "horizontal-bar", format: "money", currency: cur,
+            data: { shape: "series", categories: data.unrealisedByClass.map((one) => one.name), series: [{ name: "Unrealised P&L", values: data.unrealisedByClass.map((one) => one.amount) }] } },
+          table: byClass(["Value", "Cost", "Unrealised", "On cost"], (one) => [compact(one.value, cur), orNone(one.cost), orNone(one.unrealised, true), pc(one.unrealisedPercent)],
+            t ? ["Total", compact(t.value, cur), orNone(t.cost), orNone(t.unrealised, true), pc(t.unrealisedPercent)] : undefined),
+          link,
+        })}
+        tone={file ? (fileGain == null ? undefined : toneOf(fileGain)) : toneOf(k.unrealised ?? 0)}
+        value={file ? (fileGain == null ? <NotInFile /> : signedCompact(fileGain, usd)) : k.unrealised == null ? "—" : signedCompact(k.unrealised, cur)}
+        note={file ? (fileGain == null ? null : `Value less the bank's cost, for the ${conv?.costed} costed lines`) : k.unrealisedPercent == null ? null : `${k.unrealisedPercent > 0 ? "+" : ""}${k.unrealisedPercent}% on cost`} />
+      <Kpi label="Realised P&L · YTD"
+        onPick={file ? undefined : open("realised", "Realised P&L · YTD", {
+          label: "Gains", value: signedCompact(k.realisedYearToDate ?? 0, cur), note: "Gains and losses taken on sales this year, short and long term.",
+          facts: [{ label: "Short term", value: signedCompact(k.realisedShortTerm ?? 0, cur) }, { label: "Long term", value: signedCompact(k.realisedLongTerm ?? 0, cur) }],
+          link,
+        })}
+        tone={file ? undefined : toneOf(k.realisedYearToDate ?? 0)}
         value={file ? <NotInFile /> : signedCompact(k.realisedYearToDate ?? 0, cur)}
         note={file ? null : `ST ${signedCompact(k.realisedShortTerm ?? 0, cur)} · LT ${signedCompact(k.realisedLongTerm ?? 0, cur)}`} />
-      <Kpi label="Income · YTD" value={file ? <NotInFile /> : compact(k.incomeYearToDate ?? 0, cur)}
+      <Kpi label="Income · YTD"
+        onPick={file ? undefined : open("income", "Income · YTD", {
+          label: "Income", value: compact(k.incomeYearToDate ?? 0, cur), note: "Coupons, dividends and distributions received this year.",
+          facts: [{ label: "Coupons", value: compact(k.coupons ?? 0, cur) }, { label: "Dividends", value: compact(k.dividends ?? 0, cur) },
+            { label: "Distributions", value: compact(k.distributions ?? 0, cur) }],
+          chart: { title: "By kind", kind: "donut", format: "money", currency: cur, data: { shape: "shares", items: [
+            { name: "Coupons", value: k.coupons ?? 0 }, { name: "Dividends", value: k.dividends ?? 0 }, { name: "Distributions", value: k.distributions ?? 0 },
+          ].filter((one) => one.value !== 0) } },
+          table: income.length === 0 ? undefined : { title: `Income lines in the ledger, ${year}`, columns: ["Date", "Type", "Security", "Amount"],
+            rows: income.map((one) => [formatDate(one.on), one.type, one.description, signedCompact(one.amount, one.currency)]) },
+          link,
+        })}
+        value={file ? <NotInFile /> : compact(k.incomeYearToDate ?? 0, cur)}
         note={file ? null : `Coupons ${compact(k.coupons ?? 0, cur)} · Dividends ${compact(k.dividends ?? 0, cur)} · Dist. ${compact(k.distributions ?? 0, cur)}`} />
       {/* The check's own counts: lines matched over lines compared, and everything else a break. */}
       <Kpi label="Reconciliation"
+        onPick={summary ? open("reconciliation", "Reconciliation", {
+          label: "Custodian reconciliation", value: matchedShare(summary),
+          note: "Lines matched over lines compared, by the Operations Holdings check's own rules; everything else is a break.",
+          facts: [{ label: "Matching", value: String(summary.matching) }, { label: "Differing", value: String(summary.differing) },
+            { label: "Only at bank", value: String(summary.onlyAtBank) }, { label: "Not at bank", value: String(summary.notAtBank) },
+            { label: "Without ISIN", value: String(summary.withoutIsin) }, { label: "As of", value: summary.asOf ? formatDate(summary.asOf) : "—" }],
+          table: summary.breaks.length === 0 ? undefined : { title: "Breaks by currency", columns: ["Currency", "Amount"],
+            rows: summary.breaks.map((one) => [one.currency, compact(one.amount, one.currency)]) },
+          link,
+        }) : undefined}
         value={summary ? matchedShare(summary) : reconciliation.kind === "none" ? "—" : "…"}
         note={summary ? breaksNote(summary) : reconciliation.kind === "none" ? reconciliation.message : null} />
     </FigureStrip>
+    {conv && <MissingRates converted={conv.file} />}
+    </>
+  );
+}
+
+/**
+ * The same book with a bank-file client's figures in dollars, for the cards that add money up: by bank, by currency
+ * and value less cost by class, as the server converted them. Anybody else's book is itself.
+ */
+function usdCopy(data: ClientHoldingsBook): ClientHoldingsBook {
+  const conv = data.converted;
+  if (!data.bankFile || !conv) return data;
+  const slices = (list: ConvertedSlice[]) => list.map((one) => ({ key: one.name, name: one.name, amount: one.usd, sharePercent: one.share }));
+  return { ...data, bankFile: false, currency: conv.file.currency, byCustodian: slices(conv.byBank),
+    byCurrency: slices(conv.file.byCurrency), unrealisedByClass: slices(conv.unrealisedByClass) };
+}
+
+/** A bank-file client's amount in dollars at the screen's own rates; null where FX rates has none for it. */
+function usdOf(amount: number, currency: string | null | undefined, conv: HoldingsConverted | null | undefined) {
+  const rate = conv && currency ? (conv.file.perUsd as Record<string, number>)[currency] : undefined;
+  return rate ? Math.round((amount / rate) * 100) / 100 : null;
+}
+
+/** A bank-file line's value less the bank's own cost, in dollars; null where the file states no cost or there is no rate. */
+function gainOf(one: HoldingsPosition, conv: HoldingsConverted) {
+  const value = usdOf(one.value, one.currency, conv);
+  const cost = one.bankCostTotal == null ? null : usdOf(one.bankCostTotal, one.currency, conv);
+  if (value == null || cost == null) return null;
+  return { amount: value - cost, percent: cost === 0 ? null : ((value - cost) / Math.abs(cost)) * 100 };
+}
+
+/** A line the screen cannot convert: FX rates holds no rate for its currency. */
+function NoRate() {
+  return <span className="inline-block rounded-sm border border-dashed border-amber-300 px-1 text-3xs font-medium whitespace-nowrap text-amber-700">no FX rate</span>;
+}
+
+/** Holdings by class, as a tree; a bank-file client's either in dollars or as the bank's files state them. */
+function TreeCard({ data, customerId }: { data: ClientHoldingsBook; customerId: string }) {
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const converted = !!data.converted && fileView === "converted";
+  const usd = data.converted?.file.currency ?? "USD";
+  const drill = useDrill();
+  return (
+    <Card title="Holdings by class" lead="Click a row to open it · double-click a holding for its history"
+      action={data.bankFile && <FileViewToggle value={fileView} onChange={setFileView} />}>
+      <HoldingsTree note={!data.bankFile ? undefined : converted ? `Each line in ${usd} at the latest FX rates; a line with no rate is left out`
+        : "Each line as the bank's files state it, in its own currency"}
+        onGroup={!data.bankFile && drill ? (levels, first) => {
+          const name = levels[levels.length - 1] ?? "";
+          if (levels.length === 1) drill({ by: "class", key: data.positions.find((one) => one.id === first.key)?.assetClass ?? "", name });
+          else drill({ by: "subClass", key: name, name });
+        } : undefined}
+        lines={data.positions.flatMap((one) => {
+          const inUsd = converted ? usdOf(one.value, one.currency, data.converted) : null;
+          if (converted && inUsd == null) return [];
+          return [{
+            key: one.id, customerId, name: one.name, isin: one.identifier, positionId: data.bankFile ? null : one.id,
+            levels: [one.assetClassName || one.assetClass, one.subClass].filter((level): level is string => Boolean(level)),
+            units: one.quantity,
+            amounts: [converted ? { currency: usd, value: inUsd! } : { currency: one.currency ?? data.currency, value: one.value }],
+            // A holding opens its breakdown from its own button, so the row's double-click still opens its history.
+            trailing: !data.bankFile && drill ? (
+              <button type="button" title="Open its breakdown"
+                onClick={(event) => { event.stopPropagation(); drill({ by: "position", key: one.id, name: one.name }); }}
+                onDoubleClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}
+                className="inline-flex items-center gap-1 text-2xs font-semibold text-primary-700 hover:underline">
+                <PanelRightOpen className="size-3" aria-hidden="true" /> Breakdown
+              </button>
+            ) : undefined,
+          }];
+        })} />
+    </Card>
   );
 }
 
@@ -165,10 +320,11 @@ function CurrencyCard({ data, chart }: { data: ClientHoldingsBook; chart: CardCh
         data.fileTotals.length === 0 ? <FileBlock /> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
             {data.fileTotals.map((one) => (
-              <div key={one.currency} className="rounded-lg border border-line px-2.5 py-2">
+              <button key={one.currency} type="button" onClick={() => drill?.({ by: "currency", key: one.currency, name: one.currency })}
+                className="rounded-lg border border-line px-2.5 py-2 text-left hover:border-primary-400 hover:bg-canvas">
                 <p className="text-xs font-semibold">{one.currency}</p>
                 <p className="text-sm font-bold tabular-nums">{exact(one.amount, one.currency)}</p>
-              </div>
+              </button>
             ))}
           </div>
         )
@@ -337,6 +493,7 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
   picked: HoldingsPosition | null;
   onPick: (one: HoldingsPosition) => void;
 }) {
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section id="holdings-lines" className="scroll-mt-4 rounded-2xl border border-line bg-white p-5">
       <div className="-mx-5 mb-4 flex items-end gap-2 border-b border-line px-5">
@@ -349,8 +506,10 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
             </button>
           ))}
         </div>
-        <div className="pb-1.5"><CardMenu /></div>
+        {/* Positions has its own Columns, with the filters; every other tab's table takes this one. */}
+        <div className="flex items-center gap-2 pb-1.5">{tab !== "positions" && <TableColumns scope={body} />}<CardMenu /></div>
       </div>
+      <div ref={body} className="contents">
       {tab === "positions" && <Positions data={data} onPick={onPick} picked={picked} />}
       {tab === "lots" && (data.bankFile ? <FileNote what="Tax lots" /> : <LotsTable data={data} position={null} />)}
       {tab === "transactions" && <Ledger data={data} limit={null} />}
@@ -359,6 +518,7 @@ function Tabs({ data, reconciliation, tab, onTab, picked, onPick }: {
         reconciliation.kind === "data" ? <HoldingsCheckBody data={reconciliation.data} />
           : reconciliation.kind === "none" ? <Empty>{reconciliation.message}</Empty> : <Empty>Comparing holdings…</Empty>
       )}
+      </div>
     </section>
   );
 }
@@ -410,6 +570,9 @@ const COLUMNS = [
 
 type Column = (typeof COLUMNS)[number][0];
 
+/** The Positions table's columns, as saved with the layout. */
+const POSITIONS = "positions:";
+
 /** How many lines a group shows before the rest fold into "Other … (n)". */
 const SHOWN_PER_GROUP = 8;
 
@@ -420,13 +583,32 @@ function keyOf(position: HoldingsPosition, by: Grouping) {
 
 function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick: (one: HoldingsPosition) => void; picked: HoldingsPosition | null }) {
   const file = data.bankFile;
+  // A bank-file client's lines in dollars at the screen's rates, or as the bank's files state them.
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const conv = file && fileView === "converted" ? data.converted ?? null : null;
+  const usd = conv?.file.currency ?? "USD";
+  const inUsd = (amount: number | null | undefined, ccy: string | null | undefined) => (amount == null ? null : usdOf(amount, ccy, conv));
   const drill = useDrill();
   const [by, setBy] = useState<Grouping>("assetClass");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [opened, setOpened] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<Column>>(new Set(["accrued", "bankCostPrice", "bankCostTotal"]));
+  // The columns are saved with the reader's layout of the screen, under "positions:"; the firm's choice until they change it.
+  const saved = useContext(CardColumnsContext);
+  const [mine, setMine] = useState<Set<Column> | null>(null);
+  const kept = saved?.hidden.filter((one) => one.startsWith(POSITIONS)) ?? [];
+  const hidden: Set<Column> = mine ?? (kept.length > 0
+    ? new Set(kept.map((one) => one.slice(POSITIONS.length)).filter((id): id is Column => COLUMNS.some(([known]) => known === id)))
+    : new Set<Column>(["accrued", "bankCostPrice", "bankCostTotal"]));
+  const setHidden = (next: Set<Column>) => {
+    if (!saved) return setMine(next);
+    // The tag alone marks that the reader chose, so taking every column back is kept as a choice, not the firm's.
+    saved.change([...saved.hidden.filter((one) => !one.startsWith(POSITIONS)), POSITIONS, ...[...next].map((id) => POSITIONS + id)]);
+  };
   const on = (column: Column) => !hidden.has(column);
+  const [lookingThrough, setLookingThrough] = useState(false);
+  const canLookThrough = !file && data.lookThrough.length > 0;
+  const partsOf = useMemo(() => new Map(data.lookThrough.map((one) => [one.positionId, one.parts])), [data.lookThrough]);
 
   const options = useMemo(() => ({
     entity: unique(data.positions.map((one) => one.entity)),
@@ -456,16 +638,26 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
         <Filter label="Currency" field="currency" values={options.currency} filters={filters} onChange={setFilters} />
         <Filter label={file ? "Bank's class" : "Asset class"} field="assetClassName" values={options.assetClassName} filters={filters} onChange={setFilters} />
         {!file && <Filter label="Liquidity" field="liquidity" values={options.liquidity} filters={filters} onChange={setFilters} />}
+        {/* The table's own controls at the end of the first row, in the corner where every other card keeps them. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {file && <FileViewToggle value={fileView} onChange={setFileView} />}
+          <ColumnsMenu hidden={hidden} onChange={setHidden} />
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-xs text-ink-muted" title="No fund's own holdings are on file, so there is nothing to look through to">
-          <input type="checkbox" disabled checked={false} readOnly />
-          Fund look-through <span className="text-3xs">(no fund holdings on file)</span>
+        {/* A fund line opened into what its factsheet says it holds, issuer by issuer; only where a factsheet is on file. */}
+        <label className={cn("flex items-center gap-2 text-xs", canLookThrough ? "cursor-pointer text-ink" : "text-ink-muted")}
+          title={canLookThrough ? "Open each fund line into its issuers, by its factsheet" : "No fund's own holdings are on file, so there is nothing to look through to"}>
+          <input type="checkbox" disabled={!canLookThrough} checked={lookingThrough} onChange={(event) => setLookingThrough(event.target.checked)} />
+          Fund look-through
+          <span className="text-3xs text-ink-muted">
+            {canLookThrough ? `(${data.lookThrough.length} fund line${data.lookThrough.length === 1 ? "" : "s"} with a factsheet)`
+              : file ? "(the bank's file gives each fund as one line)" : "(no fund holdings on file)"}
+          </span>
         </label>
-        <ColumnsMenu hidden={hidden} onChange={setHidden} />
       </div>
       <div className="-mx-5 mt-3 overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table data-own-columns className="min-w-full text-sm">
           <thead>
             <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
               <th scope="col" className="py-2 pr-3 pl-5">Position</th>
@@ -475,7 +667,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               {on("currency") && <th scope="col" className="px-1.5 py-2">Ccy</th>}
               {on("quantity") && <th scope="col" className="px-1.5 py-2 text-right">Quantity</th>}
               {on("price") && <th scope="col" className="px-1.5 py-2 text-right">Price</th>}
-              {on("value") && <th scope="col" className="px-1.5 py-2 text-right">Market value</th>}
+              {on("value") && <th scope="col" className="px-1.5 py-2 text-right">Market value{conv ? ` · ${usd}` : ""}</th>}
               {on("weight") && <th scope="col" className="px-1.5 py-2 text-right">Weight</th>}
               {on("cost") && <th scope="col" className="px-1.5 py-2 text-right">Cost basis</th>}
               {on("unrealised") && <th scope="col" className="px-1.5 py-2 text-right">Unrealised P&amp;L</th>}
@@ -496,11 +688,12 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               const rest = lines.length - visible.length;
               return (
                 <Fragment key={group}>
-                  <GroupRow group={group} by={by} lines={lines} closed={closed} file={file} currency={data.currency} on={on}
+                  <GroupRow group={group} by={by} lines={lines} closed={closed} file={file} currency={data.currency} on={on} conv={conv}
                     summary={filtered ? undefined : data.groups.find((one) => one.grouping === GROUPING_KEYS[by] && one.key === group)}
                     onToggle={() => setCollapsed((was) => toggled(was, group))} />
                   {!closed && visible.map((one) => (
-                    <tr key={one.id} onClick={() => onPick(one)}
+                    <Fragment key={one.id}>
+                    <tr onClick={() => onPick(one)}
                       className={cn("cursor-pointer hover:bg-slate-50", picked?.id === one.id && "bg-primary-50")}>
                       <td className="py-2 pr-3 pl-8 font-medium">
                         {file ? one.name : (
@@ -512,23 +705,30 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                         {one.subClass && <span className="block text-xs font-normal text-ink-muted">{one.subClass}</span>}</td>
                       {on("identifier") && <td className="px-1.5 py-2 font-mono text-xs text-ink-muted">{one.identifier ?? (file ? <NotInFile tight /> : "—")}</td>}
                       {on("entity") && <td className="px-1.5 py-2 text-xs">{file ? <NotInFile tight /> : one.entity ?? "—"}</td>}
-                      {on("custodian") && <td className="px-1.5 py-2 text-xs">{one.custodian ?? "—"}</td>}
+                      {on("custodian") && <td className="px-1.5 py-2 text-xs whitespace-nowrap">{one.custodian ?? "—"}</td>}
                       {on("currency") && <td className="px-1.5 py-2 text-xs">{one.currency ?? "—"}</td>}
                       {on("quantity") && <td className="px-1.5 py-2 text-right tabular-nums">{one.quantity == null ? (file ? <NotInFile tight /> : "—") : plain(one.quantity)}</td>}
                       {on("price") && <td className="px-1.5 py-2 text-right tabular-nums">{one.price == null ? (file ? <NotInFile tight /> : "—") : plain(one.price)}</td>}
                       {on("value") && (
                         <td className="px-1.5 py-2 text-right font-semibold whitespace-nowrap tabular-nums">
-                          {file ? exact(one.value, one.currency ?? "") : compact(one.value, data.currency)}
+                          {conv ? (inUsd(one.value, one.currency) == null ? <NoRate /> : exact(inUsd(one.value, one.currency)!, usd))
+                            : file ? exact(one.value, one.currency ?? "") : compact(one.value, data.currency)}
                         </td>
                       )}
-                      {on("weight") && <td className="px-1.5 py-2 text-right tabular-nums">{file ? <NotInFile tight /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
-                      {on("cost") && <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{file ? <NotInFile tight /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
+                      {on("weight") && <td className="px-1.5 py-2 text-right tabular-nums">{conv
+                        ? (inUsd(one.value, one.currency) == null || conv.file.total === 0 ? "—" : `${((inUsd(one.value, one.currency)! / Math.abs(conv.file.total)) * 100).toFixed(2)}%`)
+                        : file ? <NotInFile tight /> : one.weight == null ? "—" : `${one.weight.toFixed(2)}%`}</td>}
+                      {on("cost") && <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{conv
+                        ? (inUsd(one.bankCostTotal, one.currency) == null ? <NotInFile tight /> : exact(inUsd(one.bankCostTotal, one.currency)!, usd))
+                        : file ? <NotInFile tight /> : one.cost == null ? "—" : compact(one.cost, data.currency)}</td>}
                       {on("unrealised") && (
                         <td className={cn("px-1.5 py-2 text-right whitespace-nowrap tabular-nums", toneOf(one.unrealised ?? 0))}>
-                          {file ? <NotInFile tight /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
+                          {conv ? (gainOf(one, conv) == null ? <NotInFile tight /> : signedCompact(gainOf(one, conv)!.amount, usd))
+                            : file ? <NotInFile tight /> : one.unrealised == null ? "—" : signedCompact(one.unrealised, data.currency)}
                         </td>
                       )}
-                      {on("pnl") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.unrealisedPercent ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.unrealisedPercent)}</td>}
+                      {on("pnl") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf((conv ? gainOf(one, conv)?.percent : one.unrealisedPercent) ?? 0))}>
+                        {conv ? (gainOf(one, conv) == null ? <NotInFile tight /> : signedPct(gainOf(one, conv)!.percent)) : file ? <NotInFile tight /> : signedPct(one.unrealisedPercent)}</td>}
                       {on("oneDay") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.oneDay ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.oneDay)}</td>}
                       {on("ytd") && <td className={cn("px-1.5 py-2 text-right tabular-nums", toneOf(one.yearToDate ?? 0))}>{file ? <NotInFile tight /> : signedPct(one.yearToDate)}</td>}
                       {on("accrued") && <td className="px-1.5 py-2 text-right tabular-nums">{one.accruedInterest == null ? (file ? <NotInFile tight /> : "—") : exact(one.accruedInterest, one.currency ?? "")}</td>}
@@ -543,6 +743,20 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                         </td>
                       )}
                     </tr>
+                    {lookingThrough && (partsOf.get(one.id) ?? []).map((part, at) => (
+                      <tr key={`${one.id}-${at}`} className="bg-primary-50/20 text-xs">
+                        <td className={cn("py-1.5 pr-3 pl-14", part.rest ? "text-ink-muted italic" : "text-ink-soft")}>
+                          ↳ {part.name}{part.sovereign && <span className="ml-1 text-3xs text-ink-muted">(sovereign)</span>}
+                        </td>
+                        {COLUMNS.filter(([id]) => on(id)).map(([id]) => (
+                          <td key={id} className="px-1.5 py-1.5 text-right whitespace-nowrap tabular-nums text-ink-soft">
+                            {id === "value" ? compact(part.value, data.currency)
+                              : id === "weight" && data.total && data.total.value !== 0 ? `${((part.value / data.total.value) * 100).toFixed(2)}%` : ""}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    </Fragment>
                   ))}
                   {!closed && rest > 0 && (
                     <tr>
@@ -561,7 +775,8 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
               <tr className="font-semibold">
                 <td colSpan={columns} className="py-2 pr-3 pl-5">
                   Total · {shown.length} positions
-                  {file ? ` · ${data.fileTotals.map((one) => exact(one.amount, one.currency)).join(" · ")} (per currency, not added together)` : ""}
+                  {conv ? ` · ${exact(conv.file.total, usd)} at FX rates${conv.file.ratesOn ? ` of ${formatDate(conv.file.ratesOn)}` : ""}${conv.file.missing.length > 0 ? ` · ${conv.file.missing.map((one) => one.currency).join(", ")} left out: no rate` : ""}`
+                    : file ? ` · ${data.fileTotals.map((one) => exact(one.amount, one.currency)).join(" · ")} (per currency, not added together)` : ""}
                 </td>
               </tr>
             ) : (
@@ -586,7 +801,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
       </div>
       {!file && filtered && <p className="mt-2 text-3xs text-ink-muted italic">Group totals are the server's for the whole table, so they are not shown while a filter is on.</p>}
       <p className="mt-2 text-3xs text-ink-muted italic">
-        {file ? "Lines exactly as the bank's files state them, under the bank's own class labels. The bank's cost price and total cost are its own figures, in each line's currency; unrealised P&L is not in the bank file and is not worked out from them."
+        {file ? "Lines exactly as the bank's files state them, under the bank's own class labels. The bank's cost price and total cost are its own figures, in each line's currency; unrealised P&L is not in the bank file and is not worked out from them. A dash (—) is a figure the bank's file does not hold."
           : "Select a line to see its tax lots. Price is the value over the units held."}
       </p>
     </>
@@ -602,7 +817,8 @@ const GROUPING_KEYS: Record<Grouping, string> = {
  * A group's own row, as the design draws it: its name and, from the server, what its lines add up to. A bank-file
  * client's group shows its lines' values per currency as sent, since they are never added across currencies.
  */
-function GroupRow({ group, by, lines, closed, file, currency, on, summary, onToggle }: {
+function GroupRow({ group, by, lines, closed, file, currency, on, summary, onToggle, conv }: {
+  conv?: HoldingsConverted | null;
   group: string;
   by: Grouping;
   lines: HoldingsPosition[];
@@ -614,6 +830,10 @@ function GroupRow({ group, by, lines, closed, file, currency, on, summary, onTog
   onToggle: () => void;
 }) {
   const perCurrency = () => {
+    if (conv) {
+      const sum = lines.reduce((total, one) => total + (usdOf(one.value, one.currency, conv) ?? 0), 0);
+      return <span className="block">{exact(sum, conv.file.currency)}</span>;
+    }
     const sums = new Map<string, number>();
     lines.forEach((one) => sums.set(one.currency ?? "", (sums.get(one.currency ?? "") ?? 0) + one.value));
     return [...sums.entries()].map(([ccy, sum]) => <span key={ccy} className="block">{exact(sum, ccy)}</span>);
@@ -626,7 +846,7 @@ function GroupRow({ group, by, lines, closed, file, currency, on, summary, onTog
   return (
     <tr className="bg-slate-50 font-semibold">
       <th scope="rowgroup" className="py-2 pr-3 pl-5 text-left">
-        <button type="button" aria-expanded={!closed} className="flex items-center gap-1.5 text-sm font-semibold" onClick={onToggle}>
+        <button type="button" aria-expanded={!closed} className="flex items-center gap-1.5 text-left text-sm font-semibold whitespace-nowrap" onClick={onToggle}>
           {closed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
           {group}
         </button>
@@ -656,6 +876,7 @@ function GroupRow({ group, by, lines, closed, file, currency, on, summary, onTog
 
 /** His banks, each with what its file lines add up to in each currency, as sent. */
 function FileByBank({ data }: { data: ClientHoldingsBook }) {
+  const drill = useDrill();
   const banks = new Map<string, Map<string, number>>();
   data.positions.forEach((one) => {
     const bank = banks.get(one.custodian ?? "Not stated") ?? new Map<string, number>();
@@ -666,11 +887,14 @@ function FileByBank({ data }: { data: ClientHoldingsBook }) {
   return (
     <ul className="divide-y divide-line text-sm">
       {[...banks.entries()].map(([bank, sums]) => (
-        <li key={bank} className="flex items-start justify-between gap-3 py-2">
+        <li key={bank}>
+          <button type="button" onClick={() => drill?.({ by: "custodian", key: bank === "Not stated" ? "" : bank, name: bank })}
+            className="flex w-full items-start justify-between gap-3 py-2 text-left hover:bg-canvas">
           <span>{bank}</span>
           <span className="text-right text-xs font-semibold tabular-nums">
             {[...sums.entries()].map(([ccy, sum]) => <span key={ccy} className="block">{exact(sum, ccy)}</span>)}
           </span>
+          </button>
         </li>
       ))}
     </ul>
@@ -709,6 +933,7 @@ function LotsTable({ data, position }: { data: ClientHoldingsBook; position: Hol
   const names = new Map(data.positions.map((one) => [one.id, one.name]));
   const lots = position ? data.lots.filter((one) => one.positionId === position.id) : data.lots;
   const cur = data.currency;
+  const drill = useDrill();
   if (lots.length === 0) return <Empty>{position ? "No tax lots are on file for this line." : "No tax lots on file."}</Empty>;
   return (
     <div className="-mx-5 overflow-x-auto">
@@ -729,7 +954,8 @@ function LotsTable({ data, position }: { data: ClientHoldingsBook; position: Hol
         </thead>
         <tbody className="divide-y divide-line">
           {lots.map((one) => (
-            <tr key={`${one.positionId}-${one.lotRef}`}>
+            <tr key={`${one.positionId}-${one.lotRef}`} className="cursor-pointer hover:bg-canvas"
+              onClick={() => drill?.({ by: "position", key: one.positionId, name: names.get(one.positionId) ?? one.lotRef })}>
               <td className="py-2 pr-3 pl-5 font-mono text-xs">{one.lotRef}</td>
               {!position && <td className="px-2 py-2">{names.get(one.positionId) ?? "—"}</td>}
               <td className="px-2 py-2 whitespace-nowrap">{formatDate(one.acquiredOn)}</td>
@@ -750,9 +976,19 @@ function LotsTable({ data, position }: { data: ClientHoldingsBook; position: Hol
 
 function Ledger({ data, limit }: { data: ClientHoldingsBook; limit: number | null }) {
   const rows = limit == null ? data.transactions : data.transactions.slice(0, limit);
+  const [fileView, setFileView] = useState<FileView>("converted");
+  const conv = data.bankFile && fileView === "converted" ? data.converted ?? null : null;
+  const drill = useDrill();
+  // A movement opens its own fields; a bank-file client's ledger shows "not in bank file", so it is not opened.
+  const pick = drill && !data.bankFile ? (one: (typeof rows)[number]) => drill({ by: "figure", key: `transaction:${one.on}:${one.description}:${one.amount}`, name: one.description, figure: {
+    label: one.type, value: signedCompact(one.amount, one.currency),
+    facts: [{ label: "Date", value: formatDate(one.on) }, { label: "Type", value: one.type }, { label: "Currency", value: one.currency },
+      { label: "Entity", value: one.entity ?? "—" }, { label: "Account", value: one.account ?? "—" }, { label: "Source", value: one.source }],
+  } }) : undefined;
   if (rows.length === 0) return <Empty>{data.bankFile ? <NotInFile /> : "No movements on file."}</Empty>;
   return (
     <div className="-mx-5 overflow-x-auto">
+      {data.bankFile && <div className="mb-2 flex justify-end px-5"><FileViewToggle value={fileView} onChange={setFileView} /></div>}
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-y border-line text-left text-2xs font-semibold tracking-wider text-ink-muted uppercase">
@@ -760,20 +996,28 @@ function Ledger({ data, limit }: { data: ClientHoldingsBook; limit: number | nul
             <th scope="col" className="px-2 py-2">Type</th>
             <th scope="col" className="px-2 py-2">Security</th>
             <th scope="col" className="px-2 py-2">Entity</th>
-            <th scope="col" className="py-2 pr-5 pl-2 text-right">Amount</th>
+            <th scope="col" className="py-2 pr-5 pl-2 text-right">Amount{conv ? ` · ${conv.file.currency}` : ""}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
           {rows.map((one, at) => (
-            <tr key={`${one.on}-${at}`}>
+            <tr key={`${one.on}-${at}`} className={cn(pick && "cursor-pointer hover:bg-canvas")} onClick={pick ? () => pick(one) : undefined}>
               <td className="py-2 pr-3 pl-5 whitespace-nowrap text-ink-muted">{formatDate(one.on)}</td>
               <td className="px-2 py-2"><Pill tone="bg-slate-100 text-ink-soft">{one.type}</Pill></td>
-              <td className="px-2 py-2">{one.description}</td>
+              <td className="px-2 py-2">
+                {pick ? (
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline"
+                    onClick={(event) => { event.stopPropagation(); pick(one); }}>{one.description}</button>
+                ) : one.description}
+              </td>
               <td className="px-2 py-2 text-xs text-ink-soft" title={one.account ?? undefined}>
                 {data.bankFile ? <NotInFile /> : one.entity ?? "—"}
               </td>
               <td className={cn("py-2 pr-5 pl-2 text-right font-semibold whitespace-nowrap tabular-nums", toneOf(one.amount))}>
-                {data.bankFile ? exact(one.amount, one.currency) : signedCompact(one.amount, one.currency)}
+                {conv ? (usdOf(one.amount, one.currency, conv) == null ? <NoRate /> : (
+                  <>{exact(usdOf(one.amount, one.currency, conv)!, conv.file.currency)}
+                    {one.currency !== conv.file.currency && <span className="block text-2xs font-normal text-ink-muted">{exact(one.amount, one.currency)}</span>}</>
+                )) : data.bankFile ? exact(one.amount, one.currency) : signedCompact(one.amount, one.currency)}
               </td>
             </tr>
           ))}
@@ -784,6 +1028,9 @@ function Ledger({ data, limit }: { data: ClientHoldingsBook; limit: number | nul
 }
 
 function Actions({ data }: { data: ClientHoldingsBook }) {
+  const drill = useDrill();
+  // A security opens its position, matched by name as the panel matches it; one no line carries is left as text.
+  const held = new Set(data.positions.map((one) => one.name));
   if (data.corporateActions.length === 0) return <Empty>No corporate actions on file.</Empty>;
   const tone = (status: string) => (status === "ANNOUNCED" ? "bg-amber-50 text-amber-700" : status === "ELECTED" ? "bg-primary-50 text-primary-700" : "bg-emerald-50 text-emerald-700");
   return (
@@ -801,7 +1048,8 @@ function Actions({ data }: { data: ClientHoldingsBook }) {
         </thead>
         <tbody className="divide-y divide-line">
           {data.corporateActions.map((one, at) => (
-            <tr key={`${one.security}-${at}`}>
+            <tr key={`${one.security}-${at}`} className={cn(held.has(one.security) && "cursor-pointer hover:bg-canvas")}
+              onClick={held.has(one.security) ? () => drill?.({ by: "position", key: one.security, name: one.security }) : undefined}>
               <td className="py-2 pr-3 pl-5 font-medium">{one.security}</td>
               <td className="px-2 py-2">{titleCase(one.kind)}</td>
               <td className="px-2 py-2 whitespace-nowrap">{formatDate(one.exDate)}</td>
@@ -858,7 +1106,7 @@ function ColumnsMenu({ hidden, onChange }: { hidden: Set<Column>; onChange: (nex
         Columns
       </Button>
       {open && (
-        <div className="absolute left-0 z-20 mt-1 w-48 rounded-xl border border-line bg-white p-2 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-white p-2 shadow-lg">
           {COLUMNS.map(([id, label]) => (
             <label key={id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
               <input type="checkbox" checked={!hidden.has(id)} onChange={() => onChange(toggled(hidden, id))} />
@@ -882,6 +1130,7 @@ function toggled<T>(set: Set<T>, value: T) {
 function Card({ title, lead, action, picker, children }: { title: string; lead?: string; action?: ReactNode; picker?: ReactNode; children: ReactNode }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-line bg-white p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -889,17 +1138,19 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }
 
-function Kpi({ label, value, note, tone }: { label: string; value: ReactNode; note: ReactNode; tone?: string }) {
+function Kpi({ label, value, note, tone, onPick }: { label: string; value: ReactNode; note: ReactNode; tone?: string; onPick?: () => void }) {
   if (useFigureRow()) return <FigureRow label={label} value={value} note={note} tone={tone} />;
   return (
-    <div className="rounded-2xl border border-line bg-white px-4 py-3.5">
+    <div className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", onPick && "cursor-pointer hover:bg-canvas")}
+      {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", onClick: onPick,
+        onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       {note && <div className="mt-1 text-xs text-ink-muted">{note}</div>}
@@ -929,22 +1180,18 @@ function Pill({ tone, children }: { tone: string; children: ReactNode }) {
   return <span className={cn("inline-block rounded-md px-2 py-0.5 text-2xs font-semibold whitespace-nowrap", tone)}>{children}</span>;
 }
 
-function Marker({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-3xs font-medium whitespace-nowrap text-ink-muted">
-      {children}
-    </span>
-  );
-}
-
 /**
- * Where a bank-file client's files hold nothing. On one line wherever there is room; {@code tight} puts it on exactly
- * two short lines, for a narrow figure column that would otherwise be widened by it.
+ * Where a bank-file client's files hold nothing. Written out where there is room (a KPI tile); {@code tight}, in a
+ * table's cell, is a dash on one line that says so on hover, so the row stays one line high and every cell sits under
+ * its heading; the table's own note says what the dash means.
  */
 function NotInFile({ tight }: { tight?: boolean }) {
+  if (tight) {
+    return <span title="Not in the bank's file" className="font-sans text-ink-muted">—</span>;
+  }
   return (
     <span className="inline-block w-fit rounded-sm border border-dashed border-line px-1 text-left text-3xs leading-tight font-medium whitespace-nowrap text-ink-muted">
-      {tight ? <>not in<br />bank file</> : "not in bank file"}
+      not in bank file
     </span>
   );
 }

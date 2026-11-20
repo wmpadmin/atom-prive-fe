@@ -59,6 +59,14 @@ export interface LayoutCard {
      * @pattern [a-z][a-z-]{0,11}
      */
   palette: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 200
+     * @nullable
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  hiddenColumns: string[] | null;
 }
 
 export interface LayoutRequest {
@@ -1099,6 +1107,13 @@ export interface OwnedAssetDetailsRequest {
   owners: OwnerShareRequest[];
 }
 
+export interface OwnedAssetChangeFile {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface OwnedAssetRequest {
   /**
      * @minLength 0
@@ -1184,6 +1199,8 @@ export interface OwnedAssetChangeRow {
   reason: string | null;
   canAnswer: boolean;
   canWithdraw: boolean;
+  raisedByClient: boolean;
+  files: OwnedAssetChangeFile[];
 }
 
 export interface OwnedAssetDetailsSaved {
@@ -1979,7 +1996,6 @@ export const JsonNodeNodeType = {
 export interface JsonNode {
   number?: boolean;
   container?: boolean;
-  floatingPointNumber?: boolean;
   nodeType?: JsonNodeNodeType;
   string?: boolean;
   integralNumber?: boolean;
@@ -1996,6 +2012,7 @@ export interface JsonNode {
   textual?: boolean;
   boolean?: boolean;
   binary?: boolean;
+  floatingPointNumber?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -3553,6 +3570,108 @@ export interface StaffUserDetail {
   recentActivity: ActivityEntry[];
 }
 
+export type UpdateRoleScreenRequestLevel = typeof UpdateRoleScreenRequestLevel[keyof typeof UpdateRoleScreenRequestLevel];
+
+
+export const UpdateRoleScreenRequestLevel = {
+  FULL: 'FULL',
+  VIEW_ONLY: 'VIEW_ONLY',
+  OWN_CLIENTS: 'OWN_CLIENTS',
+  ASSIGNED: 'ASSIGNED',
+  NONE: 'NONE',
+} as const;
+
+export interface UpdateRoleScreenRequest {
+  level: UpdateRoleScreenRequestLevel;
+}
+
+export type RoleScreensViewRole = typeof RoleScreensViewRole[keyof typeof RoleScreensViewRole];
+
+
+export const RoleScreensViewRole = {
+  ADMIN: 'ADMIN',
+  ADVISOR: 'ADVISOR',
+  COMPLIANCE: 'COMPLIANCE',
+  OPERATIONS: 'OPERATIONS',
+  PORTFOLIO_MANAGER: 'PORTFOLIO_MANAGER',
+  IT_ADMIN: 'IT_ADMIN',
+} as const;
+
+export type ScreenGrantScreen = typeof ScreenGrantScreen[keyof typeof ScreenGrantScreen];
+
+
+export const ScreenGrantScreen = {
+  DASHBOARD: 'DASHBOARD',
+  APPROVALS: 'APPROVALS',
+  ASSISTANT: 'ASSISTANT',
+  MY_CLEARANCES: 'MY_CLEARANCES',
+  MY_DECLARATIONS: 'MY_DECLARATIONS',
+  SUPPORT: 'SUPPORT',
+  SETTINGS: 'SETTINGS',
+  CLIENT_MANAGEMENT: 'CLIENT_MANAGEMENT',
+  PROSPECTIVE_CLIENTS: 'PROSPECTIVE_CLIENTS',
+  ALL_CLIENTS: 'ALL_CLIENTS',
+  ASSIGNED_CUSTOMERS: 'ASSIGNED_CUSTOMERS',
+  DEACTIVATION_REQUESTS: 'DEACTIVATION_REQUESTS',
+  ARCHIVED_CLIENTS: 'ARCHIVED_CLIENTS',
+  CLIENT_DOCUMENTS: 'CLIENT_DOCUMENTS',
+  FORMS: 'FORMS',
+  POST_ONBOARDING: 'POST_ONBOARDING',
+  TRADE_LOGS: 'TRADE_LOGS',
+  BOOK_OVERVIEW: 'BOOK_OVERVIEW',
+  CLIENT_DIRECTORY: 'CLIENT_DIRECTORY',
+  BANK_HOLDINGS: 'BANK_HOLDINGS',
+  MODEL_PORTFOLIOS: 'MODEL_PORTFOLIOS',
+  MODEL_PERFORMANCE: 'MODEL_PERFORMANCE',
+  DRIFT: 'DRIFT',
+  BULK_REBALANCING: 'BULK_REBALANCING',
+  MIS: 'MIS',
+  REPORTS: 'REPORTS',
+  PORTFOLIO_SETTINGS: 'PORTFOLIO_SETTINGS',
+  KYC_REVIEW: 'KYC_REVIEW',
+  KYC_DOCUMENTS: 'KYC_DOCUMENTS',
+  KYC_CHECKLIST: 'KYC_CHECKLIST',
+  AML_RISK: 'AML_RISK',
+  AML_RISK_MATRIX: 'AML_RISK_MATRIX',
+  BANK_FEEDS: 'BANK_FEEDS',
+  SYNC_ERRORS: 'SYNC_ERRORS',
+  HOLDINGS_CHECK: 'HOLDINGS_CHECK',
+  BANK_CREDENTIALS: 'BANK_CREDENTIALS',
+  STAFF_USERS: 'STAFF_USERS',
+  PERMISSION_MATRIX: 'PERMISSION_MATRIX',
+  STAFF_TRACKER: 'STAFF_TRACKER',
+  STAFF_DECLARATIONS: 'STAFF_DECLARATIONS',
+  CONFIG: 'CONFIG',
+  SIGN_IN_AS: 'SIGN_IN_AS',
+  AUDIT_LOG: 'AUDIT_LOG',
+  TRAILS: 'TRAILS',
+  FAMILY_ACCESS_TRAIL: 'FAMILY_ACCESS_TRAIL',
+} as const;
+
+export type ScreenGrantLevel = typeof ScreenGrantLevel[keyof typeof ScreenGrantLevel];
+
+
+export const ScreenGrantLevel = {
+  FULL: 'FULL',
+  VIEW_ONLY: 'VIEW_ONLY',
+  OWN_CLIENTS: 'OWN_CLIENTS',
+  ASSIGNED: 'ASSIGNED',
+  NONE: 'NONE',
+} as const;
+
+export interface ScreenGrant {
+  screen: ScreenGrantScreen;
+  level: ScreenGrantLevel;
+  /** @nullable */
+  lockedReason: string | null;
+}
+
+export interface RoleScreensView {
+  role: RoleScreensViewRole;
+  name: string;
+  grants: ScreenGrant[];
+}
+
 export type UpdateRolePermissionRequestLevel = typeof UpdateRolePermissionRequestLevel[keyof typeof UpdateRolePermissionRequestLevel];
 
 
@@ -4933,6 +5052,71 @@ export interface PortalAccessGiven {
   given: Given[];
 }
 
+export interface NewHoldingAnswer {
+  approve: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  reason: string | null;
+}
+
+export interface Amount {
+  currency: string;
+  value: number;
+}
+
+export interface NewHoldingRow {
+  id: string;
+  customerId: string;
+  clientName: string;
+  /** @nullable */
+  clientCode: string | null;
+  bankName: string;
+  /** @nullable */
+  isin: string | null;
+  name: string;
+  /** @nullable */
+  bankClass: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  /** @nullable */
+  units: number | null;
+  amounts: Amount[];
+  /** @nullable */
+  asOf: string | null;
+  status: string;
+  raisedAt: string;
+  /** @nullable */
+  answeredBy: string | null;
+  /** @nullable */
+  answeredAt: string | null;
+  /** @nullable */
+  reason: string | null;
+  canAnswer: boolean;
+}
+
+export interface NewHoldingQueue {
+  items: NewHoldingRow[];
+  waiting: number;
+}
+
+export interface NewHoldingsAnswer {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  ids: string[];
+  approve: boolean;
+  /**
+     * @minLength 0
+     * @maxLength 500
+     * @nullable
+     */
+  reason: string | null;
+}
+
 export interface MarketTurn {
   /**
      * @minLength 0
@@ -5935,6 +6119,19 @@ export interface BellPage {
   unread: number;
 }
 
+export interface BankHoldingsBank {
+  id: string;
+  bankName: string;
+  fileName: string;
+  lines: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  /** @nullable */
+  clientId: string | null;
+  /** @nullable */
+  clientName: string | null;
+}
+
 export type EnterWorkspaceRequestRole = typeof EnterWorkspaceRequestRole[keyof typeof EnterWorkspaceRequestRole];
 
 
@@ -6003,6 +6200,8 @@ export const StaffProfileSpace = {
   REAL: 'REAL',
 } as const;
 
+export type StaffProfileScreens = {[key: string]: 'FULL' | 'VIEW_ONLY' | 'OWN_CLIENTS' | 'ASSIGNED' | 'NONE'};
+
 export interface StaffProfile {
   id: string;
   fullName: string;
@@ -6018,6 +6217,7 @@ export interface StaffProfile {
   photo: string | null;
   space: StaffProfileSpace;
   canSwitchSpace: boolean;
+  screens: StaffProfileScreens;
 }
 
 export interface SignInResponse {
@@ -7701,6 +7901,8 @@ export interface HoldingsOverview {
   rows: ClientComparison[];
 }
 
+export type ClientHoldingsCheckPerUsd = {[key: string]: number};
+
 export type HoldingLineStatus = typeof HoldingLineStatus[keyof typeof HoldingLineStatus];
 
 
@@ -7747,6 +7949,9 @@ export interface ClientHoldingsCheck {
   accounts: string[];
   lines: HoldingLine[];
   inUse: string[];
+  perUsd: ClientHoldingsCheckPerUsd;
+  /** @nullable */
+  ratesOn: string | null;
 }
 
 export interface FormPage {
@@ -9021,6 +9226,53 @@ export interface WorkspaceFileMovement {
   currency: string;
 }
 
+export interface ConvertedCurrency {
+  currency: string;
+  asSent: number;
+  perUsd: number;
+  usd: number;
+  /** @nullable */
+  rateOn: string | null;
+}
+
+export interface ConvertedSlice {
+  name: string;
+  usd: number;
+  share: number;
+}
+
+export interface ConvertedLine {
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  asSent: number;
+  currency: string;
+  usd: number;
+  share: number;
+}
+
+export type WorkspaceConvertedPerUsd = {[key: string]: number};
+
+export type WorkspaceConvertedHouseClasses = {[key: string]: string};
+
+export interface WorkspaceConverted {
+  currency: string;
+  /** @nullable */
+  ratesOn: string | null;
+  total: number;
+  currencies: ConvertedCurrency[];
+  missing: BookCurrencyAmount[];
+  byClass: ConvertedSlice[];
+  byCurrency: ConvertedSlice[];
+  top: ConvertedLine[];
+  lines: ConvertedLine[];
+  history: BookAumPoint[];
+  perUsd: WorkspaceConvertedPerUsd;
+  houseClasses: WorkspaceConvertedHouseClasses;
+}
+
 export interface WorkspaceBankFile {
   banks: string[];
   /** @nullable */
@@ -9029,6 +9281,7 @@ export interface WorkspaceBankFile {
   byCurrency: WorkspaceFileCurrency[];
   accounts: WorkspaceFileAccount[];
   movements: WorkspaceFileMovement[];
+  converted: WorkspaceConverted;
 }
 
 export interface WorkspaceEntity {
@@ -9209,6 +9462,7 @@ export interface StructureFileAccount {
   /** @nullable */
   asOf: string | null;
   holdings: BookCurrencyAmount[];
+  movements: number;
 }
 
 export interface ClientStructure {
@@ -9233,6 +9487,7 @@ export interface ClientStructure {
   settlors: string[];
   /** @nullable */
   jurisdictionNote: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface RiskNotMeasured {
@@ -9389,6 +9644,7 @@ export interface ClientRisk {
   classRisk: RiskClassShare[];
   factors: RiskFactor[];
   correlationMatrix: RiskCorrelation | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface PmKpi {
@@ -9587,6 +9843,7 @@ export interface ClientPrivateMarkets {
   note: string | null;
   fileCommitments: PmFileCommitment[];
   fileCalls: PmFileCall[];
+  converted: WorkspaceConverted | null;
 }
 
 export interface AttributionRow {
@@ -9776,6 +10033,35 @@ export interface PerformanceAttribution {
   periods: AttributionPeriod[];
 }
 
+export interface PerformanceFileFeeRate {
+  type: string;
+  label: string;
+  annualBp: number;
+  annualAmount: number;
+}
+
+export interface PerformanceFeePaid {
+  on: string;
+  description: string;
+  asSent: number;
+  currency: string;
+  /** @nullable */
+  amount: number | null;
+}
+
+export interface PerformanceFileFees {
+  currency: string;
+  /** @nullable */
+  ratesOn: string | null;
+  grossAssets: number;
+  annualBp: number;
+  annualAmount: number;
+  rates: PerformanceFileFeeRate[];
+  paid: PerformanceFeePaid[];
+  paidAmount: number;
+  noRate: string[];
+}
+
 export interface ClientPerformance {
   customerId: string;
   name: string;
@@ -9799,6 +10085,7 @@ export interface ClientPerformance {
   attribution: PerformanceAttribution | null;
   /** @nullable */
   classNote: string | null;
+  fileFees: PerformanceFileFees | null;
 }
 
 export interface IpsSummary {
@@ -9950,6 +10237,7 @@ export interface ClientIps {
   bandRule: string;
   checkedAt: string;
   fileLines: IpsFileGroup[];
+  converted: WorkspaceConverted | null;
 }
 
 export interface HoldingsKpis {
@@ -10104,6 +10392,27 @@ export interface HoldingsGroup {
   yearToDate: number | null;
 }
 
+export interface HoldingsConverted {
+  file: WorkspaceConverted;
+  /** @nullable */
+  costUsd: number | null;
+  costed: number;
+  byBank: ConvertedSlice[];
+  unrealisedByClass: ConvertedSlice[];
+}
+
+export interface HoldingsLookThroughPart {
+  name: string;
+  value: number;
+  sovereign: boolean;
+  rest: boolean;
+}
+
+export interface HoldingsLookThrough {
+  positionId: string;
+  parts: HoldingsLookThroughPart[];
+}
+
 export interface ClientHoldingsBook {
   customerId: string;
   name: string;
@@ -10122,6 +10431,50 @@ export interface ClientHoldingsBook {
   fileCostTotals: BookCurrencyAmount[];
   total: HoldingsTotal | null;
   groups: HoldingsGroup[];
+  converted: HoldingsConverted | null;
+  lookThrough: HoldingsLookThrough[];
+}
+
+export interface HoldingDay {
+  day: string;
+  /** @nullable */
+  units: number | null;
+  /** @nullable */
+  price: number | null;
+  value: number;
+  currency: string;
+}
+
+export interface HoldingEvent {
+  at: string;
+  kind: string;
+  what: string;
+  /** @nullable */
+  by: string | null;
+}
+
+export interface TrailRow {
+  day: string;
+  /** @nullable */
+  at: string | null;
+  kind: string;
+  what: string;
+  /** @nullable */
+  by: string | null;
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  currency: string | null;
+}
+
+export interface HoldingHistory {
+  name: string;
+  /** @nullable */
+  isin: string | null;
+  asSent: boolean;
+  days: HoldingDay[];
+  events: HoldingEvent[];
+  trail: TrailRow[];
 }
 
 export interface FiKpi {
@@ -10304,6 +10657,7 @@ export interface ClientFixedIncome {
   fileLines: FiFileLine[];
   /** @nullable */
   note: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface EquityStrip {
@@ -10467,6 +10821,7 @@ export interface ClientEquity {
   fileLines: EquityFileLine[];
   /** @nullable */
   note: string | null;
+  converted: WorkspaceConverted | null;
 }
 
 export interface CoKpi {
@@ -10635,6 +10990,53 @@ export interface RecentClient {
   fileHoldings: BookCurrencyAmount[];
 }
 
+export interface ClientBank {
+  key: string;
+  name: string;
+  source: string;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  asOf: string | null;
+  totalUsd: number;
+  lines: number;
+  noRate: string[];
+}
+
+export interface ClientBankLine {
+  bank: string;
+  name: string;
+  /** @nullable */
+  isin: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  holding: number | null;
+  /** @nullable */
+  lastPrice: number | null;
+  /** @nullable */
+  marketValueUsd: number | null;
+  /** @nullable */
+  asSent: number | null;
+  /** @nullable */
+  asSentCurrency: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  /** @nullable */
+  productType: string | null;
+  /** @nullable */
+  subAssetClass: string | null;
+  /** @nullable */
+  bankClass: string | null;
+}
+
+export interface ClientBanks {
+  banks: ClientBank[];
+  lines: ClientBankLine[];
+  /** @nullable */
+  ratesOn: string | null;
+}
+
 export interface RecentClientList {
   clients: RecentClient[];
 }
@@ -10686,6 +11088,35 @@ export interface Overview {
 
 export interface SseEmitter {
   timeout?: number;
+}
+
+export interface BankHoldingsBanks {
+  banks: BankHoldingsBank[];
+}
+
+export interface BankHoldingsLine {
+  lineNo: number;
+  cells: string[];
+}
+
+export interface BankHoldingsFile {
+  id: string;
+  bankName: string;
+  fileName: string;
+  sheetName: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  headings: string[];
+  lines: BankHoldingsLine[];
+}
+
+export interface BankHoldingsClient {
+  id: string;
+  name: string;
+}
+
+export interface BankHoldingsClients {
+  clients: BankHoldingsClient[];
 }
 
 export interface BankSigningIn {
@@ -10997,6 +11428,73 @@ export interface PermissionMatrix {
   roles: RoleAccessView[];
 }
 
+export type ScreenOptionScreen = typeof ScreenOptionScreen[keyof typeof ScreenOptionScreen];
+
+
+export const ScreenOptionScreen = {
+  DASHBOARD: 'DASHBOARD',
+  APPROVALS: 'APPROVALS',
+  ASSISTANT: 'ASSISTANT',
+  MY_CLEARANCES: 'MY_CLEARANCES',
+  MY_DECLARATIONS: 'MY_DECLARATIONS',
+  SUPPORT: 'SUPPORT',
+  SETTINGS: 'SETTINGS',
+  CLIENT_MANAGEMENT: 'CLIENT_MANAGEMENT',
+  PROSPECTIVE_CLIENTS: 'PROSPECTIVE_CLIENTS',
+  ALL_CLIENTS: 'ALL_CLIENTS',
+  ASSIGNED_CUSTOMERS: 'ASSIGNED_CUSTOMERS',
+  DEACTIVATION_REQUESTS: 'DEACTIVATION_REQUESTS',
+  ARCHIVED_CLIENTS: 'ARCHIVED_CLIENTS',
+  CLIENT_DOCUMENTS: 'CLIENT_DOCUMENTS',
+  FORMS: 'FORMS',
+  POST_ONBOARDING: 'POST_ONBOARDING',
+  TRADE_LOGS: 'TRADE_LOGS',
+  BOOK_OVERVIEW: 'BOOK_OVERVIEW',
+  CLIENT_DIRECTORY: 'CLIENT_DIRECTORY',
+  BANK_HOLDINGS: 'BANK_HOLDINGS',
+  MODEL_PORTFOLIOS: 'MODEL_PORTFOLIOS',
+  MODEL_PERFORMANCE: 'MODEL_PERFORMANCE',
+  DRIFT: 'DRIFT',
+  BULK_REBALANCING: 'BULK_REBALANCING',
+  MIS: 'MIS',
+  REPORTS: 'REPORTS',
+  PORTFOLIO_SETTINGS: 'PORTFOLIO_SETTINGS',
+  KYC_REVIEW: 'KYC_REVIEW',
+  KYC_DOCUMENTS: 'KYC_DOCUMENTS',
+  KYC_CHECKLIST: 'KYC_CHECKLIST',
+  AML_RISK: 'AML_RISK',
+  AML_RISK_MATRIX: 'AML_RISK_MATRIX',
+  BANK_FEEDS: 'BANK_FEEDS',
+  SYNC_ERRORS: 'SYNC_ERRORS',
+  HOLDINGS_CHECK: 'HOLDINGS_CHECK',
+  BANK_CREDENTIALS: 'BANK_CREDENTIALS',
+  STAFF_USERS: 'STAFF_USERS',
+  PERMISSION_MATRIX: 'PERMISSION_MATRIX',
+  STAFF_TRACKER: 'STAFF_TRACKER',
+  STAFF_DECLARATIONS: 'STAFF_DECLARATIONS',
+  CONFIG: 'CONFIG',
+  SIGN_IN_AS: 'SIGN_IN_AS',
+  AUDIT_LOG: 'AUDIT_LOG',
+  TRAILS: 'TRAILS',
+  FAMILY_ACCESS_TRAIL: 'FAMILY_ACCESS_TRAIL',
+} as const;
+
+export interface ScreenOption {
+  screen: ScreenOptionScreen;
+  path: string;
+  label: string;
+  description: string;
+  section: string;
+  /** @nullable */
+  under: string | null;
+}
+
+export interface ScreenMatrix {
+  screens: ScreenOption[];
+  levels: AccessLevelOption[];
+  roles: RoleScreensView[];
+}
+
 export interface AssetClassRow {
   code: string;
   name: string;
@@ -11264,6 +11762,14 @@ export type UploadClientPhotoBody = {
 
 export type ListSupportedBanksParams = {
 enabled?: boolean;
+};
+
+export type UploadBankHoldingsParams = {
+clientId?: string;
+};
+
+export type UploadBankHoldingsBody = {
+  files: (Blob | File)[];
 };
 
 export type ResetPassword200 = { [key: string]: unknown };
@@ -11649,6 +12155,18 @@ code?: string;
 
 export type ListEmailPlaceholdersParams = {
 template?: string;
+};
+
+export type GetHoldingHistoryParams = {
+isin?: string;
+name?: string;
+positionId?: string;
+};
+
+export type ExportHoldingHistoryParams = {
+isin?: string;
+name?: string;
+positionId?: string;
 };
 
 export type GetClientEquityParams = {
@@ -16960,6 +17478,89 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateFxRateMutationOptions(options), queryClient);
     }
 
+export const getAddMissingFxRateUrl = (code: string,) => {
+
+
+
+
+  return `/api/backoffice/config/fx-rates/${code}/missing`
+}
+
+export const addMissingFxRate = async (code: string,
+    updateFxRateRequest: UpdateFxRateRequest, options?: Parameters<typeof http>[1]): Promise<FxRateRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FxRateRow>(getAddMissingFxRateUrl(code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateFxRateRequest)
+  }
+);}
+
+
+
+
+
+export const getAddMissingFxRateMutationKey = () => ['addMissingFxRate'] as const;
+
+export const getAddMissingFxRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext> => {
+
+const mutationKey = getAddMissingFxRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMissingFxRate>>, AddMissingFxRateMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  addMissingFxRate(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMissingFxRateMutationResult = NonNullable<Awaited<ReturnType<typeof addMissingFxRate>>>
+    export type AddMissingFxRateMutationBody = UpdateFxRateRequest
+    export type AddMissingFxRateMutationError = unknown
+    export type AddMissingFxRateMutationVariables = {code: string;data: UpdateFxRateRequest}
+
+    export const useAddMissingFxRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingFxRate>>, TError,AddMissingFxRateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMissingFxRate>>,
+        TError,
+        AddMissingFxRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMissingFxRateMutationOptions(options), queryClient);
+    }
+
 export const getGetBankFieldMappingUrl = (bankId: string,) => {
 
 
@@ -18056,6 +18657,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateStaffUserMutationOptions(options), queryClient);
+    }
+
+export const getUpdateRoleScreenUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
+    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',) => {
+
+
+
+
+  return `/api/backoffice/admin/roles/${role}/screens/${screen}`
+}
+
+export const updateRoleScreen = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
+    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',
+    updateRoleScreenRequest: UpdateRoleScreenRequest, options?: Parameters<typeof http>[1]): Promise<RoleScreensView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<RoleScreensView>(getUpdateRoleScreenUrl(role,screen),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateRoleScreenRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateRoleScreenMutationKey = () => ['updateRoleScreen'] as const;
+
+export const getUpdateRoleScreenMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRoleScreen>>, TError,UpdateRoleScreenMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRoleScreen>>, TError,UpdateRoleScreenMutationVariables, TContext> => {
+
+const mutationKey = getUpdateRoleScreenMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRoleScreen>>, UpdateRoleScreenMutationVariables> = (props) => {
+          const {role,screen,data} = props ?? {};
+
+          return  updateRoleScreen(role,screen,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRoleScreenMutationResult = NonNullable<Awaited<ReturnType<typeof updateRoleScreen>>>
+    export type UpdateRoleScreenMutationBody = UpdateRoleScreenRequest
+    export type UpdateRoleScreenMutationError = unknown
+    export type UpdateRoleScreenMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL';data: UpdateRoleScreenRequest}
+
+    export const useUpdateRoleScreen = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRoleScreen>>, TError,UpdateRoleScreenMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateRoleScreen>>,
+        TError,
+        UpdateRoleScreenMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateRoleScreenMutationOptions(options), queryClient);
     }
 
 export const getUpdateRolePermissionUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
@@ -25306,6 +25992,171 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getAddAccountHolderMutationOptions(options), queryClient);
     }
 
+export const getAnswerNewHoldingUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/new-holdings/${id}/answer`
+}
+
+export const answerNewHolding = async (id: string,
+    newHoldingAnswer: NewHoldingAnswer, options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NewHoldingQueue>(getAnswerNewHoldingUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newHoldingAnswer)
+  }
+);}
+
+
+
+
+
+export const getAnswerNewHoldingMutationKey = () => ['answerNewHolding'] as const;
+
+export const getAnswerNewHoldingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext> => {
+
+const mutationKey = getAnswerNewHoldingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerNewHolding>>, AnswerNewHoldingMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  answerNewHolding(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerNewHoldingMutationResult = NonNullable<Awaited<ReturnType<typeof answerNewHolding>>>
+    export type AnswerNewHoldingMutationBody = NewHoldingAnswer
+    export type AnswerNewHoldingMutationError = unknown
+    export type AnswerNewHoldingMutationVariables = {id: string;data: NewHoldingAnswer}
+
+    export const useAnswerNewHolding = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerNewHolding>>,
+        TError,
+        AnswerNewHoldingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerNewHoldingMutationOptions(options), queryClient);
+    }
+
+export const getAnswerNewHoldingsUrl = () => {
+
+
+
+
+  return `/api/backoffice/new-holdings/answer`
+}
+
+export const answerNewHoldings = async (newHoldingsAnswer: NewHoldingsAnswer, options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NewHoldingQueue>(getAnswerNewHoldingsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(newHoldingsAnswer)
+  }
+);}
+
+
+
+
+
+export const getAnswerNewHoldingsMutationKey = () => ['answerNewHoldings'] as const;
+
+export const getAnswerNewHoldingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext> => {
+
+const mutationKey = getAnswerNewHoldingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerNewHoldings>>, AnswerNewHoldingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  answerNewHoldings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnswerNewHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof answerNewHoldings>>>
+    export type AnswerNewHoldingsMutationBody = NewHoldingsAnswer
+    export type AnswerNewHoldingsMutationError = unknown
+    export type AnswerNewHoldingsMutationVariables = {data: NewHoldingsAnswer}
+
+    export const useAnswerNewHoldings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof answerNewHoldings>>,
+        TError,
+        AnswerNewHoldingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnswerNewHoldingsMutationOptions(options), queryClient);
+    }
+
 export const getSignMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
 
 
@@ -31293,6 +32144,181 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getReadEveryNotificationMutationOptions(options), queryClient);
     }
 
+export const getGetBankHoldingsBanksUrl = () => {
+
+
+
+
+  return `/api/backoffice/bank-holdings`
+}
+
+export const getBankHoldingsBanks = async ( options?: Parameters<typeof http>[1]): Promise<BankHoldingsBanks> => {
+
+  return http<BankHoldingsBanks>(getGetBankHoldingsBanksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankHoldingsBanksQueryKey = () => {
+    return [
+    `/api/backoffice/bank-holdings`
+    ] as const;
+    }
+
+
+export const getGetBankHoldingsBanksQueryOptions = <TData = Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankHoldingsBanksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankHoldingsBanks>>> = ({ signal }) => getBankHoldingsBanks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBankHoldingsBanksQueryResult = NonNullable<Awaited<ReturnType<typeof getBankHoldingsBanks>>>
+export type GetBankHoldingsBanksQueryError = unknown
+
+
+export function useGetBankHoldingsBanks<TData = Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsBanks>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsBanks<TData = Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsBanks>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsBanks<TData = Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBankHoldingsBanks<TData = Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBankHoldingsBanksQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadBankHoldingsUrl = (params?: UploadBankHoldingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/bank-holdings?${stringifiedParams}` : `/api/backoffice/bank-holdings`
+}
+
+export const uploadBankHoldings = async (uploadBankHoldingsBody?: UploadBankHoldingsBody,
+    params?: UploadBankHoldingsParams, options?: Parameters<typeof http>[1]): Promise<BankHoldingsBank[]> => {
+    const formData = new FormData();
+if(uploadBankHoldingsBody?.files !== undefined) {
+ uploadBankHoldingsBody?.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return http<BankHoldingsBank[]>(getUploadBankHoldingsUrl(params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadBankHoldingsMutationKey = () => ['uploadBankHoldings'] as const;
+
+export const getUploadBankHoldingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadBankHoldings>>, TError,UploadBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadBankHoldings>>, TError,UploadBankHoldingsMutationVariables, TContext> => {
+
+const mutationKey = getUploadBankHoldingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadBankHoldings>>, UploadBankHoldingsMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  uploadBankHoldings(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadBankHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof uploadBankHoldings>>>
+    export type UploadBankHoldingsMutationBody = UploadBankHoldingsBody | undefined
+    export type UploadBankHoldingsMutationError = unknown
+    export type UploadBankHoldingsMutationVariables = {data?: UploadBankHoldingsBody;params?: UploadBankHoldingsParams}
+
+    export const useUploadBankHoldings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadBankHoldings>>, TError,UploadBankHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadBankHoldings>>,
+        TError,
+        UploadBankHoldingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadBankHoldingsMutationOptions(options), queryClient);
+    }
+
 export const getEnterWorkspaceUrl = () => {
 
 
@@ -36942,6 +37968,109 @@ export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listO
 
 
 
+export const getReadOwnedAssetChangeFileUrl = (id: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/backoffice/portfolios/owned-asset-changes/${id}/files/${fileId}`
+}
+
+export const readOwnedAssetChangeFile = async (id: string,
+    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getReadOwnedAssetChangeFileUrl(id,fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadOwnedAssetChangeFileQueryKey = (id: string,
+    fileId: string,) => {
+    return [
+    `/api/backoffice/portfolios/owned-asset-changes/${id}/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getReadOwnedAssetChangeFileQueryOptions = <TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadOwnedAssetChangeFileQueryKey(id,fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>> = ({ signal }) => readOwnedAssetChangeFile(id,fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReadOwnedAssetChangeFileQueryResult = NonNullable<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>>
+export type ReadOwnedAssetChangeFileQueryError = unknown
+
+
+export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>,
+          TError,
+          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>,
+          TError,
+          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
+ id: string,
+    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReadOwnedAssetChangeFileQueryOptions(id,fileId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMovesCarryingOutUrl = (proposalId: string,) => {
 
 
@@ -40111,6 +41240,101 @@ export function useListDeliveries<TData = Awaited<ReturnType<typeof listDeliveri
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListDeliveriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListNewHoldingsUrl = () => {
+
+
+
+
+  return `/api/backoffice/new-holdings`
+}
+
+export const listNewHoldings = async ( options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
+
+  return http<NewHoldingQueue>(getListNewHoldingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNewHoldingsQueryKey = () => {
+    return [
+    `/api/backoffice/new-holdings`
+    ] as const;
+    }
+
+
+export const getListNewHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNewHoldingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNewHoldings>>> = ({ signal }) => listNewHoldings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListNewHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof listNewHoldings>>>
+export type ListNewHoldingsQueryError = unknown
+
+
+export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNewHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof listNewHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNewHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof listNewHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListNewHoldingsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -46275,6 +47499,226 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
 
 
 
+export const getGetHoldingHistoryUrl = (customerId: string,
+    params?: GetHoldingHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/holding-history?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/holding-history`
+}
+
+export const getHoldingHistory = async (customerId: string,
+    params?: GetHoldingHistoryParams, options?: Parameters<typeof http>[1]): Promise<HoldingHistory> => {
+
+  return http<HoldingHistory>(getGetHoldingHistoryUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHoldingHistoryQueryKey = (customerId: string,
+    params?: GetHoldingHistoryParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/holding-history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetHoldingHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getHoldingHistory>>, TError = unknown>(customerId: string,
+    params?: GetHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHoldingHistoryQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHoldingHistory>>> = ({ signal }) => getHoldingHistory(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetHoldingHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getHoldingHistory>>>
+export type GetHoldingHistoryQueryError = unknown
+
+
+export function useGetHoldingHistory<TData = Awaited<ReturnType<typeof getHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetHoldingHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHoldingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof getHoldingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHoldingHistory<TData = Awaited<ReturnType<typeof getHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: GetHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHoldingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof getHoldingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHoldingHistory<TData = Awaited<ReturnType<typeof getHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: GetHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetHoldingHistory<TData = Awaited<ReturnType<typeof getHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: GetHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetHoldingHistoryQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportHoldingHistoryUrl = (customerId: string,
+    params?: ExportHoldingHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/holding-history/export?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/holding-history/export`
+}
+
+export const exportHoldingHistory = async (customerId: string,
+    params?: ExportHoldingHistoryParams, options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getExportHoldingHistoryUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportHoldingHistoryQueryKey = (customerId: string,
+    params?: ExportHoldingHistoryParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/holding-history/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportHoldingHistoryQueryOptions = <TData = Awaited<ReturnType<typeof exportHoldingHistory>>, TError = unknown>(customerId: string,
+    params?: ExportHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportHoldingHistoryQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportHoldingHistory>>> = ({ signal }) => exportHoldingHistory(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportHoldingHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof exportHoldingHistory>>>
+export type ExportHoldingHistoryQueryError = unknown
+
+
+export function useExportHoldingHistory<TData = Awaited<ReturnType<typeof exportHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  ExportHoldingHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportHoldingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof exportHoldingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportHoldingHistory<TData = Awaited<ReturnType<typeof exportHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: ExportHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportHoldingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof exportHoldingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportHoldingHistory<TData = Awaited<ReturnType<typeof exportHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: ExportHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportHoldingHistory<TData = Awaited<ReturnType<typeof exportHoldingHistory>>, TError = unknown>(
+ customerId: string,
+    params?: ExportHoldingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportHoldingHistory>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportHoldingHistoryQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetClientWorkspaceFixedIncomeUrl = (customerId: string,) => {
 
 
@@ -46670,6 +48114,101 @@ export function useGetClientWorkspaceCard<TData = Awaited<ReturnType<typeof getC
 
 
 
+export const getGetClientBanksUrl = (customerId: string,) => {
+
+
+
+
+  return `/api/backoffice/client-workspace/${customerId}/banks`
+}
+
+export const getClientBanks = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientBanks> => {
+
+  return http<ClientBanks>(getGetClientBanksUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientBanksQueryKey = (customerId: string,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/banks`
+    ] as const;
+    }
+
+
+export const getGetClientBanksQueryOptions = <TData = Awaited<ReturnType<typeof getClientBanks>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientBanksQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientBanks>>> = ({ signal }) => getClientBanks(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientBanksQueryResult = NonNullable<Awaited<ReturnType<typeof getClientBanks>>>
+export type GetClientBanksQueryError = unknown
+
+
+export function useGetClientBanks<TData = Awaited<ReturnType<typeof getClientBanks>>, TError = unknown>(
+ customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientBanks>>,
+          TError,
+          Awaited<ReturnType<typeof getClientBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientBanks<TData = Awaited<ReturnType<typeof getClientBanks>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientBanks>>,
+          TError,
+          Awaited<ReturnType<typeof getClientBanks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientBanks<TData = Awaited<ReturnType<typeof getClientBanks>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientBanks<TData = Awaited<ReturnType<typeof getClientBanks>>, TError = unknown>(
+ customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientBanks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientBanksQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetRecentClientWorkspacesUrl = () => {
 
 
@@ -47045,6 +48584,196 @@ export function useStreamMyNotifications<TData = Awaited<ReturnType<typeof strea
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getStreamMyNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBankHoldingsFileUrl = (id: string,) => {
+
+
+
+
+  return `/api/backoffice/bank-holdings/${id}`
+}
+
+export const getBankHoldingsFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<BankHoldingsFile> => {
+
+  return http<BankHoldingsFile>(getGetBankHoldingsFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankHoldingsFileQueryKey = (id: string,) => {
+    return [
+    `/api/backoffice/bank-holdings/${id}`
+    ] as const;
+    }
+
+
+export const getGetBankHoldingsFileQueryOptions = <TData = Awaited<ReturnType<typeof getBankHoldingsFile>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankHoldingsFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankHoldingsFile>>> = ({ signal }) => getBankHoldingsFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBankHoldingsFileQueryResult = NonNullable<Awaited<ReturnType<typeof getBankHoldingsFile>>>
+export type GetBankHoldingsFileQueryError = unknown
+
+
+export function useGetBankHoldingsFile<TData = Awaited<ReturnType<typeof getBankHoldingsFile>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsFile>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsFile<TData = Awaited<ReturnType<typeof getBankHoldingsFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsFile>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsFile<TData = Awaited<ReturnType<typeof getBankHoldingsFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBankHoldingsFile<TData = Awaited<ReturnType<typeof getBankHoldingsFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBankHoldingsFileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBankHoldingsClientsUrl = () => {
+
+
+
+
+  return `/api/backoffice/bank-holdings/clients`
+}
+
+export const getBankHoldingsClients = async ( options?: Parameters<typeof http>[1]): Promise<BankHoldingsClients> => {
+
+  return http<BankHoldingsClients>(getGetBankHoldingsClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankHoldingsClientsQueryKey = () => {
+    return [
+    `/api/backoffice/bank-holdings/clients`
+    ] as const;
+    }
+
+
+export const getGetBankHoldingsClientsQueryOptions = <TData = Awaited<ReturnType<typeof getBankHoldingsClients>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankHoldingsClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankHoldingsClients>>> = ({ signal }) => getBankHoldingsClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBankHoldingsClientsQueryResult = NonNullable<Awaited<ReturnType<typeof getBankHoldingsClients>>>
+export type GetBankHoldingsClientsQueryError = unknown
+
+
+export function useGetBankHoldingsClients<TData = Awaited<ReturnType<typeof getBankHoldingsClients>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsClients>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsClients<TData = Awaited<ReturnType<typeof getBankHoldingsClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBankHoldingsClients>>,
+          TError,
+          Awaited<ReturnType<typeof getBankHoldingsClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBankHoldingsClients<TData = Awaited<ReturnType<typeof getBankHoldingsClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBankHoldingsClients<TData = Awaited<ReturnType<typeof getBankHoldingsClients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBankHoldingsClients>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBankHoldingsClientsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -48704,6 +50433,101 @@ export function useGetPermissionMatrix<TData = Awaited<ReturnType<typeof getPerm
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetPermissionMatrixQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetScreenMatrixUrl = () => {
+
+
+
+
+  return `/api/backoffice/admin/roles/screens`
+}
+
+export const getScreenMatrix = async ( options?: Parameters<typeof http>[1]): Promise<ScreenMatrix> => {
+
+  return http<ScreenMatrix>(getGetScreenMatrixUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetScreenMatrixQueryKey = () => {
+    return [
+    `/api/backoffice/admin/roles/screens`
+    ] as const;
+    }
+
+
+export const getGetScreenMatrixQueryOptions = <TData = Awaited<ReturnType<typeof getScreenMatrix>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetScreenMatrixQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScreenMatrix>>> = ({ signal }) => getScreenMatrix({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetScreenMatrixQueryResult = NonNullable<Awaited<ReturnType<typeof getScreenMatrix>>>
+export type GetScreenMatrixQueryError = unknown
+
+
+export function useGetScreenMatrix<TData = Awaited<ReturnType<typeof getScreenMatrix>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScreenMatrix>>,
+          TError,
+          Awaited<ReturnType<typeof getScreenMatrix>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetScreenMatrix<TData = Awaited<ReturnType<typeof getScreenMatrix>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScreenMatrix>>,
+          TError,
+          Awaited<ReturnType<typeof getScreenMatrix>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetScreenMatrix<TData = Awaited<ReturnType<typeof getScreenMatrix>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetScreenMatrix<TData = Awaited<ReturnType<typeof getScreenMatrix>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScreenMatrix>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetScreenMatrixQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

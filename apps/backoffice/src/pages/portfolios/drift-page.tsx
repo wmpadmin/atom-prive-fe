@@ -4,7 +4,9 @@ import { Alert, Avatar, Badge, cn } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router";
 import { type ReactNode } from "react";
+import { useBookPanel } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import { ListPageHeader, RecordList } from "../../components/record-list";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -19,6 +21,8 @@ import {
   underManagementLabel,
   type DriftStanding,
 } from "./portfolio-labels";
+import { OPENS, opens } from "./figure-opens";
+import { ClientStandingMore } from "./portfolio-figures";
 
 /** The one standing worth queueing: a portfolio where the model wants it is not a thing to do. */
 const WANDERED: DriftStanding[] = ["BREACHED"];
@@ -103,8 +107,38 @@ const MOVABLE: {
   },
 ];
 
+/** The columns whose figure opens the client's breakdown. */
+const OPENS_FIGURE = new Set(["aum", "allowed", "drift"]);
+
+/** "±USD 2.5M (±12.0% of the portfolio)": the range the plan allows, as the Allowed column writes it. */
+function allowedLabel(row: DriftRow) {
+  if (row.allowed === null) return "—";
+  return `±${underManagementLabel((row.underManagement * Number(row.allowed)) / 100, row.currency)} (±${Number(row.allowed).toFixed(1)}%)`;
+}
+
+/**
+ * A client's drift as the side panel shows it, from the queue's own row; the portfolio class by class is read
+ * when the panel opens.
+ */
+function clientFigure(row: DriftRow, to: string): FigureDetail {
+  return {
+    label: "Drift",
+    value: driftLabel(row.drift),
+    note: `How far this portfolio has wandered from ${row.modelName}, read against the range the plan allows it.`,
+    facts: [
+      { label: "AUM", value: underManagementLabel(row.underManagement, row.currency) },
+      { label: "Drift", value: driftLabel(row.drift) },
+      { label: "Allowed", value: allowedLabel(row) },
+      { label: "Standing", value: standingLabels[row.standing] },
+    ],
+    link: { to, label: "Open the portfolio" },
+    more: <ClientStandingMore customerId={row.customerId} />,
+  };
+}
+
 export function DriftBreachesPage() {
   const navigate = useNavigate();
+  const panel = useBookPanel();
   // The queue as it is being read, so Back from a portfolio comes to the same page of the same filter.
   const asLeft = encodeURIComponent(useLocation().search);
   const { params, update } = useListAddress();
@@ -131,6 +165,28 @@ export function DriftBreachesPage() {
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
   const breached = queue.data?.breached ?? 0;
+  const portfolio = (row: DriftRow) => `/portfolio-clients/${row.customerId}?from=drift&back=${asLeft}`;
+  /** The deviations count opens the clients behind it — those on the page being read. */
+  const openBreached = () => panel?.({
+    name: "Past what the model allows",
+    figure: {
+      label: "Deviations",
+      value: String(breached),
+      note: rows.length < breached
+        ? `Portfolios past their model's range across the whole book. The ${rows.length} on this page are listed; turn the page for the rest.`
+        : "Portfolios past their model's range across the whole book.",
+      facts: [
+        { label: "Deviations", value: String(breached) },
+        { label: "On this page", value: String(rows.length) },
+      ],
+      table: {
+        title: "The clients behind it",
+        columns: ["Client", "Measured against", "AUM", "Drift", "Allowed"],
+        rows: rows.map((row) => [row.clientName, row.modelName, underManagementLabel(row.underManagement, row.currency), driftLabel(row.drift), allowedLabel(row)]),
+        links: rows.map(portfolio),
+      },
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -141,7 +197,7 @@ export function DriftBreachesPage() {
 
       {breached > 0 && (
         <Alert tone="danger">
-          <span className="font-semibold">
+          <span {...opens(openBreached)} className={cn("font-semibold", OPENS)}>
             {breached === 1 ? "1 portfolio is" : `${breached} portfolios are`} past what the model allows.
           </span>{" "}
           Each one needs putting back. Open a client to see which asset class has gone and what it would take
@@ -252,7 +308,12 @@ export function DriftBreachesPage() {
                   column.tone?.(row),
                 )}
               >
-                {column.cell(row)}
+                {OPENS_FIGURE.has(column.id) ? (
+                  <span {...opens(() => panel?.({ name: row.clientName, figure: clientFigure(row, portfolio(row)) }))}
+                    className={OPENS}>
+                    {column.cell(row)}
+                  </span>
+                ) : column.cell(row)}
               </td>
             ))}
             <td className="px-4 py-3 text-right">

@@ -41,11 +41,14 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatRelative, roleLabel } from "../../lib/labels";
 import { menuFor } from "../../menu";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
+import { CustomerList, DirectoryClients, SyncRuns } from "./dashboard-panel-lists";
 import { Chart, ink } from "../book/overview-charts";
 import {
   AskTheAssistant,
@@ -185,6 +188,91 @@ export function AdminDashboard() {
   const view = useDashboardCards("admin", CARD, DEFAULT_CARDS);
   const openItems = data ? data.headline.openApprovals + data.headline.openRequests : undefined;
   const tiles = platform.data?.tiles;
+  const panel = useBookPanel();
+  const open = (name: string, figure: FigureDetail) => panel?.({ name, figure });
+  const linkTo = (to: string, label: string) => (goTo(to) ? { to, label } : undefined);
+
+  // A month of the AUM trend: what the firm held then and how many clients, and each client's AUM at that month end.
+  const openMonth = (index: number) => {
+    const point = data?.growth[index];
+    if (!data || !point) return;
+    const last = index === data.growth.length - 1;
+    const when = last ? "Now" : new Date(`${point.on}T00:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    open(`AUM, ${when}`, {
+      label: "AUM trend", value: money(point.aum, cur),
+      note: last ? "What the firm holds today." : `What the firm held at the end of ${when}.`,
+      facts: [{ label: "Clients", value: String(point.clients) }, { label: "As of", value: point.on }],
+      link: linkTo("/clients", "Open clients"),
+      more: <DirectoryClients currency={cur} on={last ? undefined : point.on} title={`Clients by AUM, ${when}`} />,
+    });
+  };
+  const openClass = (index: number) => {
+    const one = data?.byAssetClass[index];
+    if (!data || !one) return;
+    open(one.name, {
+      label: "AUM by asset class", value: money(one.amount, cur),
+      note: "What the firm's clients hold in this asset class. Which clients make it up isn't available firm-wide yet.",
+      facts: [{ label: "Share of AUM", value: `${one.sharePercent}%` }, { label: "Firm AUM", value: money(data.headline.totalAum, cur) }],
+    });
+  };
+  const openLifecycle = (index: number) => {
+    if (!data) return;
+    const active = (row: { status: string }) => row.status === "ACTIVE";
+    const parts: { name: string; value: number; note: string; more?: ReactNode; link?: FigureDetail["link"] }[] = [
+      { name: "Active", value: data.lifecycle.active, note: "Active clients whose KYC is approved.",
+        more: <CustomerList params={{ kycStatus: "APPROVED" }} keep={active} title="Active clients" /> },
+      { name: "KYC not yet approved", value: data.lifecycle.onboarding, note: "Active clients whose KYC is not submitted, pending or rejected.",
+        more: (
+          <div className="space-y-6">
+            <CustomerList params={{ kycStatus: "NOT_SUBMITTED" }} keep={active} title="KYC not submitted" empty="No client with KYC not submitted." />
+            <CustomerList params={{ kycStatus: "PENDING" }} keep={active} title="KYC pending" empty="No client with KYC pending." />
+            <CustomerList params={{ kycStatus: "REJECTED" }} keep={active} title="KYC rejected" empty="No client with KYC rejected." />
+          </div>
+        ) },
+      { name: "KYC expired", value: data.lifecycle.kycExpired, note: "Active clients whose KYC has expired.",
+        more: <CustomerList params={{ kycStatus: "EXPIRED" }} keep={active} title="KYC expired" /> },
+      { name: "Deactivation", value: data.lifecycle.deactivating,
+        note: "Clients with a deactivation request waiting. The list is read on the deactivation requests screen; it isn't available here yet.",
+        link: linkTo("/deactivation-requests", "Open deactivation requests") },
+      { name: "Prospects", value: data.lifecycle.prospects,
+        note: "Prospects not yet converted or lost. The list is read on the prospective clients screen; it isn't available here yet.",
+        link: linkTo("/prospective-clients", "Open prospective clients") },
+    ];
+    const part = parts[index];
+    if (!part) return;
+    open(part.name, {
+      label: "Clients by lifecycle", value: String(part.value), note: part.note,
+      facts: [{ label: "Clients in all", value: String(data.headline.clients) }],
+      link: part.link, more: part.more,
+    });
+  };
+  const openManager = (kind: "RM" | "PM", one: ManagerAum) => {
+    open(one.name, {
+      label: kind === "RM" ? "AUM by relationship manager" : "AUM by portfolio manager", value: money(one.amount, cur),
+      note: kind === "RM" ? "What this relationship manager's clients hold. A client with two RMs counts in full for each."
+        : "What this portfolio manager's clients hold. The clients are matched to the manager by name in the client directory.",
+      facts: [{ label: "Clients", value: String(one.clients) }, { label: "Share of firm AUM", value: `${one.sharePercent}%` }],
+      link: linkTo(`/users/${one.staffId}`, "Open their staff account"),
+      more: kind === "RM"
+        ? <CustomerList params={{ advisorId: one.staffId }} title={`${one.name}'s clients`} />
+        : <DirectoryClients currency={cur} keep={(client) => client.portfolioManagers.includes(one.name)}
+          title={`${one.name}'s clients, by AUM`} empty="No client in the directory names this portfolio manager." />,
+    });
+  };
+  const openRmCount = () => {
+    const rows = data?.everyRelationshipManager;
+    if (!rows) return;
+    open("Relationship managers", {
+      label: "Relationship managers", value: String(rows.length), note: "Every relationship manager with at least one client.",
+      table: {
+        title: "Relationship managers",
+        columns: ["Relationship manager", "Clients", `AUM (${cur})`, "Share"],
+        rows: rows.map((one) => [one.name, one.clients, money(one.amount, cur), `${one.sharePercent}%`]),
+        links: rows.map((one) => (goTo("/users") ? `/users/${one.staffId}` : null)),
+      },
+    });
+  };
+  const openHealth = (name: string, figure: Omit<FigureDetail, "label">) => open(name, { label: "System health", ...figure });
 
   const cards: Record<CardId, ReactNode> = {
     summary: (
@@ -209,13 +297,14 @@ export function AdminDashboard() {
     ),
     trend: (
       <Panel icon={Banknote} title="AUM trend" to={goTo("/client-management", "/clients")}>
-        {data ? <GrowthChart data={data} /> : <Loading />}
+        {data ? <GrowthChart data={data} onPick={openMonth} /> : <Loading />}
       </Panel>
     ),
     "asset-classes": (
       <Panel icon={PieChart} title="AUM by asset class" to={goTo("/client-management", "/clients")}>
         {data ? <Breakdown currency={cur} centre={money(data.headline.totalAum, cur)} centreLabel={cur}
-          rows={data.byAssetClass.map((one: ClassSlice) => ({ name: one.name, value: one.amount, share: one.sharePercent }))} />
+          rows={data.byAssetClass.map((one: ClassSlice) => ({ name: one.name, value: one.amount, share: one.sharePercent }))}
+          onPick={openClass} />
           : <Loading />}
       </Panel>
     ),
@@ -228,7 +317,7 @@ export function AdminDashboard() {
             { name: "KYC expired", value: data.lifecycle.kycExpired },
             { name: "Deactivation", value: data.lifecycle.deactivating },
             { name: "Prospects", value: data.lifecycle.prospects, apart: true },
-          ]} /> : <Loading />}
+          ]} onPick={openLifecycle} /> : <Loading />}
       </Panel>
     ),
     operations: (
@@ -283,17 +372,35 @@ export function AdminDashboard() {
       <Panel icon={HeartPulse} title="System health" to={goTo("/ingestion")}>
         {platform.data ? (
           <dl className="divide-y divide-line text-sm">
-            <Row label="Database">
+            <Row label="Database" onClick={() => openHealth("Database", {
+              value: platform.data?.health.databaseUp ? "Up" : "Not answering",
+              note: "Whether the database answered when the dashboard was last read. No history of past checks is kept yet.",
+            })}>
               <Badge tone={platform.data.health.databaseUp ? "success" : "danger"}>
                 {platform.data.health.databaseUp ? "Up" : "Not answering"}
               </Badge>
             </Row>
-            <Row label="API response">{platform.data.health.apiLatencyMillis} ms</Row>
-            <Row label="Last bank sync">
+            <Row label="API response" onClick={() => openHealth("API response", {
+              value: `${platform.data?.health.apiLatencyMillis ?? "—"} ms`,
+              note: "How long the dashboard's figures took to read, measured once. No history of response times is kept yet.",
+            })}>{platform.data.health.apiLatencyMillis} ms</Row>
+            <Row label="Last bank sync" onClick={() => openHealth("Last bank sync", {
+              value: platform.data?.health.lastSyncRunAt ? formatRelative(platform.data.health.lastSyncRunAt) : "None yet",
+              link: linkTo("/ingestion", "Open bank feeds"),
+              more: <SyncRuns title="Latest bank syncs" />,
+            })}>
               {platform.data.health.lastSyncRunAt ? formatRelative(platform.data.health.lastSyncRunAt) : "None yet"}
             </Row>
-            <Row label="Failed syncs, 24 h">{platform.data.tiles.failedSyncsToday}</Row>
-            <Row label="Failed emails today">{platform.data.tiles.failedEmailsToday}</Row>
+            <Row label="Failed syncs, 24 h" onClick={() => openHealth("Failed syncs, 24 h", {
+              value: String(platform.data?.tiles.failedSyncsToday ?? 0), note: "Bank syncs that failed in the last 24 hours.",
+              link: linkTo("/ingestion", "Open bank feeds"),
+              more: <SyncRuns outcome="FAILED" from={new Date(Date.now() - 86_400_000).toISOString()} title="Failed bank syncs"
+                empty="No bank sync failed in the last 24 hours." />,
+            })}>{platform.data.tiles.failedSyncsToday}</Row>
+            <Row label="Failed emails today" onClick={() => openHealth("Failed emails today", {
+              value: String(platform.data?.tiles.failedEmailsToday ?? 0),
+              note: "Emails that could not be delivered today. A list of them isn't available yet.",
+            })}>{platform.data.tiles.failedEmailsToday}</Row>
             <Row label="Uptime %"><SoonTag /></Row>
           </dl>
         ) : <Loading />}
@@ -306,18 +413,19 @@ export function AdminDashboard() {
     ),
     "by-rm": (
       <Panel icon={Users} title="AUM by RM (top 5)" to={goTo("/users")}>
-        <Managers rows={data?.byRelationshipManager} currency={cur} />
+        <Managers rows={data?.byRelationshipManager} currency={cur} onPick={(one) => openManager("RM", one)} />
       </Panel>
     ),
     "by-pm": (
       <Panel icon={Users} title="AUM by PM (top 5)" to={goTo("/users")}>
-        <Managers rows={data?.byPortfolioManager} currency={cur} />
+        <Managers rows={data?.byPortfolioManager} currency={cur} onPick={(one) => openManager("PM", one)} />
       </Panel>
     ),
     "rm-count": (
       <Panel icon={Users} title="Relationship managers" to={goTo("/users")}>
         {data?.everyRelationshipManager ? (
-          <div className="py-2">
+          <div role="button" tabIndex={0} className="cursor-pointer py-2 hover:[&_p:first-child]:text-primary-700"
+            onClick={() => openRmCount()} onKeyDown={(event) => { if (event.key === "Enter") openRmCount(); }}>
             <p className="text-3xl font-bold tabular-nums">{data.everyRelationshipManager.length}</p>
             <p className="mt-1 text-sm text-ink-muted">with at least one client</p>
           </div>
@@ -326,7 +434,7 @@ export function AdminDashboard() {
     ),
     "rm-book": (
       <Panel icon={Users} title="AUM by relationship manager" to={goTo("/users")}>
-        <RelationshipBook rows={data?.everyRelationshipManager} currency={cur} />
+        <RelationshipBook rows={data?.everyRelationshipManager} currency={cur} onPick={(one) => openManager("RM", one)} />
       </Panel>
     ),
     assistant: <AskTheAssistant questions={ASK} blurb="Ask about operations, clients, compliance or how to use the portal." />,
@@ -492,7 +600,7 @@ function OpsRow({ icon: Icon, label, state, value, tone, to }: {
 }
 
 /** The firm's money as columns and its client count as a line, month by month. */
-function GrowthChart({ data }: { data: FirmDashboard }) {
+function GrowthChart({ data, onPick }: { data: FirmDashboard; onPick?: (index: number) => void }) {
   const chart = useCardChart();
   const option = useMemo(() => {
     const c = ink();
@@ -532,10 +640,11 @@ function GrowthChart({ data }: { data: FirmDashboard }) {
         data={{ shape: "series", categories: months, series: [
           { name: `AUM (${data.currency})`, values: data.growth.map((one) => Number(one.aum)) },
           ...(chart.kind === "table" ? [{ name: "Clients", values: data.growth.map((one) => one.clients) }] : []),
-        ] }} />
+        ] }} onPick={onPick} />
     );
   }
-  return <Chart option={option} height={220} label="AUM and number of clients at the end of each of the last six months" />;
+  return <Chart option={option} height={220} label="AUM and number of clients at the end of each of the last six months"
+    onPick={onPick ? (_, index) => onPick(index) : undefined} />;
 }
 
 /** The icon each waiting thing is drawn with, so a list of counts can be read at a glance. */
@@ -672,17 +781,22 @@ function FirmActivity({ platform, attention, linkFor, to }: {
   );
 }
 
-function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+function Managers({ rows, currency, onPick }: { rows: ManagerAum[] | undefined; currency: string; onPick?: (one: ManagerAum) => void }) {
   const chart = useCardChart();
   if (rows && rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No assigned clients hold anything yet.</p>;
   }
-  if (rows && chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
+  if (rows && chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} onPick={onPick} />;
   const most = Math.max(...(rows ?? []).map((one) => Number(one.amount)), 1);
   return (
     <ul className="space-y-2.5 text-sm">
       {(rows ?? []).map((one) => (
-        <li key={one.staffId} className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto] items-center gap-3">
+        <li key={one.staffId} className={cn("grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto] items-center gap-3",
+          onPick && "cursor-pointer rounded hover:bg-canvas")}
+          {...(onPick ? {
+            role: "button", tabIndex: 0, onClick: () => onPick(one),
+            onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => { if (event.key === "Enter") onPick(one); },
+          } : {})}>
           <span className="truncate" title={one.name}>{one.name}</span>
           <span className="h-2 rounded-full bg-slate-100">
             <span className="block h-2 rounded-full bg-primary-600" style={{ width: `${(Number(one.amount) / most) * 100}%` }} />
@@ -699,11 +813,17 @@ function Managers({ rows, currency }: { rows: ManagerAum[] | undefined; currency
 }
 
 /** What each manager's clients hold, drawn as the kind picked for the card. */
-function ManagerChart({ rows, currency, kind }: { rows: ManagerAum[]; currency: string; kind: ChartKind }) {
+function ManagerChart({ rows, currency, kind, onPick }: {
+  rows: ManagerAum[];
+  currency: string;
+  kind: ChartKind;
+  onPick?: (one: ManagerAum) => void;
+}) {
   return (
     <KindChart kind={kind} height={Math.max(200, 40 + rows.length * 28)} label="What each manager's clients hold"
       format={(value) => money(value, currency)}
-      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.amount) })) }} />
+      data={{ shape: "shares", items: rows.map((one) => ({ name: one.name, value: Number(one.amount) })) }}
+      onPick={onPick ? (at) => { const one = rows[at]; if (one) onPick(one); } : undefined} />
   );
 }
 
@@ -711,7 +831,11 @@ function ManagerChart({ rows, currency, kind }: { rows: ManagerAum[]; currency: 
  * Every relationship manager with a client: how many clients, what they hold and their share of the firm. A
  * client with two RMs counts in full for each, so the shares can add up to more than the whole.
  */
-function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; currency: string }) {
+function RelationshipBook({ rows, currency, onPick }: {
+  rows: ManagerAum[] | undefined;
+  currency: string;
+  onPick?: (one: ManagerAum) => void;
+}) {
   const chart = useCardChart();
   if (!rows) {
     return <Loading />;
@@ -719,7 +843,7 @@ function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; 
   if (rows.length === 0) {
     return <p className="py-8 text-center text-sm text-ink-muted">No relationship manager has a client yet.</p>;
   }
-  if (chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} />;
+  if (chart && !chart.own) return <ManagerChart rows={rows} currency={currency} kind={chart.kind!} onPick={onPick} />;
   const overlap = rows.reduce((sum, one) => sum + Number(one.sharePercent), 0) > 100;
   return (
     <div className="overflow-x-auto">
@@ -734,7 +858,11 @@ function RelationshipBook({ rows, currency }: { rows: ManagerAum[] | undefined; 
         </thead>
         <tbody className="divide-y divide-line">
           {rows.map((one) => (
-            <tr key={one.staffId}>
+            <tr key={one.staffId} className={cn(onPick && "cursor-pointer hover:bg-canvas")}
+              {...(onPick ? {
+                role: "button", tabIndex: 0, onClick: () => onPick(one),
+                onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => { if (event.key === "Enter") onPick(one); },
+              } : {})}>
               <td className="py-2 pr-3">{one.name}</td>
               <td className="py-2 pr-3 text-right tabular-nums">{one.clients}</td>
               <td className="py-2 pr-3 text-right whitespace-nowrap tabular-nums">{money(one.amount, currency)}</td>

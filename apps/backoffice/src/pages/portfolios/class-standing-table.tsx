@@ -1,5 +1,6 @@
 import type { ClassStanding } from "@atomprive/api-client/backoffice";
 import { TriangleAlert } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { Badge } from "@atomprive/ui";
 import { driftLabel, standingLabels, standingTones } from "./portfolio-labels";
 
@@ -44,6 +45,7 @@ export function ClassStandingTable({
   underManagement,
   suggestions = true,
   onPick,
+  onRow,
 }: {
   classes: ClassStanding[];
   /**
@@ -52,6 +54,11 @@ export function ClassStandingTable({
    * what it was made of.
    */
   onPick?: (assetClass: string) => void;
+  /**
+   * A press on a row, or Enter on it, for a screen that opens the side panel with that class's figures. Unlike
+   * onPick it leaves the table as it looks: no link-blue name, only the pointer and a faint hover.
+   */
+  onRow?: (row: ClassStanding) => void;
   /**
    * Whether to say what would put each class back. An allocation written for one client is measured like
    * any other and acted on by nothing, so a suggestion beside it would be advice the platform will not take.
@@ -120,8 +127,17 @@ export function ClassStandingTable({
               return (
                 <tr
                   key={row.assetClass}
-                  onClick={onPick ? () => onPick(row.assetClass) : undefined}
-                  className={onPick ? "cursor-pointer hover:bg-slate-50/60" : undefined}
+                  onClick={onPick ? () => onPick(row.assetClass) : onRow ? () => onRow(row) : undefined}
+                  {...(!onPick && onRow ? {
+                    role: "button",
+                    tabIndex: 0,
+                    onKeyDown: (event: KeyboardEvent) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      onRow(row);
+                    },
+                  } : {})}
+                  className={onPick ? "cursor-pointer hover:bg-slate-50/60" : onRow ? "cursor-pointer hover:bg-canvas" : undefined}
                 >
                   <th scope="row" className="py-3 pr-4 text-left font-medium text-ink">
                     {/* Named by the API, which reads the firm's own list; the code is the fallback for one it has since taken off. */}
