@@ -1,5 +1,5 @@
 import { changePassword } from "@atomprive/api-client/backoffice";
-import { Alert, Button, describedBy, Field, isStrongPassword, PasswordChecklist, TextInput } from "@atomprive/ui";
+import { Alert, Button, describedBy, Field, isStrongPassword, PasswordChecklist, PasswordInput } from "@atomprive/ui";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSession, useStaffUser } from "../auth/session";
@@ -73,13 +73,12 @@ export function ChangePasswordPage() {
         </div>
         {errors.form && <Alert tone="danger">{errors.form}</Alert>}
         <Field id="currentPassword" label={user.mustChangePassword ? "Temporary password" : "Current password"} error={errors.fields.currentPassword}>
-          <TextInput {...describedBy("currentPassword", errors.fields.currentPassword)} name="currentPassword" type="password" autoComplete="current-password" required />
+          <PasswordInput {...describedBy("currentPassword", errors.fields.currentPassword)} name="currentPassword" autoComplete="current-password" required />
         </Field>
         <Field id="newPassword" label="New password">
-          <TextInput
+          <PasswordInput
             id="newPassword"
             name="newPassword"
-            type="password"
             autoComplete="new-password"
             required
             onChange={(event) => setNewPassword(event.target.value)}
@@ -94,10 +93,9 @@ export function ChangePasswordPage() {
           <PasswordChecklist id="newPassword-rules" password={newPassword} showMissing={triedToSave} />
         </Field>
         <Field id="confirmPassword" label="Confirm new password" error={confirmPasswordError}>
-          <TextInput
+          <PasswordInput
             {...describedBy("confirmPassword", confirmPasswordError)}
             name="confirmPassword"
-            type="password"
             autoComplete="new-password"
             required
             onChange={(event) => setConfirmPassword(event.target.value)}
