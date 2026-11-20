@@ -29,10 +29,11 @@ type Kind = ReportRow["kind"];
 type Scope = ReportRow["scope"];
 type Format = ReportRow["format"];
 
-/** The two files a report comes out as, and what each is for. */
+/** The files a report comes out as, and what each is for. */
 const FORMATS: { format: Format; title: string; forWhat: string }[] = [
-  { format: "CSV", title: "Spreadsheet", forWhat: "Opens in Excel or Sheets, to sort and filter." },
-  { format: "PDF", title: "On the firm's letterhead", forWhat: "To read as a document, and to send to a client." },
+  { format: "XLSX", title: "Excel (.xlsx)", forWhat: "An Excel workbook, figures kept as numbers, to sort, filter and sum." },
+  { format: "CSV", title: "Spreadsheet (.csv)", forWhat: "Opens in Excel or Sheets, to sort and filter." },
+  { format: "PDF", title: "On the firm's letterhead (.pdf)", forWhat: "To read as a document, and to send to a client." },
 ];
 
 /** What each report answers, said where it is chosen rather than left to the title. */
