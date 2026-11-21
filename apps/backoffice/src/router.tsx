@@ -20,6 +20,7 @@ import { SupportTicketPage } from "./pages/support/support-ticket-page";
 import { IngestionMonitoringPage } from "./pages/bank-syncs/ingestion-monitoring-page";
 import { BankFeedDetailPage } from "./pages/bank-syncs/bank-feed-detail-page";
 import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
+import { BankHoldingsClientPage } from "./pages/bank-holdings/bank-holdings-client-page";
 import { BankHoldingsFilePage } from "./pages/bank-holdings/bank-holdings-file-page";
 import { BankHoldingsPage } from "./pages/bank-holdings/bank-holdings-page";
 import { HoldingsCheckClientPage } from "./pages/bank-syncs/holdings-check-client-page";
@@ -368,6 +369,8 @@ export const router = createBrowserRouter([
             element: <RequireAuthority authority={READS_BANK_HOLDINGS} />,
             children: [
               { path: "bank-holdings", element: <BankHoldingsPage /> },
+              // One client's banks; "none" gathers the files that name no client yet.
+              { path: "bank-holdings/clients/:clientKey", element: <BankHoldingsClientPage /> },
               // One bank's file, grouped by its asset classes, and every line of it.
               { path: "bank-holdings/:fileId", element: <BankHoldingsFilePage /> },
             ],
