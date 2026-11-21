@@ -101,6 +101,11 @@ function parse(text: string, country?: CountryCode): PhoneNumber | undefined {
 /** What was typed for the chosen country: the number as stored, or why it can't be used. */
 export function checkMobileNumber(country: CountryCode, typed: string): { number?: string; problem?: "missing" | "invalid" } {
   if (!/\d/.test(typed)) return { problem: "missing" };
+  // India takes any ten digits, whatever they start with (21 Nov 2026), as the server does; a leading 0 is dropped.
+  if (country === "IN" && !typed.trim().startsWith("+")) {
+    const digits = typed.replace(/\D/g, "").replace(/^0/, "");
+    return digits.length === 10 ? { number: `+91${digits}` } : { problem: "invalid" };
+  }
   const parsed = parse(typed.trim(), country);
   return parsed?.isValid() ? { number: parsed.number } : { problem: "invalid" };
 }

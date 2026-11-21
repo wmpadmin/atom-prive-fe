@@ -10,7 +10,7 @@ import { forgetAssistantConversation } from "../lib/assistant-conversation";
 /**
  * The firm's two workspaces: Demo, every screen with dummy data for showing the platform, and Real, the same
  * screens with only what the banks send. Which one a session is in is the server's (the token carries it); this
- * only shows it and lets an Admin who is an Admin in both move across.
+ * only shows it and lets anyone on the staff move across, at their own desk (21 Nov 2026).
  */
 const SPACES: Record<StaffProfileSpace, { name: string; detail: string; strip: string; dot: string; stripTone: string }> = {
   DEMO: {
@@ -29,7 +29,7 @@ const SPACES: Record<StaffProfileSpace, { name: string; detail: string; strip: s
   },
 };
 
-/** The switch in the top bar. Only an Admin who may move between the workspaces sees it. */
+/** The switch in the top bar, for everyone the server says may move between the workspaces. */
 export function WorkspaceSwitch() {
   const user = useStaffUser();
   const { applySignIn } = useSession();
@@ -96,7 +96,7 @@ export function WorkspaceSwitch() {
       )}
       {open && (
         <div role="menu" className="absolute left-0 z-20 mt-2 w-80 rounded-xl border border-line bg-white p-1.5 shadow-lg">
-          <p className="px-3 pt-1.5 pb-1 text-xs text-ink-muted">Switch workspace · Admin only</p>
+          <p className="px-3 pt-1.5 pb-1 text-xs text-ink-muted">Switch workspace</p>
           {(Object.keys(SPACES) as StaffProfileSpace[]).map((space) => {
             const choice = SPACES[space];
             const chosen = space === user.space;
