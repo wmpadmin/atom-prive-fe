@@ -1,8 +1,8 @@
 import { ApiError, http } from "@atomprive/api-client";
 import { getUploadBankHoldingsUrl, useGetBankHoldingsClients, type BankHoldingsBank, type BankHoldingsClients } from "@atomprive/api-client/backoffice";
 import { Alert, Button, cn, Dialog } from "@atomprive/ui";
-import { FileText } from "lucide-react";
-import { useRef, useState, type DragEvent } from "react";
+import { Check, ChevronDown, FileText, X } from "lucide-react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 
 /** The most one bank's file may be, as the server holds it. */
 const MOST = 20 * 1024 * 1024;
@@ -19,7 +19,7 @@ export function UploadBankHoldingsDialog({ onClose, onTaken }: { onClose: () => 
   const [taken, setTaken] = useState<BankHoldingsBank[] | null>(null);
   const [tried, setTried] = useState(false);
   const clients = useGetBankHoldingsClients<BankHoldingsClients, ApiError>();
-  const [clientId, setClientId] = useState("");
+  const [clientIds, setClientIds] = useState<string[]>([]);
   const picker = useRef<HTMLInputElement>(null);
   const noFile = tried && files.length === 0;
 
@@ -47,7 +47,7 @@ export function UploadBankHoldingsDialog({ onClose, onTaken }: { onClose: () => 
     setProblem(null);
     const form = new FormData();
     for (const file of files) form.append("files", file);
-    if (clientId) form.append("clientId", clientId);
+    for (const id of clientIds) form.append("clientId", id);
     try {
       setTaken(await http<BankHoldingsBank[]>(getUploadBankHoldingsUrl(), { method: "POST", body: form }));
       onTaken();
@@ -87,13 +87,11 @@ export function UploadBankHoldingsDialog({ onClose, onTaken }: { onClose: () => 
       <div className="space-y-4">
         {problem && <Alert tone="danger">{problem}</Alert>}
         <div>
-          <label htmlFor="bank-holdings-client" className="block text-sm font-semibold">Client</label>
-          <p className="text-xs text-ink-muted">Whose holdings the files state. They show on that client's Holdings screen, by bank.</p>
-          <select id="bank-holdings-client" value={clientId} onChange={(event) => setClientId(event.target.value)}
-            className="mt-1.5 h-10 w-full rounded-xl border border-line bg-white px-3 text-sm">
-            <option value="">Not said yet</option>
-            {(clients.data?.clients ?? []).map((one) => <option key={one.id} value={one.id}>{one.name}</option>)}
-          </select>
+          <label htmlFor="bank-holdings-client" className="block text-sm font-semibold">Clients</label>
+          <p className="text-xs text-ink-muted">
+            Whose holdings the files state. Pick one or more: each gets their own copy, on their Holdings screen by bank.
+          </p>
+          <ClientPicker clients={clients.data?.clients ?? []} chosen={clientIds} onChange={setClientIds} />
         </div>
         <div
           onDragOver={(event: DragEvent<HTMLDivElement>) => {
@@ -155,5 +153,86 @@ export function UploadBankHoldingsDialog({ onClose, onTaken }: { onClose: () => 
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The clients the files belong to, any number of them: chosen ones as chips, a search to narrow the list, and the
+ * list itself opening right under the field rather than wherever the browser puts its own.
+ */
+function ClientPicker({ clients, chosen, onChange }: {
+  clients: { id: string; name: string }[]; chosen: string[]; onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const box = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: MouseEvent) => {
+      if (box.current && !box.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+
+  const needle = query.trim().toLowerCase();
+  const shown = clients.filter((one) => !needle || one.name.toLowerCase().includes(needle));
+  const named = (id: string) => clients.find((one) => one.id === id)?.name ?? "…";
+  const toggle = (id: string) => onChange(chosen.includes(id) ? chosen.filter((one) => one !== id) : [...chosen, id]);
+
+  return (
+    <div ref={box} className="relative mt-1.5">
+      <div onClick={() => { setOpen(true); input.current?.focus(); }}
+        className={cn("flex min-h-10 w-full cursor-text flex-wrap items-center gap-1.5 rounded-xl border bg-white px-2 py-1.5 text-sm",
+          open ? "border-primary-600" : "border-line")}>
+        {chosen.map((id) => (
+          <span key={id} className="inline-flex items-center gap-1 rounded-lg bg-primary-50 py-0.5 pr-1 pl-2 text-xs font-semibold text-primary-700">
+            {named(id)}
+            <button type="button" aria-label={`Remove ${named(id)}`} onClick={(event) => { event.stopPropagation(); toggle(id); }}
+              className="rounded p-0.5 hover:bg-primary-100">
+              <X aria-hidden="true" className="size-3" />
+            </button>
+          </span>
+        ))}
+        <input ref={input} id="bank-holdings-client" value={query} role="combobox" aria-expanded={open}
+          aria-controls="bank-holdings-client-list" autoComplete="off"
+          placeholder={chosen.length ? "Add another client…" : "Search client…"}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+            if (event.key === "Backspace" && !query && chosen.length) onChange(chosen.slice(0, -1));
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (shown.length === 1) { toggle(shown[0]!.id); setQuery(""); }
+            }
+          }}
+          className="min-w-32 flex-1 bg-transparent px-1 py-0.5 placeholder:text-ink-muted focus:outline-none" />
+        <ChevronDown aria-hidden="true" className={cn("size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")} />
+      </div>
+      {open && (
+        <ul id="bank-holdings-client-list" role="listbox" aria-multiselectable="true"
+          className="mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-white py-1">
+          {shown.length === 0 && <li className="px-3 py-2 text-sm text-ink-muted">No client matches.</li>}
+          {shown.map((one) => {
+            const on = chosen.includes(one.id);
+            return (
+              <li key={one.id} role="option" aria-selected={on}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { toggle(one.id); setQuery(""); input.current?.focus(); }}
+                className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm hover:bg-canvas">
+                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded border",
+                  on ? "border-primary-600 bg-primary-600 text-white" : "border-line")}>
+                  {on && <Check aria-hidden="true" className="size-3" />}
+                </span>
+                {one.name}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

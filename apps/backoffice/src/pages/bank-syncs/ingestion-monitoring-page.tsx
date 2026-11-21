@@ -28,6 +28,7 @@ import { opens } from "../portfolios/figure-opens";
 import { RunsMore } from "./runs-more";
 import { startOfToday } from "./runs-window";
 import { UploadStatementDialog } from "./upload-statement-dialog";
+import { FeedTabs } from "./feed-tabs";
 
 type Only = "all" | "failed" | "off";
 
@@ -145,7 +146,7 @@ export function IngestionMonitoringPage() {
   const openFeeds = () => panel?.({
     name: "Feeds",
     figure: {
-      label: "Ingestion monitoring",
+      label: "Bank feeds",
       value: data ? `${data.enabled} / ${data.feeds}` : undefined,
       note: data ? `${data.enabled} switched on of ${data.feeds}.` : undefined,
       table: {
@@ -160,7 +161,7 @@ export function IngestionMonitoringPage() {
   const openRecords = () => panel?.({
     name: "Records today",
     figure: {
-      label: "Ingestion monitoring",
+      label: "Bank feeds",
       value: data?.recordsToday.toLocaleString(),
       note: data ? `Across ${data.accounts.toLocaleString()} accounts.` : undefined,
       table: {
@@ -175,7 +176,7 @@ export function IngestionMonitoringPage() {
   const openManual = () => panel?.({
     name: "Asked for by hand",
     figure: {
-      label: "Ingestion monitoring",
+      label: "Bank feeds",
       value: data?.manualToday.toLocaleString(),
       note: "Runs asked for today rather than brought round by the schedule. The log cannot yet be asked for these alone, so the runs below are all of today's, by hand or by schedule.",
       more: <RunsMore params={{ from: startOfToday() }} title="Today's runs, by hand or by schedule" />,
@@ -185,12 +186,14 @@ export function IngestionMonitoringPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[1.625rem] font-bold">Ingestion monitoring</h1>
+        <h1 className="text-[1.625rem] font-bold">Bank feeds</h1>
         <p className="mt-1 text-sm text-ink-muted">
           Every bank the firm pulls from, what its feed is for and where it has got to. A run asked for here is
           recorded against you.
         </p>
       </header>
+
+      <FeedTabs />
 
       {start.error && <Alert tone="danger">{start.error.message}</Alert>}
 

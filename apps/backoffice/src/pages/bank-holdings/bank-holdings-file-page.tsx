@@ -1,10 +1,12 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   getGetViewLayoutQueryKey,
+  useGetBankHoldingsBanks,
   useGetBankHoldingsFile,
   useGetViewLayout,
   useResetViewLayout,
   useSaveViewLayout,
+  type BankHoldingsBanks,
   type BankHoldingsFile,
   type BankHoldingsLine,
   type ViewLayout,
@@ -17,6 +19,7 @@ import { Link, useParams } from "react-router";
 import { useBookPanel } from "../../components/book-panel";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { opens } from "../portfolios/figure-opens";
+import { clientKey, clientLabel } from "./bank-holdings-clients";
 import { BankHoldingsCrumbs } from "./bank-holdings-crumbs";
 
 /** The columns the grouped tab shows until the reader picks others, by the sheet's own headings. */
@@ -125,10 +128,16 @@ export function BankHoldingsFilePage() {
   const [tab, setTab] = useState<Tab>("classes");
   const [query, setQuery] = useState("");
   const data = file.data;
+  // The file itself does not name its client; the list of banks does, so the trail reads client, then bank.
+  const banks = useGetBankHoldingsBanks<BankHoldingsBanks, ApiError>();
+  const listed = banks.data?.banks.find((one) => one.id === fileId);
 
   return (
     <div className="space-y-6">
-      <BankHoldingsCrumbs bank={data?.bankName ?? "…"} />
+      <BankHoldingsCrumbs trail={[
+        ...(listed ? [{ label: clientLabel(listed), to: `/bank-holdings/clients/${clientKey(listed)}` }] : []),
+        { label: data?.bankName ?? "…" },
+      ]} />
 
       {file.isLoading && <p className="py-10 text-center text-sm text-ink-muted">Loading the bank's holdings…</p>}
       {file.isError && (

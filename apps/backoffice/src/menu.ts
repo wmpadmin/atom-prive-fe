@@ -147,11 +147,10 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
   { to: "/deactivation-requests", under: "/client-management" },
   { to: "/archived-clients", under: "/client-management" },
-  // What the platform runs on: its configuration and the bank feeds, with what the banks say each client holds
-  // beside them, where an Admin switches a bank over to writing it.
+  // What the platform runs on: its configuration and the bank feeds. Holdings check, what the banks say each
+  // client holds beside the firm's file, is a tab of Bank feeds since 21 Nov 2026, not an entry of its own.
   { to: "/config" },
   { to: "/ingestion", label: "Bank feeds" },
-  { to: "/holdings-check" },
   // The banks' holdings files, which the Admin uploads as well as the portfolio desk.
   { to: "/bank-holdings" },
   // Reading back: the reports, then the narrower trail before the wider one - family access is one question
@@ -449,12 +448,11 @@ const allNavigation: {
     label: "Ingestion monitoring",
     icon: Radio,
     authority: "MANAGE_BANK_FEEDS:CHANGE",
-    // The run log hangs off the feeds screen: it is the same subject, read run by run.
-    at: (path) => path.startsWith("/ingestion") || path.startsWith("/bank-syncs"),
+    // The run log hangs off the feeds screen: it is the same subject, read run by run. Holdings check is the
+    // feeds' other tab, so it lights this entry too.
+    at: (path) => path.startsWith("/ingestion") || path.startsWith("/bank-syncs") || path.startsWith("/holdings-check"),
   },
   { to: "/sync-errors", label: "Sync errors", icon: TriangleAlert, authority: "MANAGE_BANK_FEEDS:CHANGE" },
-  // What the banks say each client holds, beside the firm's file: the feeds' other half, read by the same desk.
-  { to: "/holdings-check", label: "Holdings check", icon: Scale, authority: "MANAGE_BANK_FEEDS:CHANGE" },
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
   // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
