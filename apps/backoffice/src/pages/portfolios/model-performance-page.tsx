@@ -7,6 +7,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
 import { type ReactNode } from "react";
+import { useBookPanel, type BookFigure } from "../../components/book-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -14,6 +15,7 @@ import { useTableView } from "../../lib/table-view";
 import { ListPageHeader } from "../../components/record-list";
 import { formatDate } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
+import { ModelClients } from "./book-panel-lists";
 import { underManagementLabel } from "./portfolio-labels";
 
 /**
@@ -130,6 +132,7 @@ export function ModelPerformancePage() {
   const drag = useColumnDrag(view);
   const byId = new Map(MOVABLE.map((one) => [one.id, one]));
   const shownColumns = view.shown.map((id) => byId.get(id)).filter((one) => one !== undefined);
+  const panel = useBookPanel();
 
   if (table.isError) {
     return <Alert tone="danger">{table.error.message}</Alert>;
@@ -237,7 +240,8 @@ export function ModelPerformancePage() {
                 </tr>
               )}
               {paged.shown.map((row) => (
-                <Row key={row.id} row={row} currency={table.data!.currency} columns={shownColumns} />
+                <Row key={row.id} row={row} currency={table.data!.currency} columns={shownColumns}
+                  onOpen={panel ? () => panel(modelFigure(row, table.data!.currency, table.data!.year)) : undefined} />
               ))}
             </tbody>
           </table>
@@ -250,13 +254,43 @@ export function ModelPerformancePage() {
   );
 }
 
-function Row({ row, currency, columns }: {
+/** One plan in the side panel: today's book against it, its returns, and the clients on it read when it opens. */
+function modelFigure(row: ModelPerformanceRow, currency: string, year: number): BookFigure {
+  const period = (one: PeriodReturn) => (one.percent === null ? "—" : percentLabel(one.percent));
+  const money = (amount: number) => underManagementLabel(amount, currency);
+  return {
+    name: row.modelName,
+    figure: {
+      label: "Model performance",
+      value: row.assets > 0 ? money(row.assets) : undefined,
+      note: `What the ${row.clients} ${row.clients === 1 ? "client" : "clients"} on this plan hold today, in ${currency}. `
+        + `The returns are the plan's own, not any one client's; this year is ${year}.`,
+      facts: [
+        { label: "Clients", value: String(row.clients) },
+        { label: "Outside band", value: row.clients === 0 ? "—" : `${row.today.outsideBand} of ${row.clients}` },
+        { label: "Furthest class", value: row.today.worstClass ?? "—" },
+        { label: "Furthest gap", value: row.today.worstGap === null ? "—" : `${row.today.worstGap > 0 ? "+" : ""}${row.today.worstGap.toFixed(1)}%` },
+        { label: "To buy", value: money(row.today.toBuy) },
+        { label: "To sell", value: money(row.today.toSell) },
+        { label: "This year", value: period(row.thisYear) },
+        { label: "Three years", value: period(row.threeYears) },
+        { label: "Since start", value: period(row.sinceStart) },
+      ],
+      link: { to: `/model-portfolios/${row.id}`, label: "Open the model" },
+      more: <ModelClients modelId={row.id} linkFor={(customerId) => `/client-workspace/${customerId}`} />,
+    },
+  };
+}
+
+function Row({ row, currency, columns, onOpen }: {
   row: ModelPerformanceRow;
   currency: string;
   columns: typeof MOVABLE;
+  onOpen?: () => void;
 }) {
   return (
-    <tr className="hover:bg-slate-50/60">
+    <tr className={cn("hover:bg-slate-50/60", onOpen && "cursor-pointer")} onClick={onOpen} tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (event) => { if (event.key === "Enter") onOpen(); } : undefined}>
       <td className="py-3 pr-3 pl-5">
         <span className="block font-semibold">{row.modelName}</span>
       </td>

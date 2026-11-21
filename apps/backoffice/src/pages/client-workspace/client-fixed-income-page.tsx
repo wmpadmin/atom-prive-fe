@@ -2,12 +2,19 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useGetClientWorkspaceFixedIncome,
   type ClientFixedIncome,
+  type FiActive,
+  type FiCurvePoint,
   type FiHolding,
+  type FiIssuer,
   type FiKpi,
+  type FiScenario,
+  type FiSlice,
   type IpsAllocationRow,
 } from "@atomprive/api-client/backoffice";
 import { Alert, cn } from "@atomprive/ui";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { FileViewToggle, inUsd, sumInUsd, type FileView } from "../../components/converted-usd";
+import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
 import { formatDate } from "../../lib/labels";
 import { Chart, ink } from "../book/overview-charts";
@@ -19,6 +26,7 @@ import { useCardLabel } from "../layout/card-settings";
 import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
+import type { FigureDetail } from "./figure-panel";
 
 /**
  * A client's Fixed Income Analytics, laid out section by section as the firm's 10 Nov design draws it. Every figure —
@@ -88,7 +96,7 @@ export function ClientFixedIncomePage() {
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 text-2xs text-ink-muted">
         <span>
-          {file ? "Values in the bank's own currencies, unconverted" : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
+          {file && data.converted ? `Values in ${data.converted.currency} at FX rates${data.converted.ratesOn ? ` of ${day(data.converted.ratesOn)}` : ""}; tables offer the bank's own view` : `Values in ${data.currency} unless stated`}; market data as of {day(data.asOf)} close.
           {!file && data.note && ` ${data.note}`}
         </span>
         <span>atom privé · Portfolio Management · Internal use only</span>
@@ -104,18 +112,31 @@ const KPI_LABELS = ["Yield to maturity", "Yield to worst", "Modified duration", 
 
 function Kpis({ data }: { data: ClientFixedIncome }) {
   const rows = useFiguresAsTable();
-  const kpis: (FiKpi | null)[] = data.bankFile ? KPI_LABELS.map(() => null) : data.kpis;
+  // A bank-file client's bond lines added up in dollars at the latest FX rates; the analytics are not in his file.
+  const conv = data.bankFile ? data.converted : null;
+  const sleeve = conv ? sumInUsd(data.fileLines.map((one) => ({ amount: one.value, currency: one.currency })), conv) : null;
+  const sleeveKpi: FiKpi | null = conv && sleeve && data.fileLines.length > 0 ? {
+    key: "FILE_SLEEVE", label: "Bond lines · market value", value: sleeve.total, text: null, unit: "MONEY", delta: null,
+    deltaUnit: "NONE", note: `${data.fileLines.length} line${data.fileLines.length === 1 ? "" : "s"} · ${conv.currency} at FX rates${conv.ratesOn ? ` of ${day(conv.ratesOn)}` : ""}${sleeve.missing.length ? ` · ${sleeve.missing.join(", ")} left out: no rate` : ""}`,
+  } : null;
+  const kpis: (FiKpi | null)[] = data.bankFile ? [...(sleeveKpi ? [sleeveKpi] : []), ...KPI_LABELS.map(() => null)] : data.kpis;
+  const cur = conv ? conv.currency : data.currency;
+  const drill = useDrill();
+  const open = (one: FiKpi) => drill?.({ by: "figure", key: `fixed-income.kpi.${one.key}`, name: one.label, figure: kpiFigure(data, one, cur) });
   return (
     <FigureStrip className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
       {kpis.map((one, at) => rows ? (
-        <FigureRow key={one?.key ?? KPI_LABELS[at]} label={one?.label ?? KPI_LABELS[at]} value={!one ? <NotInFile /> : <>{kpiValue(one, data.currency)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", kpiTone(one))}>{kpiDelta(one)}</span>}</>} note={one?.note} />
+        <FigureRow key={one?.key ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} label={!one ? KPI_LABELS[sleeveKpi ? at - 1 : at] : (
+          <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={() => open(one)}>{one.label}</button>
+        )} value={!one ? <NotInFile /> : <>{kpiValue(one, cur)}{one.delta != null && one.deltaUnit !== "NONE" && <span className={cn("ml-2 rounded-md px-1.5 py-0.5 text-2xs font-semibold", kpiTone(one))}>{kpiDelta(one)}</span>}</>} note={one?.note} />
       ) : (
-        <div key={one?.key ?? KPI_LABELS[at]} className="rounded-2xl border border-line bg-white px-4 py-3.5">
-          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
+        <div key={one?.key ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
+          {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
+          <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[sleeveKpi ? at - 1 : at]}</p>
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
               <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
-                <span className="text-2xl font-bold tabular-nums">{kpiValue(one, data.currency)}</span>
+                <span className="text-2xl font-bold tabular-nums">{kpiValue(one, cur)}</span>
                 {one.delta != null && one.deltaUnit !== "NONE" && (
                   <span className={cn("rounded-md px-1.5 py-0.5 text-2xs font-semibold tabular-nums", kpiTone(one))}>{kpiDelta(one)}</span>
                 )}
@@ -323,6 +344,8 @@ function QualityCard({ data, chart }: { data: ClientFixedIncome; chart: CardChar
 }
 
 function CurveCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: FiCurvePoint | undefined) => { if (one) drill?.({ by: "figure", key: `fixed-income.curve.${one.label}`, name: one.label, figure: curveFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     const largest = Math.max(1, ...data.curve.map((one) => one.value));
@@ -343,9 +366,10 @@ function CurveCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart 
         ...groups.map(([id, name, colour]) => ({
           type: "scatter", name, itemStyle: { color: colour, opacity: 0.9 },
           symbolSize: (value: [number, number, number]) => 7 + Math.sqrt(value[2] / largest) * 14,
-          label: { show: true, position: "right", fontSize: 8, color: colours.muted, formatter: (p: { data: [number, number, number, string] }) => p.data[3] },
-          tooltip: { formatter: (p: { data: [number, number, number, string] }) => `${p.data[3]}<br/>${p.data[0]} yrs · YTM ${p.data[1]}%` },
-          data: data.curve.filter((one) => one.group === id).map((one) => [one.years, one.ytm, one.value, one.label]),
+          label: { show: true, position: "right", fontSize: 8, color: colours.muted, formatter: (p: { value: [number, number, number, string] }) => p.value[3] },
+          tooltip: { formatter: (p: { value: [number, number, number, string] }) => `${p.value[3]}<br/>${p.value[0]} yrs · YTM ${p.value[1]}%` },
+          // Each point named by its bond, so a click finds it.
+          data: data.curve.filter((one) => one.group === id).map((one) => ({ name: one.label, value: [one.years, one.ytm, one.value, one.label] })),
         })),
       ],
     };
@@ -355,12 +379,14 @@ function CurveCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart 
       picker={!data.bankFile && data.curve.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.curve.length === 0 ? <Empty>No bonds held.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={280} label="Each bond's yield against its years to maturity"
-          data={{ shape: "points", xName: "Years to maturity", yName: "YTM %", sizeName: "Market value", items: data.curve.map((one) => ({ name: one.label, x: one.years, y: one.ytm, size: one.value })) }} />
+          data={{ shape: "points", xName: "Years to maturity", yName: "YTM %", sizeName: "Market value", items: data.curve.map((one) => ({ name: one.label, x: one.years, y: one.ytm, size: one.value })) }}
+          onPick={(at) => open(data.curve[at])} />
       ) : (
         // As tall as the card, which the Sector Mix beside it sets: no blank space under the legend.
         <div className="relative min-h-[280px] flex-1">
           <div className="absolute inset-0">
-            <Chart option={option} label="Each bond's yield against its years to maturity, beside the UST curve" />
+            <Chart option={option} label="Each bond's yield against its years to maturity, beside the UST curve"
+              onPick={(name) => open(data.curve.find((one) => one.label === name))} />
           </div>
         </div>
       )}
@@ -369,6 +395,8 @@ function CurveCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart 
 }
 
 function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: FiSlice | undefined) => { if (one) drill?.({ by: "figure", key: `fixed-income.sector.${one.key}`, name: one.key, figure: sectorFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -382,11 +410,12 @@ function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart
     <Card title="Sector Mix" lead="By issuer type" picker={!data.bankFile && data.sectors.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.sectors.length === 0 ? <Empty>Nothing held.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="The sleeve by issuer type"
-          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.key, value: one.value })) }} />
+          data={{ shape: "shares", items: data.sectors.map((one) => ({ name: one.key, value: one.value })) }}
+          onPick={(at) => open(data.sectors[at])} />
       ) : (
         <>
           <div className="relative mx-auto w-full max-w-48">
-            <Chart option={option} height={180} label="The sleeve by issuer type" />
+            <Chart option={option} height={180} label="The sleeve by issuer type" onPick={(name) => open(data.sectors.find((one) => one.key === name))} />
             <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
               <div>
                 <p className="text-lg font-bold tabular-nums">{data.sleeve == null ? "—" : compact(data.sleeve, data.currency)}</p>
@@ -397,8 +426,9 @@ function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart
           <table className="mt-3 w-full text-sm">
             <tbody className="divide-y divide-line">
               {data.sectors.map((one, at) => (
-                <tr key={one.key}>
-                  <td className="py-1.5"><span className="flex items-center gap-2"><span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />{one.key}</span></td>
+                <tr key={one.key} className="cursor-pointer hover:bg-canvas" onClick={() => open(one)}>
+                  <td className="py-1.5"><span className="flex items-center gap-2"><span className="size-2.5 rounded-xs" style={{ background: INK[at % INK.length] }} aria-hidden="true" />
+                    <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); open(one); }}>{one.key}</button></span></td>
                   <td className="py-1.5 text-right font-semibold tabular-nums">{compact(one.value, data.currency)}</td>
                   <td className="w-14 py-1.5 text-right text-ink-muted tabular-nums">{one.sharePercent.toFixed(1)}%</td>
                 </tr>
@@ -416,6 +446,7 @@ function SectorCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart
 function Holdings({ data }: { data: ClientFixedIncome }) {
   const drill = useDrill();
   const [tab, setTab] = useState<"analytics" | "cashflows">("analytics");
+  const [fileView, setFileView] = useState<FileView>("converted");
   const cur = data.currency;
   const rows = [...data.holdings, ...(data.total ? [data.total] : [])];
   const date = day;
@@ -441,7 +472,7 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
   ];
   return (
     <Card title="Bond & Fund Holdings" lead="Clean prices · yields in local currency · DV01 per 1 bp · demo security data, not a market-data feed" flush
-      action={
+      action={data.bankFile ? <FileViewToggle value={fileView} onChange={setFileView} /> :
         <div role="tablist" aria-label="Columns shown" className="flex rounded-lg border border-line p-0.5">
           {([["analytics", "Analytics"], ["cashflows", "Cash flows"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
@@ -451,7 +482,7 @@ function Holdings({ data }: { data: ClientFixedIncome }) {
           ))}
         </div>
       }>
-      {data.bankFile ? <FileLines data={data} /> : (
+      {data.bankFile ? <FileLines data={data} view={fileView} /> : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -504,8 +535,9 @@ function RatingTag({ rating }: { rating: string }) {
   );
 }
 
-function FileLines({ data }: { data: ClientFixedIncome }) {
+function FileLines({ data, view }: { data: ClientFixedIncome; view: FileView }) {
   if (data.fileLines.length === 0) return <div className="px-5"><FileBlock /></div>;
+  const conv = view === "converted" ? data.converted : null;
   const others = ["Rating", "Ccy", "Coupon", "Maturity", "YTM", "Mod. dur.", "DV01"];
   return (
     <div className="overflow-x-auto">
@@ -514,7 +546,7 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
           <tr className="border-y border-line text-left text-2xs font-semibold tracking-wide whitespace-nowrap text-ink-muted uppercase">
             <th scope="col" className="py-2 pr-2 pl-5">Security</th>
             <th scope="col" className="px-1.5 py-2">Sector</th>
-            <th scope="col" className="px-1.5 py-2 text-right">Mkt value</th>
+            <th scope="col" className="px-1.5 py-2 text-right">Mkt value{conv ? ` · ${conv.currency}` : ""}</th>
             {others.map((one) => <th key={one} scope="col" className="px-1.5 py-2 text-right">{one}</th>)}
           </tr>
         </thead>
@@ -526,13 +558,21 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
                 {one.identifier && <span className="block text-2xs font-normal text-ink-muted">{one.identifier}</span>}
               </th>
               <td className="px-1.5 py-2"><NotInFile tight /></td>
-              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">{exact(one.value, one.currency)}</td>
+              <td className="px-1.5 py-2 text-right whitespace-nowrap tabular-nums">
+                {!conv ? exact(one.value, one.currency) : inUsd(one.value, one.currency, conv) == null ? "no FX rate" : (
+                  <>{exact(inUsd(one.value, one.currency, conv)!, conv.currency)}
+                    {one.currency !== conv.currency && <span className="block text-2xs text-ink-muted">{exact(one.value, one.currency)}</span>}</>
+                )}
+              </td>
               {others.map((cell) => <td key={cell} className="px-1.5 py-2 text-right"><NotInFile tight /></td>)}
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-5 text-3xs text-ink-muted italic">His file's bond lines as the bank states them, by the bank's own class.</p>
+      <p className="mt-2 px-5 text-3xs text-ink-muted italic">
+        {conv ? `His file's bond lines in ${conv.currency} at FX rates${conv.ratesOn ? ` of ${day(conv.ratesOn)}` : ""}, the bank's own amount beneath.`
+          : "His file's bond lines as the bank states them, by the bank's own class."}
+      </p>
     </div>
   );
 }
@@ -540,6 +580,8 @@ function FileLines({ data }: { data: ClientFixedIncome }) {
 /* ------------------------------------------------------------------------------------------------------------ */
 
 function KeyRateCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (one: FiActive | undefined) => { if (one) drill?.({ by: "figure", key: `fixed-income.krd.${one.key}`, name: `Key rate duration · ${one.key}`, figure: keyRateFigure(data, one) }); };
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -558,12 +600,13 @@ function KeyRateCard({ data, chart }: { data: ClientFixedIncome; chart: CardChar
   }, [data.keyRates, data.portfolioDuration, data.benchmarkDuration]);
   return (
     <Card title="Key Rate Durations" lead="Years of duration by curve point" picker={!data.bankFile && chart.picker}>
-      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={200} label="Duration at each curve point against the Agg" /> : (
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={200} label="Duration at each curve point against the Agg" onPick={(_, at) => open(data.keyRates[at])} /> : (
         <KindChart kind={chart.kind!} format={(value) => value.toFixed(2)} height={200} label="Duration at each curve point against the Agg"
           data={{ shape: "series", categories: data.keyRates.map((one) => one.key), series: [
             { name: "Portfolio", values: data.keyRates.map((one) => one.portfolio), colour: ink().primary },
             { name: "Agg", values: data.keyRates.map((one) => one.benchmark), colour: ink().neutral },
-          ] }} />
+          ] }}
+          onPick={(at) => open(data.keyRates[at])} />
       )}
     </Card>
   );
@@ -571,17 +614,20 @@ function KeyRateCard({ data, chart }: { data: ClientFixedIncome; chart: CardChar
 
 function ScenarioCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const largest = Math.max(0.01, ...data.scenarios.map((one) => Math.abs(one.percent)));
+  const drill = useDrill();
+  const open = (one: FiScenario | undefined) => { if (one) drill?.({ by: "figure", key: `fixed-income.scenario.${one.name}`, name: one.name, figure: scenarioFigure(data, one) }); };
   return (
     <Card title="Rate & Spread Scenarios" lead="Instantaneous P&L incl. convexity · bar = % of sleeve" picker={!data.bankFile && chart.picker}>
       {data.bankFile ? <FileBlock /> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value > 0 ? "+" : ""}${compact(value, data.currency)}`} height={60 + data.scenarios.length * 28}
           label="What each rate or spread move would do to the sleeve"
-          data={{ shape: "series", categories: data.scenarios.map((one) => one.name), series: [{ name: "P&L", values: data.scenarios.map((one) => one.amount) }] }} />
+          data={{ shape: "series", categories: data.scenarios.map((one) => one.name), series: [{ name: "P&L", values: data.scenarios.map((one) => one.amount) }] }}
+          onPick={(at) => open(data.scenarios[at])} />
       ) : (
         <ul className="space-y-1.5">
           {data.scenarios.map((one) => (
-            <li key={one.name} className="grid grid-cols-[minmax(0,9rem)_1fr_4.75rem] items-center gap-2 text-xs">
-              <span className="leading-tight">{one.name}</span>
+            <li key={one.name} className="grid cursor-pointer grid-cols-[minmax(0,9rem)_1fr_4.75rem] items-center gap-2 text-xs hover:bg-canvas" onClick={() => open(one)}>
+              <button type="button" className="text-left leading-tight hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); open(one); }}>{one.name}</button>
               <span className="relative block h-2.5" aria-hidden="true">
                 <span className="absolute top-0 left-1/2 h-2.5 w-px bg-line" />
                 <span className={cn("absolute top-0 h-2.5", one.amount >= 0 ? "left-1/2 bg-emerald-700" : "right-1/2 bg-red-600")}
@@ -601,18 +647,23 @@ function ScenarioCard({ data, chart }: { data: ClientFixedIncome; chart: CardCha
 function IssuerCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
   const limit = data.issuerLimitOfSleeve;
   const scale = Math.max(1, limit ?? 0, ...data.issuers.map((one) => one.sharePercent)) * 1.05;
+  const drill = useDrill();
+  const open = (one: FiIssuer | undefined) => { if (one) drill?.({ by: "figure", key: `fixed-income.issuer.${one.issuer}`, name: one.issuer, figure: issuerFigure(data, one) }); };
   return (
     <Card title="Issuer Concentration" lead="% of fixed income sleeve" picker={!data.bankFile && data.issuers.length > 0 && chart.picker}>
       {data.bankFile ? <FileBlock /> : data.issuers.length === 0 ? <Empty>No bond names an issuer.</Empty> : !chart.own ? (
         <KindChart kind={chart.kind!} format={(value) => `${value.toFixed(1)}%`} height={260} label="Each issuer's share of the fixed income sleeve"
-          data={{ shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.sharePercent })) }} />
+          data={{ shape: "shares", items: data.issuers.map((one) => ({ name: one.issuer, value: one.sharePercent })) }}
+          onPick={(at) => open(data.issuers[at])} />
       ) : (
         <>
           {/* Roomy rows, names wrapping rather than cut; sovereigns in the app's blue (slate-800 vanished on dark). */}
           <ul className="divide-y divide-line">
             {data.issuers.map((one) => (
-              <li key={one.issuer} className="grid min-h-9 grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 py-1.5 text-xs">
-                <span className="leading-snug break-words">{one.issuer}</span>
+              <li key={one.issuer} className="grid min-h-9 cursor-pointer grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 py-1.5 text-xs hover:bg-canvas" onClick={() => open(one)}>
+                <span className="leading-snug break-words">
+                  <button type="button" className="text-left hover:text-primary-700 hover:underline" onClick={(event) => { event.stopPropagation(); open(one); }}>{one.issuer}</button>
+                </span>
                 <span className="relative block h-2.5 rounded-full bg-slate-100" aria-hidden="true">
                   <span className={cn("block h-full rounded-full", one.sovereign ? "bg-primary-600" : one.overLimit ? "bg-red-600" : "bg-amber-600")}
                     style={{ width: `${Math.min(100, (one.sharePercent / scale) * 100)}%` }} />
@@ -640,6 +691,11 @@ function IssuerCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart
 }
 
 function CalendarCard({ data, chart }: { data: ClientFixedIncome; chart: CardChart }) {
+  const drill = useDrill();
+  const open = (at: number) => {
+    const one = data.calendar[at];
+    if (one) drill?.({ by: "month", key: one.month.slice(0, 7), name: new Date(one.month).toLocaleString("en-GB", { month: "long", year: "numeric" }) });
+  };
   const option = useMemo(() => {
     const colours = ink();
     return {
@@ -661,18 +717,132 @@ function CalendarCard({ data, chart }: { data: ClientFixedIncome; chart: CardCha
   }, [data.calendar, data.couponsNext12, data.principalNext12, data.currency]);
   return (
     <Card title="Coupon & Redemption Calendar" lead="Next 12 months · contractual, excl. fund distributions" picker={!data.bankFile && chart.picker}>
-      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={240} label="Coupons and principal falling due each month for the next twelve" /> : (
+      {data.bankFile ? <FileBlock /> : chart.own ? <Chart option={option} height={240} label="Coupons and principal falling due each month for the next twelve" onPick={(_, at) => open(at)} /> : (
         <KindChart kind={chart.kind!} format={(value) => compact(value, data.currency)} height={240} label="Coupons and principal falling due each month for the next twelve"
           data={{ shape: "series", categories: data.calendar.map((one) => new Date(one.month).toLocaleString("en-GB", { month: "short" })), series: [
             { name: "Coupons", values: data.calendar.map((one) => one.coupons), colour: "#d6c7a6" },
             { name: "Principal", values: data.calendar.map((one) => one.principal), colour: ink().primary },
-          ] }} />
+          ] }}
+          onPick={open} />
       )}
     </Card>
   );
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */
+
+/**
+ * Each key figure's own column in the holdings table: how it is read off a line, and how the server adds the lines up
+ * ("mean" weighted by value, "sum" added, "show" a column beside the figure only).
+ */
+const KPI_COLUMN: Record<string, [string, (line: FiHolding) => number | string | null, "mean" | "sum" | "show"]> = {
+  YTM: ["YTM %", (line) => line.ytm, "mean"],
+  YTW: ["YTW %", (line) => line.ytw, "mean"],
+  MODIFIED_DURATION: ["Mod. dur. yrs", (line) => line.modifiedDuration, "mean"],
+  COUPON: ["Coupon %", (line) => line.coupon, "mean"],
+  OAS: ["OAS bp", (line) => line.oas, "mean"],
+  DV01: ["DV01", (line) => line.dv01, "sum"],
+  INCOME: ["Coupons · 12M", (line) => line.couponsNext12, "sum"],
+  RATING: ["Rating", (line) => line.rating, "show"],
+  WAM: ["Maturity", (line) => (line.perpetual ? "Perpetual" : line.maturity ? day(line.maturity) : null), "show"],
+};
+
+/** A key figure: each bond and fund line's own figure and weight, read from the holdings table, to the server's figure. */
+function kpiFigure(data: ClientFixedIncome, one: FiKpi, currency: string): FigureDetail {
+  const value = kpiValue(one, currency);
+  const facts = one.delta != null && one.deltaUnit !== "NONE" ? [{ label: "Against benchmark", value: kpiDelta(one) }] : [];
+  if (one.key === "FILE_SLEEVE") {
+    return { label: "Fixed income", value, note: one.note ?? undefined,
+      table: { title: "Bond lines in the bank file", columns: ["Security", "Currency", "Value"], rows: data.fileLines.map((line) => [line.name, line.currency, line.value]) } };
+  }
+  const column = KPI_COLUMN[one.key];
+  if (!column) return { label: "Fixed income", value, note: one.note ?? undefined, facts };
+  const [name, read, how] = column;
+  const rows = data.holdings.map((line) => {
+    const figure = read(line);
+    return how === "mean"
+      ? [line.name, line.weight, figure, line.weight == null || typeof figure !== "number" ? null : Number(((line.weight * figure) / 100).toFixed(3))]
+      : [line.name, line.weight, figure];
+  });
+  return {
+    label: "Fixed income",
+    value,
+    note: [one.note, how === "mean" ? "Weighted by market value: each line's figure, its weight in the sleeve, and weight × figure."
+      : how === "sum" ? "Each line's own amount, added up across the sleeve." : "Each line's own reading, with its weight in the sleeve."].filter(Boolean).join(" · "),
+    facts,
+    table: {
+      title: "By line",
+      columns: how === "mean" ? ["Security", "Weight %", name, "Weight × figure"] : ["Security", "Weight %", name],
+      rows,
+      total: how === "mean" ? ["Fixed income sleeve", data.total?.weight ?? null, value, null] : ["Fixed income sleeve", data.total?.weight ?? null, value],
+    },
+  };
+}
+
+/** A bond on the curve: its own years, yield and market value. */
+function curveFigure(data: ClientFixedIncome, one: FiCurvePoint): FigureDetail {
+  const group: Record<string, string> = { SOVEREIGN: "Sovereign", IG: "IG credit", HIGH: "Yield > 5.5% (HY / EM)" };
+  return {
+    label: "Holdings on the curve",
+    value: `${one.ytm.toFixed(2)}%`,
+    note: "Yield to maturity in local currency, against years to maturity (to call for callables).",
+    facts: [
+      { label: "Years to maturity", value: `${one.years} yrs` },
+      { label: "Market value", value: compact(one.value, data.currency) },
+      ...(data.sleeve ? [{ label: "Share of sleeve", value: `${((one.value / data.sleeve) * 100).toFixed(1)}%` }] : []),
+      { label: "Group", value: group[one.group] ?? one.group },
+    ],
+  };
+}
+
+/** An issuer type in the Sector Mix: its value and share of the sleeve. */
+function sectorFigure(data: ClientFixedIncome, one: FiSlice): FigureDetail {
+  return {
+    label: "Sector mix",
+    value: compact(one.value, data.currency),
+    note: "Market value of the sleeve by issuer type, funds looked through. The holdings table carries each bond's sector label, not its issuer type, so the bonds behind it are not listed here.",
+    facts: [{ label: "Share of sleeve", value: `${one.sharePercent.toFixed(1)}%` }],
+  };
+}
+
+/** One curve point's key rate duration against the Agg's. */
+function keyRateFigure(data: ClientFixedIncome, one: FiActive): FigureDetail {
+  return {
+    label: "Key rate durations",
+    value: one.portfolio.toFixed(2),
+    note: `Years of duration at the ${one.key} point of the curve, each bond's key rate duration weighted by its market value. The bond-level key rate durations are not on this screen.`,
+    facts: [
+      { label: "Agg", value: one.benchmark == null ? "—" : one.benchmark.toFixed(2) },
+      ...(one.benchmark == null ? [] : [{ label: "Active", value: `${one.portfolio - one.benchmark > 0 ? "+" : ""}${(one.portfolio - one.benchmark).toFixed(2)}` }]),
+      { label: "Portfolio duration", value: data.portfolioDuration == null ? "—" : data.portfolioDuration.toFixed(2) },
+    ],
+  };
+}
+
+/** A rate or spread scenario: what it would do to the sleeve. */
+function scenarioFigure(data: ClientFixedIncome, one: FiScenario): FigureDetail {
+  return {
+    label: "Rate & spread scenarios",
+    value: `${one.amount > 0 ? "+" : ""}${compact(one.amount, data.currency)}`,
+    note: "Instantaneous P&L including convexity, worked out on every bond and fund line. The P&L of each line is not on this screen.",
+    facts: [{ label: "% of sleeve", value: `${one.percent > 0 ? "+" : ""}${one.percent.toFixed(2)}%` }],
+  };
+}
+
+/** An issuer: its share of the sleeve against the IPS single-issuer limit. */
+function issuerFigure(data: ClientFixedIncome, one: FiIssuer): FigureDetail {
+  return {
+    label: "Issuer concentration",
+    value: `${one.sharePercent.toFixed(1)}%`,
+    note: `Share of the fixed income sleeve in bonds issued by ${one.issuer}. The holdings table does not name each bond's issuer, so its bonds are not listed here.`,
+    facts: [
+      { label: "Type", value: one.sovereign ? "Sovereign (no limit)" : "Corporate / EM" },
+      ...(!one.sovereign && data.issuerLimitOfSleeve != null ? [{ label: "IPS limit, % of sleeve", value: `${data.issuerLimitOfSleeve.toFixed(1)}%` }] : []),
+      ...(!one.sovereign && data.issuerLimit != null ? [{ label: "IPS limit, % of net worth", value: `${data.issuerLimit}%` }] : []),
+      ...(one.overLimit ? [{ label: "Status", value: "Over limit" }] : []),
+    ],
+  };
+}
 
 /** What Fixed Income Analytics offers for a card of the reader's own: its key figures, ladder, credit and rates. */
 function incomeFigures(data: ClientFixedIncome): Figures {
@@ -717,6 +887,7 @@ function Card({ title, lead, action, flush, picker, children }: {
 }) {
   // The reader's own name and line for the card, where they set them through Add card.
   const label = useCardLabel(title, lead);
+  const body = useRef<HTMLDivElement>(null);
   return (
     <section className={cn("flex min-w-0 flex-col rounded-2xl border border-line bg-white", flush ? "py-5" : "p-5")}>
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
@@ -724,9 +895,9 @@ function Card({ title, lead, action, flush, picker, children }: {
           <h2 className="text-lg font-bold">{label.title}</h2>
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">{action}{picker}<CardMenu /></div>
+        <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
       </div>
-      {children}
+      <div ref={body} className="contents">{children}</div>
     </section>
   );
 }

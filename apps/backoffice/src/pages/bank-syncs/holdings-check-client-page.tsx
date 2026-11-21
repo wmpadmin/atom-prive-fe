@@ -9,8 +9,11 @@ import { Alert, Badge, cn } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
+import { opens } from "../portfolios/figure-opens";
 import { money, signed } from "./holdings-words";
+import { FileViewToggle, type FileView } from "../../components/converted-usd";
 
 /**
  * One client's holdings, line by line (P10): matched by ISIN and grouped by asset class as the firm's file groups
@@ -54,11 +57,54 @@ export function HoldingsCheckClientPage() {
  */
 export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
   const [only, setOnly] = useState<Only>("differences");
+  // The comparison is the bank's figures as sent; the converted view puts both sides in dollars at the latest FX rates.
+  const [view, setView] = useState<FileView>("bank");
   const { summary, accounts, lines } = data;
+  const rates = data.perUsd as Record<string, number>;
+  const usd = view === "converted" ? (amount: number | null | undefined, currency: string | null | undefined) =>
+    (amount == null || !currency || !rates[currency] ? null : Math.round((amount / rates[currency]!) * 100) / 100) : null;
   const differences = lines.filter((line) => line.status !== "MATCHES");
   const shown = only === "differences" ? differences : only === "matching" ? lines.filter((line) => line.status === "MATCHES") : lines;
   // Shown in groups, as the file groups them; a group is named once, above its first line.
   const groups = [...new Set(shown.map((line) => line.group))];
+  const panel = useBookPanel();
+  const fileTotalShown = usd && usd(summary.fileTotal, summary.currency) != null
+    ? money(usd(summary.fileTotal, summary.currency)!, "USD") : money(summary.fileTotal, summary.currency);
+  // The facts open the lines behind them, read off the line table: the file's own lines, and every line by its status.
+  const openFile = () => {
+    const onFile = lines.filter((line) => line.fileValue != null);
+    panel?.({
+      name: "Firm's file",
+      figure: {
+        label: `Holdings check · ${summary.clientName}`,
+        value: fileTotalShown,
+        note: `The ${onFile.length} line${onFile.length === 1 ? "" : "s"} on the firm's file that were compared, by ISIN, in ${summary.currency}${summary.withoutIsin > 0 ? `; ${summary.withoutIsin} without an ISIN are in the total but not compared` : ""}.`,
+        table: {
+          columns: ["Holding", "ISIN", "Group", "File: units", `File: value (${summary.currency})`],
+          rows: onFile.map((line) => [line.name, line.isin ?? null, line.group, line.fileUnits ?? null, line.fileValue ?? null]),
+        },
+      },
+    });
+  };
+  const openLines = () => panel?.({
+    name: "Lines",
+    figure: {
+      label: `Holdings check · ${summary.clientName}`,
+      value: String(lines.length),
+      note: "Every line compared, and what it came to. A line matches when units are equal and value is within 0.5% or 100.",
+      facts: [
+        { label: "Match", value: String(summary.matching) },
+        { label: "Differ", value: String(summary.differing) },
+        { label: "Only at bank", value: String(summary.onlyAtBank) },
+        { label: "Not at bank", value: String(summary.notAtBank) },
+      ],
+      table: {
+        columns: ["Holding", "ISIN", "Status", "Units difference", "Value difference"],
+        rows: lines.map((line) => [line.name, line.isin ?? null, STATUS[line.status].label,
+          line.unitsDifference ?? null, line.status === "ONLY_AT_BANK" ? null : line.valueDifference]),
+      },
+    },
+  });
 
   return (
     <div className="space-y-5">
@@ -79,8 +125,10 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
 
       {/* No total of the bank's side: its holdings are each in their own currency, as the bank sent them. */}
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Fact label="Firm's file">{money(summary.fileTotal, summary.currency)}</Fact>
-        <Fact label="Lines">
+        <Fact label="Firm's file" onOpen={panel ? openFile : undefined}>
+          {fileTotalShown}
+        </Fact>
+        <Fact label="Lines" onOpen={panel ? openLines : undefined}>
           {[`${summary.matching} match`, summary.differing && `${summary.differing} differ`,
             summary.onlyAtBank && `${summary.onlyAtBank} only at bank`, summary.notAtBank && `${summary.notAtBank} not at bank`]
             .filter(Boolean).join(" · ")}
@@ -116,7 +164,13 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-ink-muted">A line matches when units are equal and value is within 0.5% or 100</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs text-ink-muted">
+              A line matches when units are equal and value is within 0.5% or 100
+              {usd && ` · shown in USD at FX rates${data.ratesOn ? ` of ${formatDate(data.ratesOn)}` : ""}; the match itself is read as sent`}
+            </p>
+            <FileViewToggle value={view} onChange={setView} />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -148,7 +202,8 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
                     <td colSpan={10} className="px-5 py-2 text-xs font-bold text-ink-soft">{group}</td>
                   </tr>
                   {shown.filter((line) => line.group === group).map((line) => (
-                    <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={data.inUse.length > 0} />
+                    <Line key={(line.isin ?? line.name) + line.status} line={line} waitingToBePlaced={data.inUse.length > 0}
+                      usd={usd} fileCurrency={summary.currency} />
                   ))}
                 </Fragment>
               ))}
@@ -160,7 +215,15 @@ export function HoldingsCheckBody({ data }: { data: ClientHoldingsCheck }) {
   );
 }
 
-function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlaced: boolean }) {
+/** An amount in dollars, or nothing where its currency has no rate. */
+type ToUsd = ((amount: number | null | undefined, currency: string | null | undefined) => number | null) | null;
+
+function Line({ line, waitingToBePlaced, usd, fileCurrency }: { line: HoldingLine; waitingToBePlaced: boolean; usd: ToUsd; fileCurrency: string }) {
+  const inUsd = (amount: number | null | undefined, currency: string | null | undefined) => {
+    if (amount == null) return "—";
+    const converted = usd!(amount, currency);
+    return converted == null ? "no FX rate" : `${whole(converted)} USD`;
+  };
   // At a bank in use, a holding still only at the bank is one Operations have to place by hand.
   const status = line.status === "ONLY_AT_BANK" && waitingToBePlaced
     ? { label: "Waiting to be placed", tone: "warning" as const }
@@ -175,23 +238,34 @@ function Line({ line, waitingToBePlaced }: { line: HoldingLine; waitingToBePlace
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{asSent(line.bankUnits)}</td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{asSent(line.bankPrice)}</td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
-        {asSent(line.bankValue)}
-        {line.bankCurrency && line.bankValue != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
+        {usd ? inUsd(line.bankValue, line.bankCurrency) : <>
+          {asSent(line.bankValue)}
+          {line.bankCurrency && line.bankValue != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
+        </>}
+        {usd && line.bankValue != null && line.bankCurrency !== "USD" && (
+          <span className="block text-2xs text-ink-muted">{asSent(line.bankValue)} {line.bankCurrency}</span>
+        )}
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
-        {asSent(line.bankAccruedInterest)}
-        {line.bankCurrency && line.bankAccruedInterest != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
+        {usd ? inUsd(line.bankAccruedInterest, line.bankCurrency) : <>
+          {asSent(line.bankAccruedInterest)}
+          {line.bankCurrency && line.bankAccruedInterest != null && <span className="ml-1 text-xs text-ink-muted">{line.bankCurrency}</span>}
+        </>}
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{figure(line.fileUnits)}</td>
-      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{line.fileValue == null ? "—" : whole(line.fileValue)}</td>
+      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+        {line.fileValue == null ? "—" : usd ? inUsd(line.fileValue, fileCurrency) : whole(line.fileValue)}
+      </td>
       <td className={cn("px-3 py-3 text-right font-semibold whitespace-nowrap tabular-nums", line.status === "MATCHES" ? "text-ink-muted" : "text-red-600")}>
         {line.unitsDifference != null && line.unitsDifference !== 0 && (
           <div>{signed(line.unitsDifference)} units</div>
         )}
         {line.status === "ONLY_AT_BANK" && line.bankValue != null
           // Nothing on the file to set it against: the difference is the bank's own figure, in its own currency.
-          ? <>{line.bankValue > 0 ? "+" : ""}{asSent(line.bankValue)}<span className="ml-1 text-xs">{line.bankCurrency}</span></>
-          : line.valueDifference === 0 ? "—" : signed(line.valueDifference)}
+          ? (usd ? <>{line.bankValue > 0 ? "+" : ""}{inUsd(line.bankValue, line.bankCurrency)}</>
+            : <>{line.bankValue > 0 ? "+" : ""}{asSent(line.bankValue)}<span className="ml-1 text-xs">{line.bankCurrency}</span></>)
+          : line.valueDifference === 0 ? "—" : usd ? (usd(line.valueDifference, fileCurrency) == null ? "no FX rate"
+            : `${line.valueDifference > 0 ? "+" : ""}${whole(usd(line.valueDifference, fileCurrency)!)} USD`) : signed(line.valueDifference)}
       </td>
       <td className="py-3 pr-5 pl-3">
         <Badge tone={status.tone}>{status.label}</Badge>
@@ -215,9 +289,10 @@ function figure(value: number | null | undefined, places = 0) {
   return value == null ? "—" : value.toLocaleString("en-US", { minimumFractionDigits: places, maximumFractionDigits: places || 2 });
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, children, onOpen }: { label: string; children: ReactNode; onOpen?: () => void }) {
   return (
-    <div className="rounded-xl border border-line bg-white px-4 py-3">
+    <div {...(onOpen ? opens(onOpen) : {})}
+      className={cn("rounded-xl border border-line bg-white px-4 py-3", onOpen && "cursor-pointer hover:border-primary-200 hover:bg-canvas")}>
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
       <dd className="mt-1 font-semibold tabular-nums">{children}</dd>
     </div>

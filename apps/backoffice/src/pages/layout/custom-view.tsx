@@ -51,6 +51,7 @@ export type LayoutMeta = {
  * @param title the reader's own name for it, or null for its own
  * @param note a line of the reader's own under its title, or null for its own
  * @param palette "traffic" for green, amber and red, or null for the app's colours
+ * @param columns the columns taken off the card's tables, each as its table's tag and heading (see TableColumns)
  */
 type Placed<Id extends string> = {
   id: Id;
@@ -60,6 +61,7 @@ type Placed<Id extends string> = {
   title: string | null;
   note: string | null;
   palette: "traffic" | null;
+  columns: string[];
 };
 
 /** What Add card sets for one card when it is added or saved. */
@@ -76,7 +78,8 @@ export type CardChoice<Id extends string> = {
 };
 
 /** Builds the card Customize view leaves, keeping what the reader left as the card has it as no choice at all. */
-function chosen<Id extends string>(id: Id, choice: CardChoice<Id>, meta: Record<Id, LayoutMeta>, widthOf: (id: Id) => Width): Placed<Id> {
+function chosen<Id extends string>(id: Id, choice: CardChoice<Id>, meta: Record<Id, LayoutMeta>, widthOf: (id: Id) => Width,
+  columns: string[]): Placed<Id> {
   const title = choice.title.trim();
   const note = choice.note.trim();
   return {
@@ -87,6 +90,7 @@ function chosen<Id extends string>(id: Id, choice: CardChoice<Id>, meta: Record<
     title: title && title !== meta[id]?.title ? title : null,
     note: note || null,
     palette: choice.palette === "traffic" ? "traffic" : null,
+    columns,
   };
 }
 
@@ -105,7 +109,8 @@ function placeCard<Id extends string>(placed: Placed<Id>[], card: Placed<Id>, af
 
 function same<Id extends string>(one: Placed<Id>, other: Placed<Id>) {
   return one.id === other.id && one.width === other.width && one.hidden === other.hidden && one.chart === other.chart
-    && one.title === other.title && one.note === other.note && one.palette === other.palette;
+    && one.title === other.title && one.note === other.note && one.palette === other.palette
+    && one.columns.join("\n") === other.columns.join("\n");
 }
 
 export type ViewLayoutState<Id extends string> = ReturnType<typeof useViewLayout<Id>>;
@@ -127,8 +132,8 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
   const widthOf = useCallback((id: Id): Width => (meta[id]?.wide ? "FULL" : "HALF"), [meta]);
   const standard = useMemo<Placed<Id>[]>(
     () => [
-      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false, chart: null, title: null, note: null, palette: null })),
-      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true, chart: null, title: null, note: null, palette: null })),
+      ...defaults.filter((id) => ids.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: false, chart: null, title: null, note: null, palette: null, columns: [] })),
+      ...ids.filter((id) => !defaults.includes(id)).map((id) => ({ id, width: widthOf(id), hidden: true, chart: null, title: null, note: null, palette: null, columns: [] })),
     ],
     [defaults, ids, widthOf],
   );
@@ -143,6 +148,7 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
         title: one.title ?? null,
         note: one.note ?? null,
         palette: one.palette === "traffic" ? "traffic" as const : null,
+        columns: one.hiddenColumns ?? [],
       }));
     // A card the screen gained after the person saved: shown where the default shows it, hidden if the default hides it.
     const added = standard.filter((one) => !known.some((line) => line.id === one.id));
@@ -161,7 +167,7 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
     if (isStandard) {
       reset.mutate({ key }, { onSuccess: () => done({ key, cards: [], savedAt: null }) });
     } else {
-      save.mutate({ key, data: { cards: next } }, { onSuccess: done });
+      save.mutate({ key, data: { cards: next.map(({ columns, ...card }) => ({ ...card, hiddenColumns: columns })) } }, { onSuccess: done });
     }
   };
   /** Outside customize mode a card's ⋮ changes the layout straight away; inside it, the change waits for Done. */
@@ -193,7 +199,7 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
         ...cards.map((id) => {
           const was = placed.find((one) => one.id === id);
           return { id, width: was?.width ?? widthOf(id), hidden: false, chart: was?.chart ?? null, title: was?.title ?? null,
-            note: was?.note ?? null, palette: was?.palette ?? null };
+            note: was?.note ?? null, palette: was?.palette ?? null, columns: was?.columns ?? [] };
         }),
         ...placed.filter((one) => !cards.includes(one.id)).map((one) => ({ ...one, hidden: true })),
       ];
@@ -221,7 +227,7 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
      */
     configure: (id: Id, choice: CardChoice<Id>) => {
       if (!placed.some((one) => one.id === id)) return;
-      apply(placeCard(placed, chosen(id, choice, meta, widthOf), choice.after));
+      apply(placeCard(placed, chosen(id, choice, meta, widthOf, placed.find((one) => one.id === id)?.columns ?? []), choice.after));
     },
     /**
      * Customize view's whole journey at once: each card picked is set as chosen, in turn. Unless {@code only}, a card
@@ -234,12 +240,12 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
       // An own card built a moment ago is not among the screen's cards until they are read again: placed all the same.
       for (const id of picked) {
         if (id.startsWith(OWN) && !next.some((one) => one.id === id)) {
-          next = [...next, { id, width: "HALF", hidden: true, chart: null, title: null, note: null, palette: null }];
+          next = [...next, { id, width: "HALF", hidden: true, chart: null, title: null, note: null, palette: null, columns: [] }];
         }
       }
       for (const id of picked) {
         const choice = choices[id];
-        if (choice && next.some((one) => one.id === id)) next = placeCard(next, chosen(id, choice, meta, widthOf), choice.after);
+        if (choice && next.some((one) => one.id === id)) next = placeCard(next, chosen(id, choice, meta, widthOf, next.find((one) => one.id === id)?.columns ?? []), choice.after);
       }
       apply(next);
     },
@@ -248,6 +254,10 @@ export function useViewLayout<Id extends string>(key: string, screenMeta: Record
       const chart = kind === meta[id]?.charts?.[0] ? null : kind;
       apply(placed.map((one) => (one.id === id ? { ...one, chart } : one)));
     },
+    /** The columns taken off the card's tables. */
+    columns: (id: Id): string[] => placed.find((one) => one.id === id)?.columns ?? [],
+    /** Takes columns off the card's tables, or puts them back: saved with the layout, as a chart type is. */
+    setColumns: (id: Id, columns: string[]) => apply(placed.map((one) => (one.id === id ? { ...one, columns } : one))),
     hide: (id: Id) => apply(placed.map((one) => (one.id === id ? { ...one, hidden: true } : one))),
     /** Puts a hidden card back at the end of its area. */
     show: (id: Id) => {
@@ -446,6 +456,11 @@ export type CardControls = { remove: () => void; title: string };
 
 export const CardContext = createContext<CardControls | null>(null);
 
+/** The columns a card has taken off its tables, and how to change them; none outside a laid-out screen. */
+export type CardColumns = { hidden: string[]; change: (hidden: string[]) => void };
+
+export const CardColumnsContext = createContext<CardColumns | null>(null);
+
 /** A card's ⋮: open the screen behind it, or take it off this view. */
 export function CardMenu({ to }: { to?: string }) {
   const controls = useContext(CardContext);
@@ -556,10 +571,12 @@ export function LayoutGrid<Id extends string>({ view, render: screenRender, scre
     };
     return (
       <CardContext.Provider key={id} value={view.editing ? null : controls}>
-        <EditFrame id={id} view={view} alone={areaOf(id) === "main" && alone.has(id)}
-          className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", areaOf(id) === "main" && (wide(id) || alone.has(id)) && "@2xl:col-span-2")}>
-          {render[id]}
-        </EditFrame>
+        <CardColumnsContext.Provider value={{ hidden: view.columns(id), change: (hidden) => view.setColumns(id, hidden) }}>
+          <EditFrame id={id} view={view} alone={areaOf(id) === "main" && alone.has(id)}
+            className={cn("flex min-w-0 flex-col [&>*:last-child]:flex-1", areaOf(id) === "main" && (wide(id) || alone.has(id)) && "@2xl:col-span-2")}>
+            {render[id]}
+          </EditFrame>
+        </CardColumnsContext.Provider>
       </CardContext.Provider>
     );
   };

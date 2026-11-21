@@ -16,6 +16,8 @@ import { Receipt } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
+import type { FigureDetail } from "../client-workspace/figure-panel";
 import { ColumnPicker } from "../../components/column-picker";
 import { ListPageHeader } from "../../components/record-list";
 import { ViewTabs } from "../../components/view-tabs";
@@ -27,6 +29,134 @@ import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { ClassStandingTable } from "./class-standing-table";
 import { driftLabel, driftTones, standingLabels, standingTones, underManagementLabel } from "./portfolio-labels";
 import { StaffStack } from "../clients/staff-stack";
+import { OPENS, clientsTable, opens } from "./figure-opens";
+import { ClientStandingMore } from "./portfolio-figures";
+
+/** The columns whose figure opens the client's breakdown. */
+const OPENS_FIGURE = new Set(["aum", "drift", "standing"]);
+
+/**
+ * A client on the model as the side panel shows it, from the list's own row; the portfolio class by class is read
+ * when the panel opens, the list's own reading drawn until it does.
+ */
+function clientFigure(client: ClientRebalance, modelName: string): FigureDetail {
+  const drift = client.drift == null ? "—" : driftLabel(client.drift);
+  return {
+    label: "Drift",
+    value: drift,
+    note: `How far this portfolio has wandered from ${modelName}, class by class below.`,
+    facts: [
+      { label: "AUM", value: underManagementLabel(client.underManagement, client.currency) },
+      { label: "Drift", value: drift },
+      { label: "Standing", value: client.standing ? standingLabels[client.standing] : "Nothing written down" },
+      { label: "Last put back", value: client.lastRebalancedOn ? formatDate(client.lastRebalancedOn) : "—" },
+    ],
+    link: { to: `/client-workspace/${client.customerId}`, label: "Open the client" },
+    more: <ClientStandingMore customerId={client.customerId} held={client} />,
+  };
+}
+
+/** What a client's classes ask them to buy, in their own currency: the buys of the list's own suggestions. */
+function buying(client: ClientRebalance) {
+  return client.classes.reduce((sum, one) => sum + (one.suggestion > 0 ? one.suggestion : 0), 0);
+}
+
+/** Each fact over the list, opened with the clients behind it. Every figure is the page's own. */
+function factFigure(fact: "clients" | "aum" | "buy" | "breached", data: BulkRebalancing): FigureDetail {
+  const total = (amount: number) => underManagementLabel(amount, data.currency);
+  const within = data.clients.filter((one) => one.standing === "WITHIN_BAND").length;
+  const deviating = data.clients.filter((one) => one.standing === "BREACHED").length;
+  const unread = data.clients.length - within - deviating;
+  const standings = {
+    title: "Clients by standing",
+    data: {
+      shape: "shares" as const,
+      items: [
+        { name: "Within band", value: within },
+        { name: "Deviation", value: deviating },
+        { name: "Nothing written down", value: unread },
+      ].filter((one) => one.value > 0),
+    },
+    kind: "donut" as const,
+    format: "number" as const,
+  };
+  const unconverted = data.unconverted > 0
+    ? ` ${data.unconverted} held in a currency with no rate on file ${data.unconverted === 1 ? "is" : "are"} not in it.`
+    : "";
+  if (fact === "clients") {
+    return {
+      label: "On this model",
+      value: String(data.clients.length),
+      note: `Everyone measured against ${data.modelName}.`,
+      facts: [
+        { label: "Within band", value: String(within) },
+        { label: "Deviations", value: String(deviating) },
+        { label: "Nothing written down", value: String(unread) },
+      ],
+      chart: data.clients.length > 0 ? standings : undefined,
+      table: clientsTable(data.clients, "The clients behind it"),
+    };
+  }
+  if (fact === "aum") {
+    const sameCurrency = data.clients.length > 0 && data.clients.every((one) => one.currency === data.currency);
+    return {
+      label: "Under management",
+      value: total(data.underManagement),
+      note: `What the clients on ${data.modelName} hold, in ${data.currency}. Each client's line stays in their own currency.${unconverted}`,
+      facts: [
+        { label: "Under management", value: total(data.underManagement) },
+        { label: "Clients", value: String(data.clients.length) },
+        { label: "Not converted", value: String(data.unconverted) },
+      ],
+      chart: sameCurrency
+        ? {
+            title: "By client",
+            data: { shape: "shares", items: data.clients.map((one) => ({ name: one.clientName, value: one.underManagement })) },
+            kind: "donut",
+            format: "money",
+            currency: data.currency,
+          }
+        : undefined,
+      table: clientsTable(data.clients, "The clients behind it"),
+    };
+  }
+  if (fact === "buy") {
+    const buyers = data.clients.filter((one) => buying(one) > 0);
+    return {
+      label: "To buy",
+      value: total(data.toBuy),
+      note: `What putting everyone on ${data.modelName} back would buy, in ${data.currency}. Each client's line is in their own currency.${unconverted}`,
+      facts: [
+        { label: "To buy", value: total(data.toBuy) },
+        { label: "To sell", value: total(data.toSell) },
+        { label: "Clients buying", value: String(buyers.length) },
+      ],
+      table: {
+        title: "The clients behind it",
+        columns: ["Client", "AUM", "To buy", "Standing"],
+        rows: buyers.map((one) => [
+          one.clientName,
+          underManagementLabel(one.underManagement, one.currency),
+          underManagementLabel(buying(one), one.currency),
+          one.standing ? standingLabels[one.standing] : "Nothing written down",
+        ]),
+        links: buyers.map((one) => `/client-workspace/${one.customerId}`),
+      },
+    };
+  }
+  const breached = data.clients.filter((one) => one.standing === "BREACHED");
+  return {
+    label: "Deviations",
+    value: String(data.breached),
+    note: `Clients on ${data.modelName} past the range it allows.`,
+    facts: [
+      { label: "Deviations", value: String(data.breached) },
+      { label: "On this model", value: String(data.clients.length) },
+    ],
+    chart: data.clients.length > 0 ? standings : undefined,
+    table: clientsTable(breached, "The clients behind it"),
+  };
+}
 
 /** Today, as the calendar writes it, so a rebalance can be dated today but no later. */
 function today() {
@@ -140,6 +270,7 @@ const MOVABLE: {
 
 export function BulkRebalancingPage() {
   const [modelId, setModelId] = useState("");
+  const panel = useBookPanel();
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [openClient, setOpenClient] = useState<string | null>(null);
   const view = useTableView("bulk-rebalancing", MOVABLE.map((one) => one.id));
@@ -280,16 +411,16 @@ export function BulkRebalancingPage() {
       {rebalancing.data && (
         <>
           <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact label="On this model">{rebalancing.data.clients.length}</Fact>
+            <Fact label="On this model" onOpen={() => rebalancing.data && panel?.({ name: rebalancing.data.modelName, figure: factFigure("clients", rebalancing.data) })}>{rebalancing.data.clients.length}</Fact>
             {/* Totals are in the currency the firm reports in. Each client's row below stays in theirs,
                 because that is the cheque somebody actually writes. */}
-            <Fact label="Under management">
+            <Fact label="Under management" onOpen={() => rebalancing.data && panel?.({ name: rebalancing.data.modelName, figure: factFigure("aum", rebalancing.data) })}>
               {underManagementLabel(rebalancing.data.underManagement, rebalancing.data.currency)}
             </Fact>
-            <Fact label="To buy">
+            <Fact label="To buy" onOpen={() => rebalancing.data && panel?.({ name: rebalancing.data.modelName, figure: factFigure("buy", rebalancing.data) })}>
               {underManagementLabel(rebalancing.data.toBuy, rebalancing.data.currency)}
             </Fact>
-            <Fact label="Deviations" tone={rebalancing.data.breached > 0 ? "danger" : undefined}>
+            <Fact label="Deviations" onOpen={() => rebalancing.data && panel?.({ name: rebalancing.data.modelName, figure: factFigure("breached", rebalancing.data) })} tone={rebalancing.data.breached > 0 ? "danger" : undefined}>
               {rebalancing.data.breached}
             </Fact>
           </dl>
@@ -478,6 +609,7 @@ export function BulkRebalancingPage() {
                       client={client}
                       columns={shownColumns}
                       chosen={chosen.has(client.customerId)}
+                      onFigure={() => panel?.({ name: client.clientName, figure: clientFigure(client, rebalancing.data?.modelName ?? "the model") })}
                       open={openClient === client.customerId}
                       onToggle={() => toggle(client.customerId)}
                       onOpen={() =>
@@ -557,8 +689,11 @@ function Row({
   columns,
   onToggle,
   onOpen,
+  onFigure,
 }: {
   client: ClientRebalance;
+  /** Opens the client's breakdown in the side panel, from their AUM, drift or standing. */
+  onFigure: () => void;
   chosen: boolean;
   open: boolean;
   /** The columns to draw, in the reader's own order, passed down so head and body cannot disagree. */
@@ -623,7 +758,9 @@ function Row({
               column.tone?.(client),
             )}
           >
-            {column.cell(client)}
+            {OPENS_FIGURE.has(column.id) ? (
+              <span {...opens(onFigure)} className={OPENS}>{column.cell(client)}</span>
+            ) : column.cell(client)}
           </td>
         ))}
         <td className="py-3 pr-5 pl-4 text-right">
@@ -650,9 +787,9 @@ function Row({
   );
 }
 
-function Fact({ label, children, tone }: { label: string; children: React.ReactNode; tone?: "danger" }) {
+function Fact({ label, children, tone, onOpen }: { label: string; children: React.ReactNode; tone?: "danger"; onOpen: () => void }) {
   return (
-    <div className="rounded-xl border border-line bg-white px-4 py-3">
+    <div {...opens(onOpen)} className="cursor-pointer rounded-xl border border-line bg-white px-4 py-3 hover:border-primary-200 hover:bg-slate-50/60">
       <dt className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
       <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", tone === "danger" ? "text-red-700" : "text-ink")}>
         {children}

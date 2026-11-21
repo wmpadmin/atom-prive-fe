@@ -12,10 +12,12 @@ import { ChevronLeft, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { hasAnyAuthority, RATES_AML_RISK } from "../../lib/permissions";
+import { opens } from "../portfolios/figure-opens";
 import { bandTone } from "./aml-labels";
 
 /**
@@ -27,6 +29,7 @@ import { bandTone } from "./aml-labels";
 export function AmlClientPage() {
   const { customerId } = useParams();
   const user = useStaffUser();
+  const panel = useBookPanel();
   const mayRate = hasAnyAuthority(user, ...RATES_AML_RISK);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   // Why somebody set the record's own answer aside, by line. Required for each one they did.
@@ -102,9 +105,27 @@ export function AmlClientPage() {
         </div>
         {standing ? (
           <div className="text-right">
-            <Badge tone={bandTone(standing.bandFrom)}>
-              {standing.bandName} · {standing.score}
-            </Badge>
+            <span {...(panel ? opens(() => panel({
+              name: `${client.data.clientName} · ${standing.bandName}`,
+              figure: {
+                label: "AML risk score",
+                value: String(standing.score),
+                note: `${standing.bandName} band · rated by ${standing.ratedByName} on ${formatDateTime(standing.ratedAt)}${standing.forcedBy ? ` · settled by ${standing.forcedBy}, not by the score` : ""}.`,
+                facts: [
+                  { label: "Due diligence", value: standing.dueDiligenceTitle },
+                  { label: "Due again", value: `${formatDate(standing.nextReviewOn)}${standing.overdue ? " · waiting" : ""}` },
+                ],
+                table: {
+                  title: "What it was scored on",
+                  columns: ["Line", "Group", "Answered", "Score", "Counts"],
+                  rows: standing.lines.map((line) => [line.factorName, line.groupTitle, line.optionLabel, line.score, `${line.weight}×`]),
+                },
+              },
+            })) : {})} className={panel ? "inline-block cursor-pointer rounded-full hover:opacity-80" : undefined}>
+              <Badge tone={bandTone(standing.bandFrom)}>
+                {standing.bandName} · {standing.score}
+              </Badge>
+            </span>
             <p className="mt-1 text-xs text-ink-muted">
               {standing.dueDiligenceTitle} due diligence · due again {formatDate(standing.nextReviewOn)}
             </p>

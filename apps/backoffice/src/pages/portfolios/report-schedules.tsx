@@ -24,8 +24,9 @@ type Format = ScheduleRow["format"];
 
 /** What each run comes out as. A client's own report is usually the letterheaded one. */
 const FORMATS: Record<Format, string> = {
-  CSV: "Spreadsheet",
-  PDF: "On the letterhead",
+  XLSX: "Excel (.xlsx)",
+  CSV: "Spreadsheet (.csv)",
+  PDF: "On the letterhead (.pdf)",
 };
 
 const CADENCES: Record<Cadence, string> = {

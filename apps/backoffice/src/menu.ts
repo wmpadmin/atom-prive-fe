@@ -36,6 +36,7 @@ import {
   UsersRound,
   Scale,
   KeyRound,
+  Table2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -43,7 +44,9 @@ import {
   hasAuthority,
   ANSWERS_MOVE_PLANS,
   ONBOARDS_EVERY_CLIENT,
+  READS_AML_MATRIX,
   READS_AML_RISK,
+  READS_BANK_HOLDINGS,
   READS_CLIENT_PORTFOLIOS,
   READS_PROPOSALS,
   UPLOADS_CLIENT_DOCUMENTS,
@@ -149,6 +152,8 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/config" },
   { to: "/ingestion", label: "Bank feeds" },
   { to: "/holdings-check" },
+  // The banks' holdings files, which the Admin uploads as well as the portfolio desk.
+  { to: "/bank-holdings" },
   // Reading back: the reports, then the narrower trail before the wider one - family access is one question
   // asked of the trail, and the audit log is every question at once.
   { to: "/reports" },
@@ -232,8 +237,8 @@ const allNavigation: {
   },
   {
     // The same clients as the Book Overview, one by one: a card or a row each, with filters, and the book broken
-    // down by segment, region, mandate and relationship manager. Its own name, because "Clients" is already
-    // the portfolio desk's list of portfolios further down.
+    // down by segment, region, mandate and relationship manager. The desk's one list of its clients since the
+    // Client list (/book) and Clients (/portfolio-clients) screens were removed on 20 Nov 2026.
     to: "/client-directory",
     label: "Client Directory",
     icon: BookUser,
@@ -243,24 +248,12 @@ const allNavigation: {
     at: (path) => path === "/client-directory" || path.startsWith("/client-workspace/"),
   },
   {
-    // The portfolio manager's own clients, starred first, each opening on an overview of their money.
-    to: "/book",
-    label: "Client list",
-    icon: UsersRound,
-    authority: READS_CLIENT_PORTFOLIOS,
-    onlyFor: ["PORTFOLIO_MANAGER"],
-    at: (path) => path === "/book" || path.startsWith("/book/"),
-  },
-  {
-    // The same clients, set out for portfolio work rather than for servicing the account.
-    to: "/portfolio-clients",
-    label: "Clients",
-    icon: Contact,
-    authority: "VIEW_ALL_CLIENTS:VIEW",
-    onlyFor: ["PORTFOLIO_MANAGER"],
-    // A portfolio opened from a queue belongs to that queue's menu, not to this one.
-    at: (path, search) =>
-      path === "/portfolio-clients" || livesHere(path, search, A_PORTFOLIO, ["drift", "dashboard"]),
+    // Each of the client's banks' holdings Excel, as the bank sent it; uploaded here by the desk or the Admin.
+    to: "/bank-holdings",
+    label: "Bank holdings",
+    icon: Landmark,
+    authority: READS_BANK_HOLDINGS,
+    onlyFor: ["PORTFOLIO_MANAGER", "ADMIN"],
   },
   {
     to: "/model-portfolios",
@@ -465,7 +458,24 @@ const allNavigation: {
   { to: "/notifications", label: "Notification log", icon: Mail, authority: "MANAGE_CONFIGURATION:VIEW" },
   // The firm's AML sheet and where each client sits on it. On Compliance's menu since 4 Nov 2026: their
   // dashboard counts what is due on it, and a figure with no way to its screen is no use to them.
-  { to: "/aml-risk", label: "AML risk", icon: ShieldAlert, authority: READS_AML_RISK, onlyFor: ["COMPLIANCE"] },
+  {
+    to: "/aml-risk",
+    label: "AML risk",
+    icon: ShieldAlert,
+    authority: READS_AML_RISK,
+    onlyFor: ["COMPLIANCE"],
+    // The matrix has its own entry below, so it lights that rather than this one.
+    at: (path) => path.startsWith("/aml-risk") && !path.startsWith("/aml-risk/matrix"),
+  },
+  // The score sheet itself, back on Compliance's menu on 18 Nov 2026 at the firm's request: it is theirs to
+  // keep, and with no entry the only way to it was a typed address.
+  {
+    to: "/aml-risk/matrix",
+    label: "AML risk matrix",
+    icon: Table2,
+    authority: READS_AML_MATRIX,
+    onlyFor: ["COMPLIANCE"],
+  },
   { to: "/audit-log", label: "Audit log", icon: Landmark, authority: "VIEW_AUDIT_LOG:VIEW" },
   // Beside the audit log rather than inside it. "Who has been reading whose money" is a question somebody
   // comes to the screen already holding, and finding it meant knowing to filter the whole trail by a
@@ -526,6 +536,16 @@ const allNavigation: {
  * as the first, or a reader lands on a screen their role is then bounced off, straight back to a home
  * screen that sends them to it again.
  */
+/**
+ * What a screen's own menu entry asks of the role's permissions, as an Admin needs to know on the permission
+ * matrix's Screens tab: a screen switched on there still opens only where these allow. Null where it asks nothing.
+ */
+export function screenNeeds(to: string): Authority[] | null {
+  const item = allNavigation.find((one) => one.to === to);
+  if (!item || item.authority === null) return null;
+  return Array.isArray(item.authority) ? item.authority : [item.authority];
+}
+
 export function menuFor(user: StaffProfile) {
   const permitted = (item: (typeof allNavigation)[number]) =>
     item.authority === null ||
@@ -533,18 +553,25 @@ export function menuFor(user: StaffProfile) {
   // An Admin's menu is written out by hand rather than filtered down, which means it is already in
   // the firm's own order — and must not be sorted again below.
   const admin = user.activeRole === "ADMIN";
+  // Which screens the role may open, as the permission matrix's Screens tab sets them. A screen it names is on the
+  // menu unless it is at No access, whichever desk it was first built for; one it does not name (or a profile from
+  // before the tab) falls back to the desk rules below. The role's permissions still have to allow it.
+  const screens: Record<string, string> = (user as { screens?: Record<string, string> }).screens ?? {};
+  const listed = (to: string) => Object.prototype.hasOwnProperty.call(screens, to);
+  const opens = (to: string) => screens[to] !== "NONE";
+  const byDesk = (item: (typeof allNavigation)[number]) =>
+    !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
+    (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole)));
+  const adminsOwn = ADMINS_MENU.flatMap((entry) =>
+    allNavigation
+      .filter((item) => item.to === entry.to && permitted(item) && opens(item.to))
+      .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
+  );
   const navigation = admin
-      ? ADMINS_MENU.flatMap((entry) =>
-          allNavigation
-            .filter((item) => item.to === entry.to && permitted(item))
-            .map((item) => ({ ...item, label: entry.label ?? item.label, under: entry.under })),
-        )
-      : allNavigation.filter(
-          (item) =>
-            !(user.activeRole && item.notFor?.includes(user.activeRole)) &&
-            (!item.onlyFor || (user.activeRole != null && item.onlyFor.includes(user.activeRole))) &&
-            permitted(item),
-        );
+      // The Admin's own list in its own order, then any screen the matrix has opened to the Admin beyond it.
+      ? [...adminsOwn, ...allNavigation.filter((item) =>
+          listed(item.to) && opens(item.to) && permitted(item) && !adminsOwn.some((own) => own.to === item.to))]
+      : allNavigation.filter((item) => (listed(item.to) ? opens(item.to) : byDesk(item)) && permitted(item));
 
   // An entry and whatever sits under it, so the menu is drawn as the sections it actually has. An entry
   // whose section this reader does not have stays at the top level rather than disappearing with it.

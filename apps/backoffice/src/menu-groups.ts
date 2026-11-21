@@ -17,7 +17,7 @@ export type MenuEntry = ReturnType<typeof menuFor>[number];
  */
 const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> = {
   PORTFOLIO_MANAGER: [
-    { key: "clients", routes: ["/book-overview", "/client-directory"] },
+    { key: "clients", routes: ["/book-overview", "/client-directory", "/bank-holdings"] },
     { key: "portfolios", routes: ["/model-portfolios", "/model-performance", "/drift", "/bulk-rebalancing"] },
     { key: "reports", routes: ["/mis", "/reports", "/trade-logs"] },
   ],
@@ -39,7 +39,7 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
     { key: "staff", routes: ["/users", "/roles", "/staff-tracker", "/staff-declarations"] },
     { key: "clients",
       routes: ["/client-management", "/prospective-clients", "/clients", "/deactivation-requests", "/archived-clients"] },
-    { key: "platform", routes: ["/config", "/ingestion", "/holdings-check"] },
+    { key: "platform", routes: ["/config", "/ingestion", "/holdings-check", "/bank-holdings"] },
     { key: "oversight", routes: ["/reports", "/family-access-trail", "/audit-log"] },
   ],
   IT_ADMIN: [
@@ -51,12 +51,10 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
 
 /**
  * Screens kept off the sidebar though their pages stay: reached from links on other screens rather than from the
- * menu. The portfolio desk's Client list (/book) and Clients (/portfolio-clients) were taken off on 11 Nov 2026 at
- * the user's request — the Book Overview and the Client Directory are the desk's way into its clients now. Their
- * routes, permissions and inner screens are untouched; an inner screen opened from Drift still lights Drift, and
- * one opened from anywhere else lights nothing rather than an entry that is not there.
+ * menu. None today: the portfolio desk's Client list (/book) and Clients (/portfolio-clients), the two that were
+ * kept off, were removed outright on 20 Nov 2026, and the Client Directory is the desk's list of its clients.
  */
-export const OFF_THE_SIDEBAR = ["/book", "/portfolio-clients"];
+export const OFF_THE_SIDEBAR: string[] = [];
 
 /** What every desk starts from, at the top of the list. */
 export const TOP = ["/dashboard", "/approvals", "/assistant"];

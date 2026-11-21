@@ -78,6 +78,11 @@ function send(url: string, options: RequestInit) {
   if (token && !isPublicAuthEndpoint(url)) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  // The screen the request is sent from, so the server can hold it to the level the person's role has for that
+  // screen (the permission matrix's Screens tab). Only the address: nothing on it identifies anybody.
+  if (typeof window !== "undefined" && !headers.has("X-Atom-Screen")) {
+    headers.set("X-Atom-Screen", window.location.pathname);
+  }
   // An uploaded file carries its own boundary, which only the browser can write.
   if (options.body instanceof FormData) {
     headers.delete("Content-Type");

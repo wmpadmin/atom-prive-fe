@@ -1,7 +1,6 @@
-import { Button } from "@atomprive/ui";
-import { Download } from "lucide-react";
 import { QueueActions } from "../../components/queue-actions";
 import { ListReportButton } from "../layout/list-report";
+import { ReportMenu } from "../layout/report";
 
 /**
  * The top of the proposals screen: what it is and what can be done from it.
@@ -26,8 +25,8 @@ export function ProposalsHeader(props: {
   report: { list: string; load: () => Promise<string>; filters?: string; columns?: string[] };
 } | {
   /** Above one open proposal: that proposal, as a PDF. */
-  onExport: () => void;
-  exporting: boolean;
+  onExport: (kind: "pdf" | "excel") => void;
+  exporting: "pdf" | "excel" | null;
 }) {
   return (
     // No box of its own. Above a list the buttons go up to the screen's heading row, where there was room
@@ -41,10 +40,8 @@ export function ProposalsHeader(props: {
       {"report" in props ? (
         <ListReportButton list={props.report.list} load={props.report.load} filters={props.report.filters} columns={props.report.columns} />
       ) : (
-        <Button variant="secondary" disabled={props.exporting} onClick={props.onExport}>
-          <Download aria-hidden="true" />
-          {props.exporting ? "Preparing…" : "Download PDF"}
-        </Button>
+        <ReportMenu busy={props.exporting} problem={null} onPick={props.onExport}
+          excel="A sheet for each table: the moves, the plan, the holdings" />
       )}
     </QueueActions>
   );

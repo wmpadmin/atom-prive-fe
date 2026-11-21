@@ -16,9 +16,11 @@ import {
   UserX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useStaffUser } from "../../auth/session";
+import { useBookPanel } from "../../components/book-panel";
+import { NoListYet } from "../dashboard/role-dashboard-lists";
 import { formatDateTime } from "../../lib/labels";
 import { menuFor } from "../../menu";
 
@@ -60,6 +62,25 @@ export function ClientManagementOverviewPage() {
       to: can("/archived-clients") && "/archived-clients?from=overview" }]),
   ];
   const total = parts.reduce((sum, part) => sum + part.value, 0);
+  const panel = useBookPanel();
+  const months = data?.conversion.months ?? [];
+  // A month of the conversion line, by its place, or this month's figure under it: the counts on screen, and a note
+  // that the prospects behind them can't be listed by month yet.
+  const openConversion = (at: number) => {
+    const month = months[at];
+    if (!data || !month) return;
+    panel?.({ name: `Converted in ${new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(month.month))}`, figure: {
+      label: "Client conversion",
+      value: String(month.count),
+      note: "Prospective clients converted to clients in the month.",
+      facts: [
+        { label: "This month", value: String(data.conversion.thisMonth) },
+        ...months.map((one) => ({ label: MONTH.format(new Date(one.month)), value: String(one.count) })),
+      ],
+      link: can("/prospective-clients") ? { to: "/prospective-clients?status=CONVERTED&from=overview", label: "Open converted prospects" } : undefined,
+      more: <NoListYet what="prospects converted in each month" />,
+    } });
+  };
 
   return (
     <div className="space-y-6">
@@ -114,7 +135,8 @@ export function ClientManagementOverviewPage() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Client Conversion" info="Prospective clients converted to clients, by calendar month.">
-          <Conversion months={data?.conversion.months ?? []} thisMonth={data?.conversion.thisMonth ?? 0} />
+          <Conversion months={months} thisMonth={data?.conversion.thisMonth ?? 0}
+            onPick={panel && data ? openConversion : undefined} />
         </Panel>
 
         <Panel title="Recent Activity" action={can("/audit-log") && <HeaderLink to="/audit-log">View All</HeaderLink>}>
@@ -258,7 +280,12 @@ function ActivityLine({ line, to }: { line: Activity; to: string | undefined }) 
 }
 
 /** Prospects converted each month as a line, this month marked, with this month's figure under it. */
-function Conversion({ months, thisMonth }: { months: { month: string; count: number }[]; thisMonth: number }) {
+function Conversion({ months, thisMonth, onPick }: {
+  months: { month: string; count: number }[];
+  thisMonth: number;
+  /** Opens a month's figure, by its place; this month's figure under the line opens the last. */
+  onPick?: (index: number) => void;
+}) {
   const highest = Math.max(4, ...months.map((one) => one.count));
   const step = Math.ceil(highest / 4);
   const top = step * 4;
@@ -292,7 +319,13 @@ function Conversion({ months, thisMonth }: { months: { month: string; count: num
           const current = index === points.length - 1;
           return (
             <g key={point.month}>
-              <circle cx={point.x} cy={point.y} r={current ? 6 : 4.5} fill={current ? "#7c3aed" : "white"} stroke="#7c3aed" strokeWidth="2">
+              <circle cx={point.x} cy={point.y} r={current ? 6 : 4.5} fill={current ? "#7c3aed" : "white"} stroke="#7c3aed" strokeWidth="2"
+                className={cn(onPick && "cursor-pointer transition-[stroke-width] hover:[stroke-width:3.5]")}
+                {...(onPick ? {
+                  role: "button", tabIndex: 0, "aria-label": `${point.count} converted in ${MONTH.format(new Date(point.month))}`,
+                  onClick: () => onPick(index),
+                  onKeyDown: (event: KeyboardEvent<SVGCircleElement>) => { if (event.key === "Enter") onPick(index); },
+                } : {})}>
                 <title>{`${point.count} converted in ${MONTH.format(new Date(point.month))}`}</title>
               </circle>
               {current && (
@@ -309,7 +342,11 @@ function Conversion({ months, thisMonth }: { months: { month: string; count: num
           transform={`rotate(-90 12 ${(plotTop + plotBottom) / 2})`}>Clients converted</text>
         <text x={(left + width - right) / 2} y={height - 4} textAnchor="middle" fontSize="11.5" fontWeight="600" fill="var(--color-ink-muted)">Month</text>
       </svg>
-      <p className="border-t border-line pt-4 text-sm text-ink-soft">
+      <p className={cn("border-t border-line pt-4 text-sm text-ink-soft", onPick && months.length > 0 && "cursor-pointer hover:text-primary-700")}
+        {...(onPick && months.length > 0 ? {
+          role: "button", tabIndex: 0, onClick: () => onPick(months.length - 1),
+          onKeyDown: (event: KeyboardEvent<HTMLParagraphElement>) => { if (event.key === "Enter") onPick(months.length - 1); },
+        } : {})}>
         <span className="font-bold text-ink tabular-nums">{thisMonth}</span> converted to client this month
       </p>
     </div>

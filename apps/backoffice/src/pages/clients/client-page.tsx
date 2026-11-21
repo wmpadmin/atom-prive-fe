@@ -20,7 +20,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE, READS_PROPOSALS, type Authority } from "../../lib/permissions";
+import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE, OPENS_CLIENT_DOCUMENTS, READS_PROPOSALS, type Authority } from "../../lib/permissions";
 import { ConfirmDialog } from "../config/confirm-dialog";
 import { toForm } from "../onboarding/application";
 import { ApplicationSummary } from "../onboarding/application-summary";
@@ -39,6 +39,7 @@ import {
 } from "./client-file-panels";
 import { assignmentNotice, clientsHref, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
 import { ClientAccessPanel } from "./client-access-panel";
+import { KycPapersPanel } from "./kyc-papers-panel";
 import { DeactivationTab } from "../deactivation/deactivation-tab";
 import { ClientFormsPanel } from "./client-forms-panel";
 import { SecurityTab } from "./security-tab";
@@ -90,6 +91,8 @@ export function ClientPage() {
   // tab's guard; the tab is gone and the overview tile is the only place proposals are read on this file,
   // so the guard moves onto it. Ungated it would have handed Operations what the tab had refused them.
   const readsProposals = hasAnyAuthority(user, ...READS_PROPOSALS);
+  // The KYC papers, for whoever may open them: Compliance, and whoever puts them on file.
+  const readsKycPapers = hasAnyAuthority(user, ...OPENS_CLIENT_DOCUMENTS);
   // Everyone with access reads the file; only Operations correct it, because Operations entered it. Compliance
   // read the whole record to decide on the KYC and a head of desk decides who sees the client — neither types
   // over the details. An Admin has it because an Admin holds every permission there is.
@@ -280,6 +283,7 @@ export function ClientPage() {
           // What the reference layout has no place for and the firm still works from, as cards on the same board.
           extra={[
             ...(setsAccess ? [{ id: "access", node: <Boxed><ClientAccessPanel clientId={clientId} /></Boxed> }] : []),
+            ...(readsKycPapers ? [{ id: "kyc-papers", node: <Boxed><KycPapersPanel clientId={client.id} /></Boxed> }] : []),
             ...(readsProposals ? [{ id: "proposals", node: <Boxed><ProposalsPanel clientId={client.id} arrangeable={false} /></Boxed> }] : []),
             {
               id: "portfolio",

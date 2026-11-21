@@ -37,6 +37,26 @@ export function conversationFor(userId: string): string {
   return conversationId;
 }
 
+/** A fresh Firm Assistant conversation for this person, replacing the one kept: New conversation. */
+export function startNewConversation(userId: string): string {
+  const conversationId = crypto.randomUUID();
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ userId, conversationId } satisfies Kept));
+  } catch {
+    // Not kept: this tab still starts afresh, a refresh goes back to the old one.
+  }
+  return conversationId;
+}
+
+/** Carries on with an earlier conversation from the history list, so a refresh stays on it. */
+export function openConversation(userId: string, conversationId: string) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ userId, conversationId } satisfies Kept));
+  } catch {
+    // Not kept: this tab is still on it, a refresh goes back to the one kept before.
+  }
+}
+
 /**
  * The Market Assistant's conversation, kept in this browser for its owner. Nothing in it is the firm's — it is
  * public news and prices — so the questions and answers themselves are kept here rather than on the server.

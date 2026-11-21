@@ -1,6 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import {
   answerOwnedAssetChange,
+  getReadOwnedAssetChangeFileUrl,
   getListOwnedAssetChangesQueryKey,
   useListOwnedAssetChanges,
   withdrawOwnedAssetChange,
@@ -9,12 +10,14 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, Dialog, Field, Pagination, TextArea, cn, type FilterOption } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { Paperclip } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ColumnPicker } from "../../components/column-picker";
 import { QueueActions } from "../../components/queue-actions";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
+import { openApiFile } from "../../lib/download";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import { PAGE_SIZES, defaultPageSize } from "../../lib/page-sizes";
 import { useTableView } from "../../lib/table-view";
@@ -82,6 +85,19 @@ const MOVABLE: { id: string; label: string; width?: string; nowrap?: boolean; to
       <>
         <span className="block font-semibold">{asked(row)}</span>
         <span className="block text-xs text-ink-muted">{KINDS[row.kind] ?? row.kind}</span>
+        {/* What the client sent with it from the portal, opened in a new tab. */}
+        {row.files.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+            {row.files.map((file) => (
+              <button key={file.id} type="button"
+                onClick={(event) => { event.stopPropagation(); void openApiFile(getReadOwnedAssetChangeFileUrl(row.id, file.id), file.fileName); }}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
+                <Paperclip aria-hidden="true" className="size-3.5" />
+                {file.fileName}
+              </button>
+            ))}
+          </span>
+        )}
       </>
     ),
   },
@@ -93,6 +109,8 @@ const MOVABLE: { id: string; label: string; width?: string; nowrap?: boolean; to
     cell: (row) => (
       <>
         {row.raisedBy}
+        {/* A client asks from the portal, and their portfolio manager answers it rather than the relationship manager. */}
+        {row.raisedByClient && <span className="ml-1.5 rounded-md bg-violet-50 px-1.5 py-0.5 text-2xs font-semibold text-violet-700">Client</span>}
         <span className="block text-2xs">{formatDateTime(row.raisedAt)}</span>
       </>
     ),

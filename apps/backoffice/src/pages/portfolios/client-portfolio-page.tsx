@@ -8,10 +8,13 @@ import {
   useListModelPortfolios,
   useSetClientModelPortfolio,
   type ClientHoldings,
+  type SubClassGroup,
   type CustomerDetail,
   type ModelsPage,
   type PortfolioStanding,
   type RiskMatch,
+  useGetClientHoldingsBook,
+  type ClientHoldingsBook,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Field, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,6 +30,8 @@ import { useAssetClasses } from "./asset-classes";
 import { ClassStandingTable } from "./class-standing-table";
 import { AskToChangeTheModel } from "./ask-to-change-the-model";
 import { AnalyticsPanel } from "./analytics-panel";
+import { BankFileHoldings } from "../../components/bank-file-holdings";
+import { HoldingsTree, type TreeLine } from "../../components/holdings-tree";
 import { ClientHoldingsPanel } from "./client-holdings-panel";
 import { ExcludedHoldingsCard } from "./excluded-holdings-card";
 import { ClientReturnPanel } from "./client-return-panel";
@@ -59,7 +64,7 @@ const CAME_FROM: Record<string, { to: string; label: string }> = {
   restores: { to: "/approvals?queue=restores", label: "Back to restores to approve" },
 };
 
-const FROM_THE_LIST = { to: "/portfolio-clients", label: "Back to the clients" };
+const FROM_THE_LIST = { to: "/client-directory", label: "Back to the Client Directory" };
 
 /** The questions this screen answers, in the order somebody asks them. */
 type Tab = "performance" | "daily" | "return" | "analytics";
@@ -149,6 +154,8 @@ export function ClientPortfolioPage() {
   // Which classes are written down line by line. Theirs is the one figure nobody types: the total is worked
   // out from the lines, and the API refuses a figure that disagrees with them.
   const lines = useListClientHoldings<ClientHoldings, ApiError>(customerId);
+  // Whether the client is read from a bank's file, so his staff-entered lines are said to be what they are.
+  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, { query: { staleTime: 60_000 } });
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);
@@ -496,6 +503,16 @@ export function ClientPortfolioPage() {
         </fieldset>
       </section>
 
+      {/* A bank-file client's lines from his bank's own file, in dollars or as sent; nothing for anybody else. */}
+      <BankFileHoldings customerId={customerId} />
+
+      {/* Every line the client holds, opened a level at a time, and any one of them read back day by day. */}
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <h2 className={cn("text-lg font-bold", !book.data?.bankFile && "mb-3")}>Holdings</h2>
+        {book.data?.bankFile && <p className="mb-3 text-xs text-amber-700">Entered by staff · not from the bank file</p>}
+        <HoldingsTree lines={treeLinesOf(customerId, lines.data)} />
+      </section>
+
       {worksTheDesk && <>
       <ValuationHistoryPanel customerId={customerId} />
 
@@ -607,4 +624,20 @@ function RiskMatchNote({ match }: { match: RiskMatch | null }) {
       </Alert>
     </div>
   );
+}
+
+/** The client's lines for the holdings tree: class, then sub-class, then sub-sub-class, each in the portfolio's currency. */
+function treeLinesOf(customerId: string, held: ClientHoldings | undefined): TreeLine[] {
+  if (!held) return [];
+  const out: TreeLine[] = [];
+  const walk = (groups: SubClassGroup[]) => groups.forEach((group) => {
+    group.positions.filter((one) => !out.some((already) => already.key === one.id)).forEach((one) => out.push({
+      key: one.id, customerId, name: one.name, isin: one.identifier, positionId: one.id,
+      levels: [one.assetClassName || one.assetClass, one.subClass, one.subSubClass].filter((level): level is string => Boolean(level)),
+      amounts: [{ currency: held.currency, value: one.valueAmount }],
+    }));
+    walk(group.inside);
+  });
+  held.classes.forEach((klass) => walk(klass.subClasses));
+  return out;
 }
