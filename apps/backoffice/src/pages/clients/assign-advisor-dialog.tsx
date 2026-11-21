@@ -63,12 +63,18 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
   });
 
   const alreadyTheirs = advisorId !== "" && clients.every((client) => client.advisors.some((advisor) => advisor.id === advisorId));
+  const chosenName = (advisors.data ?? []).find((advisor) => advisor.id === advisorId)?.fullName ?? "this relationship manager";
+  // Pressed with nobody new to give them: the button stays on and says why, rather than greying out (21 Nov 2026).
+  const sameOne = clients.length === 1
+    ? `${clients[0]?.fullName} already has ${chosenName}. Choose another relationship manager.`
+    : `All ${clients.length} clients already have ${chosenName}. Choose another relationship manager.`;
   const error = (tried && advisorId === "" ? "Choose a relationship manager." : undefined)
+    ?? (tried && alreadyTheirs ? sameOne : undefined)
     ?? errors.fields.advisorId ?? errors.fields.customerIds;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (advisorId === "") {
+    if (advisorId === "" || alreadyTheirs) {
       setTried(true);
       document.getElementById("assign-advisor")?.focus();
       return;
@@ -97,7 +103,7 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
         </ul>
       </div>
 
-      <Field id="assign-advisor" label="Relationship manager" required error={error} hint={alreadyTheirs ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this relationship manager.` : undefined}>
+      <Field id="assign-advisor" label="Relationship manager" required error={error} hint={alreadyTheirs && !tried ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this relationship manager.` : undefined}>
         <SelectInput {...describedBy("assign-advisor", error)} value={advisorId} onChange={(event) => setAdvisorId(event.target.value)} required>
           <option value="" disabled>
             {advisors.data ? "Choose a relationship manager" : "Loading relationship managers…"}
@@ -114,7 +120,7 @@ function AssignAdvisorForm({ clients, onCancel, onAssigned }: { clients: ClientT
         <Button variant="ghost" onClick={onCancel} disabled={assign.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={alreadyTheirs || assign.isPending}>
+        <Button type="submit" disabled={assign.isPending}>
           {assign.isPending ? "Assigning…" : "Assign relationship manager"}
         </Button>
       </div>

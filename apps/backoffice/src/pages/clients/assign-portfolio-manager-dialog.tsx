@@ -71,12 +71,18 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
 
   const alreadyTheirs = managerId !== ""
     && clients.every((client) => client.portfolioManagers.some((manager) => manager.id === managerId));
+  const chosenName = (managers.data ?? []).find((manager) => manager.id === managerId)?.fullName ?? "this portfolio manager";
+  // Pressed with nobody new to give them: the button stays on and says why, rather than greying out (21 Nov 2026).
+  const sameOne = clients.length === 1
+    ? `${clients[0]?.fullName} already has ${chosenName}. Choose another portfolio manager.`
+    : `All ${clients.length} clients already have ${chosenName}. Choose another portfolio manager.`;
   const error = errors.fields.managerId ?? errors.fields.customerIds
-    ?? (tried && managerId === "" ? "Choose a portfolio manager." : undefined);
+    ?? (tried && managerId === "" ? "Choose a portfolio manager." : undefined)
+    ?? (tried && alreadyTheirs ? sameOne : undefined);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (managerId === "") {
+    if (managerId === "" || alreadyTheirs) {
       setTried(true);
       requestAnimationFrame(() => document.getElementById("assign-portfolio-manager")?.focus());
       return;
@@ -113,7 +119,7 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
         label="Portfolio manager"
         required
         error={error}
-        hint={alreadyTheirs ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this portfolio manager.` : undefined}
+        hint={alreadyTheirs && !tried ? `${clients.length === 1 ? "This client already has" : "These clients already have"} this portfolio manager.` : undefined}
       >
         <SelectInput {...describedBy("assign-portfolio-manager", error)} value={managerId} onChange={(event) => setManagerId(event.target.value)} required>
           <option value="" disabled>
@@ -131,7 +137,7 @@ function AssignPortfolioManagerForm({ clients, onCancel, onAssigned }: { clients
         <Button variant="ghost" onClick={onCancel} disabled={assign.isPending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={alreadyTheirs || assign.isPending}>
+        <Button type="submit" disabled={assign.isPending}>
           {assign.isPending ? "Assigning…" : "Assign portfolio manager"}
         </Button>
       </div>
