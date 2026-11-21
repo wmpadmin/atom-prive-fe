@@ -54,7 +54,7 @@ export const MENU_ORDER: string[] = [
   "/forms", "/client-documents", "/to-sign", "/trade-logs", "/post-onboarding",
 
   // Then the feeds, which are Operations' own and are watched rather than worked.
-  "/ingestion", "/sync-errors", "/holdings-check",
+  "/ingestion", "/sync-errors",
 
   // Then the reads that come back off all of it — what was traded, who saw what, who did what. Looked
   // at when a question is asked, rather than worked every morning, so they sit under the work.

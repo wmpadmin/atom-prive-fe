@@ -16,6 +16,7 @@ import { PagedFooter, usePagedRows } from "../../lib/paged-rows";
 import { opens } from "../portfolios/figure-opens";
 import { BankUse } from "./bank-use";
 import { money } from "./holdings-words";
+import { FeedTabs } from "./feed-tabs";
 
 /**
  * Holdings check (P10): what each bank says a client holds, beside the firm's file. Compared, never used — clients
@@ -75,6 +76,8 @@ export function HoldingsCheckPage() {
           firm's figures.
         </p>
       </header>
+
+      <FeedTabs />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card label="Clients checked" value={data?.clients}

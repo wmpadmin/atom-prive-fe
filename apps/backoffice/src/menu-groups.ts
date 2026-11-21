@@ -33,13 +33,13 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
     { key: "clients",
       routes: ["/client-management", "/prospective-clients", "/clients", "/deactivation-requests", "/archived-clients"] },
     { key: "onboarding", routes: ["/forms", "/client-documents", "/post-onboarding"] },
-    { key: "feeds", routes: ["/ingestion", "/sync-errors", "/holdings-check"] },
+    { key: "feeds", routes: ["/ingestion", "/sync-errors"] },
   ],
   ADMIN: [
     { key: "staff", routes: ["/users", "/roles", "/staff-tracker", "/staff-declarations"] },
     { key: "clients",
       routes: ["/client-management", "/prospective-clients", "/clients", "/deactivation-requests", "/archived-clients"] },
-    { key: "platform", routes: ["/config", "/ingestion", "/holdings-check", "/bank-holdings"] },
+    { key: "platform", routes: ["/config", "/ingestion", "/bank-holdings"] },
     { key: "oversight", routes: ["/reports", "/family-access-trail", "/audit-log"] },
   ],
   IT_ADMIN: [
