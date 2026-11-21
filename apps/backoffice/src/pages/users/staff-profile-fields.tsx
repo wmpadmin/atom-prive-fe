@@ -1,6 +1,6 @@
 import type { StaffReference, StaffUserDetail } from "@atomprive/api-client/backoffice";
 import { Alert, Button, DateInput, describedBy, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { countries, officeCountries } from "../../lib/countries";
 import { roleLabels, type StaffRole } from "../../lib/labels";
 import { MobileNumberField } from "./mobile-number-field";
@@ -202,16 +202,27 @@ interface StaffFormFooterProps {
   onCancel: () => void;
 }
 
-/** Cancel and save for the staff forms. Saving stays off until every required field is complete. */
+/**
+ * Cancel and save for the staff forms. Save is always on (asked for on 21 Nov 2026): pressed with something still
+ * missing, the form marks every field still to fill in and moves to the first, and this says how many are left.
+ */
 export function StaffFormFooter({ incomplete, error, pending, submitLabel, pendingLabel, onCancel }: StaffFormFooterProps) {
+  const [tried, setTried] = useState(false);
+  const missing = Object.values(incomplete);
   return (
     <div className="sticky bottom-0 space-y-3 border-t border-line bg-white pt-4">
       {error && <Alert tone="danger">{error}</Alert>}
+      {tried && missing.length > 0 && (
+        <Alert tone="warning">
+          {missing.length === 1 ? "1 field is" : `${missing.length} fields are`} still to fill in, marked in red above:{" "}
+          {missing.join(" · ")}
+        </Alert>
+      )}
       <div className="flex justify-end gap-3">
         <Button variant="ghost" onClick={onCancel} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={pending || Object.keys(incomplete).length > 0}>
+        <Button type="submit" disabled={pending} onClick={() => setTried(true)}>
           {pending ? pendingLabel : submitLabel}
         </Button>
       </div>
