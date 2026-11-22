@@ -72,6 +72,18 @@ export async function http<T>(url: string, options: RequestInit = {}): Promise<T
   return (isJson ? JSON.parse(text) : text) as T;
 }
 
+/**
+ * The screen a page belongs to, as the permission matrix's Screens tab names it: its own address, except where one
+ * page is opened from more than one screen. A client's KYC file opened from Client documents is that screen's work,
+ * so it is held to Client documents' level, not the KYC review queue's, which Operations cannot open.
+ */
+export function screenAddress(pathname: string, search: string): string {
+  if (/^\/kyc\/[^/]+(\/documents\/[^/]+)?$/.test(pathname) && new URLSearchParams(search).get("from") === "documents") {
+    return "/client-documents";
+  }
+  return pathname;
+}
+
 function send(url: string, options: RequestInit) {
   const headers = new Headers(options.headers);
   const token = auth.getAccessToken();
@@ -81,7 +93,7 @@ function send(url: string, options: RequestInit) {
   // The screen the request is sent from, so the server can hold it to the level the person's role has for that
   // screen (the permission matrix's Screens tab). Only the address: nothing on it identifies anybody.
   if (typeof window !== "undefined" && !headers.has("X-Atom-Screen")) {
-    headers.set("X-Atom-Screen", window.location.pathname);
+    headers.set("X-Atom-Screen", screenAddress(window.location.pathname, window.location.search));
   }
   // An uploaded file carries its own boundary, which only the browser can write.
   if (options.body instanceof FormData) {
