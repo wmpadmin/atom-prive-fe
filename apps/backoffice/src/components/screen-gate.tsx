@@ -1,3 +1,4 @@
+import { screenAddress } from "@atomprive/api-client";
 import { Alert } from "@atomprive/ui";
 import { Eye, Lock } from "lucide-react";
 import type { ReactNode } from "react";
@@ -23,8 +24,8 @@ function screenLevel(screens: Record<string, string> | undefined, path: string):
  */
 export function ScreenGate({ children }: { children: ReactNode }) {
   const user = useStaffUser();
-  const { pathname } = useLocation();
-  const level = screenLevel((user as { screens?: Record<string, string> }).screens, pathname);
+  const { pathname, search } = useLocation();
+  const level = screenLevel((user as { screens?: Record<string, string> }).screens, screenAddress(pathname, search));
   if (level === "NONE") {
     return (
       <div className="mx-auto mt-16 max-w-md rounded-2xl border border-line bg-white p-8 text-center">

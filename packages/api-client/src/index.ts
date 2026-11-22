@@ -1,1 +1,1 @@
-export { ApiError, configureAuth, http, httpFile, openEventStream, type Problem } from "./http";
+export { ApiError, configureAuth, http, httpFile, openEventStream, screenAddress, type Problem } from "./http";
