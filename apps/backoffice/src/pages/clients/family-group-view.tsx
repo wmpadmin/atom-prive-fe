@@ -169,7 +169,8 @@ function FamilyName({ clientId, name, mayEdit }: { clientId: string; name: strin
 }
 
 /** The structure card: the tree or the indented list, and a way to open it across the whole screen. */
-export function FamilyStructure({ tree, list }: { tree: ReactNode; list: ReactNode }) {
+/** @param title the card's heading: Family structure on a client, Account structure on a prospect (24 Nov 2026) */
+export function FamilyStructure({ tree, list, title = "Family structure" }: { tree: ReactNode; list: ReactNode; title?: string }) {
   const [view, setView] = useState<"tree" | "list">("tree");
   const [full, setFull] = useState(false);
   useEffect(() => {
@@ -181,7 +182,7 @@ export function FamilyStructure({ tree, list }: { tree: ReactNode; list: ReactNo
   const body = (
     <section aria-labelledby="family-structure" className={cn("rounded-2xl border border-line bg-white", full && "flex h-full flex-col")}>
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-        <h2 id="family-structure" className="text-base font-bold">Family structure</h2>
+        <h2 id="family-structure" className="text-base font-bold">{title}</h2>
         <div className="flex items-center gap-2">
           <span className="flex rounded-lg border border-line bg-white p-0.5 text-sm font-semibold">
             {([["tree", "Family tree", <Network key="t" />], ["list", "List view", <Rows3 key="l" />]] as const).map(([which, label, icon]) => (

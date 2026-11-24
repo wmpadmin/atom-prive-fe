@@ -180,6 +180,7 @@ export function FormComments({
           <Field
             id="comment-body"
             label="Ask for a change"
+            required
             error={tried && body.trim() === "" ? "Write the change you are asking for." : undefined}
           >
             <TextArea

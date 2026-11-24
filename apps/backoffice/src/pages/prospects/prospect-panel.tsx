@@ -1,10 +1,16 @@
 import { ApiError } from "@atomprive/api-client";
+import { useStaffUser } from "../../auth/session";
+import { SigningAs } from "../../components/signature";
 import {
   getGetClientManagementOverviewQueryKey,
   getGetProspectQueryKey,
   getListProspectsQueryKey,
   useConvertProspect,
   useEmailProspect,
+  useGetProspectEmailDraft,
+  saveProspectEmailDraft,
+  getGetProspectEmailDraftQueryKey,
+  type EmailDraft,
   useGetProspect,
   useLogProspectFollowUp,
   useMarkProspectLost,
@@ -20,6 +26,7 @@ import { LayoutGrid, Mail, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { PanelEdge } from "../../components/panel-edge";
+import { EntityParties } from "./entity-parties";
 import { LayoutStack, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { formatDate, formatDateTime } from "../../lib/labels";
 import {
@@ -37,11 +44,12 @@ import {
   statusLabel,
 } from "./prospect-labels";
 
-type Section = "details" | "email" | "follow-ups";
+type Section = "details" | "people" | "email" | "follow-ups";
 
 /** The panel's sections, moved or hidden by each reader for every prospect they open. */
 const SECTIONS: Record<Section, LayoutMeta> = {
   details: { title: "Details", area: "side" },
+  people: { title: "Stakeholders", area: "side" },
   email: { title: "Send follow-up email", area: "side" },
   "follow-ups": { title: "Follow-ups", area: "side" },
 };
@@ -186,6 +194,9 @@ export function ProspectPanel({ id, onClose, onEdit }: {
                     <Fact label="Notes">{detail.notes ? <span className="whitespace-pre-wrap">{detail.notes}</span> : <Muted>None</Muted>}</Fact>
                   </dl>
                 ),
+                people: row.clientType === "ENTITY" ? <EntityParties prospectId={row.id} entityName={row.fullName} mayChange={detail.mayChange && open} /> : (
+                  <p className="text-xs text-ink-muted">Directors, owners and signatories are kept for entity prospects.</p>
+                ),
                 email: detail.mayChange && open ? <EmailBox detail={detail} /> : (
                   <p className="text-xs text-ink-muted">Follow-up emails can be sent while the prospect is open.</p>
                 ),
@@ -225,7 +236,7 @@ export function ProspectPanel({ id, onClose, onEdit }: {
   );
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+export function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <dt className="text-ink-muted">{label}</dt>
@@ -234,7 +245,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Muted({ children }: { children: ReactNode }) {
+export function Muted({ children }: { children: ReactNode }) {
   return <span className="text-ink-muted">{children}</span>;
 }
 
@@ -248,8 +259,9 @@ function useSettled() {
   };
 }
 
-function LogFollowUp({ detail, onDone }: { detail: ProspectDetail; onDone: () => void }) {
+export function LogFollowUp({ detail, onDone }: { detail: ProspectDetail; onDone: () => void }) {
   const settled = useSettled();
+  const me = useStaffUser();
   const [happenedOn, setHappenedOn] = useState(today());
   const [method, setMethod] = useState<FollowUpRequestMethod>("CALL");
   const [status, setStatus] = useState<FollowUpRequestStatus>(detail.prospect.status as FollowUpRequestStatus);
@@ -274,17 +286,17 @@ function LogFollowUp({ detail, onDone }: { detail: ProspectDetail; onDone: () =>
     <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-primary-100 bg-primary-50/40 p-4">
       <h3 className="text-sm font-bold">Log a follow-up</h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="follow-up-on" label="When">
+        <Field id="follow-up-on" label="When" required>
           <DateInput id="follow-up-on" name="happenedOn" value={happenedOn} min={LONG_AGO} max={new Date()} onChange={setHappenedOn} />
         </Field>
-        <Field id="follow-up-how" label="How">
+        <Field id="follow-up-how" label="How" required>
           <SelectInput id="follow-up-how" value={method} onChange={(event) => setMethod(event.target.value as FollowUpRequestMethod)}>
             {(["CALL", "MEETING", "MESSAGE", "EMAIL", "NOTE"] as const).map((one) => (
               <option key={one} value={one}>{METHOD_LABELS[one]}</option>
             ))}
           </SelectInput>
         </Field>
-        <Field id="follow-up-status" label="Status now">
+        <Field id="follow-up-status" label="Status now" required>
           <SelectInput id="follow-up-status" value={status} onChange={(event) => setStatus(event.target.value as FollowUpRequestStatus)}>
             {OPEN_STATUSES.map((one) => (
               <option key={one} value={one}>{STATUS_LABELS[one]}</option>
@@ -299,9 +311,10 @@ function LogFollowUp({ detail, onDone }: { detail: ProspectDetail; onDone: () =>
         <TextArea id="follow-up-notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
       {log.error && <Alert tone="danger">{log.error.message}</Alert>}
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <span className="mr-auto"><SigningAs name={me.fullName} /></span>
         <Button variant="secondary" onClick={onDone}>Cancel</Button>
-        <Button type="submit" disabled={log.isPending}>Save follow-up</Button>
+        <Button type="submit" disabled={log.isPending}>Sign and save</Button>
       </div>
     </form>
   );
@@ -311,13 +324,42 @@ function LogFollowUp({ detail, onDone }: { detail: ProspectDetail; onDone: () =>
  * A follow-up email, sent from the portal's own address; the prospect's reply goes to whoever wrote it. Off
  * when they have no email address or asked not to be emailed.
  */
-function EmailBox({ detail }: { detail: ProspectDetail }) {
+export function EmailBox({ detail }: { detail: ProspectDetail }) {
   const settled = useSettled();
   const row = detail.prospect;
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [next, setNext] = useState("");
   const [sent, setSent] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveProblem, setSaveProblem] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  // The reader's own unsent email to them, if they saved one (23 Nov 2026), put back in the boxes once.
+  const draft = useGetProspectEmailDraft<EmailDraft, ApiError>(row.id);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (restored || !draft.data) return;
+    setRestored(true);
+    setSubject(draft.data.subject ?? "");
+    setMessage(draft.data.message ?? "");
+    setNext(draft.data.nextFollowUp ?? "");
+    setSavedAt(draft.data.savedAt ?? null);
+  }, [draft.data, restored]);
+  const saveDraft = async () => {
+    setSaving(true);
+    setSaveProblem(null);
+    setSent(false);
+    try {
+      const kept = await saveProspectEmailDraft(row.id, { subject: subject || null, message: message || null, nextFollowUp: next || null });
+      setSavedAt(kept.savedAt ?? null);
+      queryClient.setQueryData(getGetProspectEmailDraftQueryKey(row.id), kept);
+    } catch (problem) {
+      setSaveProblem(problem instanceof Error ? problem.message : "The draft couldn't be saved. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
   // Set when Send is pressed with the subject or message empty; each stays red until it is written.
   const [tried, setTried] = useState(false);
   const email = useEmailProspect<ApiError>({
@@ -329,6 +371,8 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
         setNext("");
         setTried(false);
         setSent(true);
+        setSavedAt(null);
+        void queryClient.invalidateQueries({ queryKey: getGetProspectEmailDraftQueryKey(row.id) });
       },
     },
   });
@@ -369,7 +413,13 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
         </Field>
         {email.error && <Alert tone="danger">{email.error.problem?.errors ? "Give the email a subject and a message." : email.error.message}</Alert>}
         {sent && <Alert tone="success">Sent.</Alert>}
-        <div className="flex justify-end">
+        {saveProblem && <Alert tone="danger">{saveProblem}</Alert>}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {savedAt && <span className="mr-auto text-xs text-ink-muted">Draft saved {formatDateTime(savedAt)}</span>}
+          <Button type="button" variant="secondary" onClick={() => void saveDraft()}
+            disabled={saving || email.isPending || (!subject.trim() && !message.trim() && !next)}>
+            {saving ? "Saving…" : "Save as draft"}
+          </Button>
           <Button type="submit" disabled={email.isPending}>
             {email.isPending ? "Sending…" : "Send"}
           </Button>
@@ -379,7 +429,7 @@ function EmailBox({ detail }: { detail: ProspectDetail }) {
   );
 }
 
-function Reopen({ id }: { id: string }) {
+export function Reopen({ id }: { id: string }) {
   const settled = useSettled();
   const reopen = useReopenProspect<ApiError>({ mutation: { onSuccess: settled } });
   return (
@@ -389,7 +439,7 @@ function Reopen({ id }: { id: string }) {
   );
 }
 
-function LostDialog({ open, detail, onClose }: { open: boolean; detail: ProspectDetail; onClose: () => void }) {
+export function LostDialog({ open, detail, onClose }: { open: boolean; detail: ProspectDetail; onClose: () => void }) {
   const settled = useSettled();
   const [reason, setReason] = useState<LostRequestReason>("NOT_INTERESTED");
   const [note, setNote] = useState("");
@@ -404,7 +454,7 @@ function LostDialog({ open, detail, onClose }: { open: boolean; detail: Prospect
   return (
     <Dialog open={open} title={`Mark ${detail.prospect.fullName} as lost`} onClose={onClose}>
       <div className="space-y-4">
-        <Field id="lost-reason" label="Why">
+        <Field id="lost-reason" label="Why" required>
           <SelectInput id="lost-reason" value={reason} onChange={(event) => setReason(event.target.value as LostRequestReason)}>
             {Object.entries(LOST_REASONS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -430,25 +480,27 @@ function LostDialog({ open, detail, onClose }: { open: boolean; detail: Prospect
   );
 }
 
-/** Converting starts their onboarding with what is known about them; the onboarding form opens to carry on. */
-function ConvertDialog({ open, detail, onClose }: { open: boolean; detail: ProspectDetail; onClose: () => void }) {
+/** Converting starts their onboarding with what is known about them; they stay a prospect until onboarded. */
+export function ConvertDialog({ open, detail, onClose }: { open: boolean; detail: ProspectDetail; onClose: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const convert = useConvertProspect<ApiError>({
     mutation: {
-      onSuccess: (converted) => {
+      onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getListProspectsQueryKey().slice(0, 1) });
         void queryClient.invalidateQueries({ queryKey: getGetProspectQueryKey(detail.prospect.id) });
         void queryClient.invalidateQueries({ queryKey: getGetClientManagementOverviewQueryKey() });
-        void navigate(`/onboarding/${converted.onboardingCaseId}`);
+        // They stay a prospect until onboarded (23 Nov 2026): their page opens where the documents are collected.
+        void navigate(`/prospective-clients/${detail.prospect.id}?tab=details`);
+        onClose();
       },
     },
   });
   return (
     <Dialog
       open={open}
-      title={`Convert ${detail.prospect.fullName} to a client`}
-      description="Their onboarding form opens with their details filled in."
+      title={`Start collecting documents for ${detail.prospect.fullName}`}
+      description="They stay a prospect while their documents are collected and Compliance look at them. Once Compliance approve and the agreement is signed, they become a client on their own."
       onClose={onClose}
     >
       <div className="space-y-4">
@@ -456,7 +508,7 @@ function ConvertDialog({ open, detail, onClose }: { open: boolean; detail: Prosp
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={convert.isPending} onClick={() => convert.mutate({ id: detail.prospect.id })}>
-            Convert
+            Start collecting documents
           </Button>
         </div>
       </div>

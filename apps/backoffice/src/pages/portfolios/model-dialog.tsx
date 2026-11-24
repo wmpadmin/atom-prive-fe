@@ -10,7 +10,7 @@ import {
   type SettingsView,
   type SubAllocationRequest,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, Dialog, Field, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
+import { Alert, Button, Dialog, Field, RequiredMark, SelectInput, TextInput, cn, describedBy } from "@atomprive/ui";
 import { Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { type FormErrors } from "../../lib/api-errors";
@@ -940,6 +940,7 @@ export function ModelDialog({
             <label htmlFor="model-why"
               className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               Why it should change
+              <RequiredMark />
             </label>
             <TextInput
               {...describedBy("model-why", whyError)}

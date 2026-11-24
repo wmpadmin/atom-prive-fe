@@ -641,7 +641,7 @@ function OwnStep({ draft, figures, isNew, busy, tried, position, headings, onCha
             </SelectInput>
             {tried && !figure && <p className="mt-1 text-xs text-red-600">Choose what the card reports on.</p>}
           </Field>
-          <Field label="How do you want to see it?">
+          <Field label="How do you want to see it?" required>
             {figure ? (
               <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="How to see it">
                 {kinds.map((kind) => {

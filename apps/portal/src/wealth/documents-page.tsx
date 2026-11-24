@@ -91,6 +91,7 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
         <div>
           <label htmlFor="upload-kind" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What is it?
+            <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
           </label>
           <SelectInput id="upload-kind" value={kind} aria-invalid={noKind} onChange={(event) => setKind(event.target.value)}>
             <option value="">Choose…</option>
@@ -106,6 +107,7 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
           <div>
             <label htmlFor="upload-name" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               Name of the document
+              <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
             </label>
             <input
               id="upload-name"
@@ -134,6 +136,7 @@ function UploadDialog({ onClose }: { onClose: () => void }) {
         <div>
           <label htmlFor="upload-file" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             File
+            <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
           </label>
           <input
             id="upload-file"

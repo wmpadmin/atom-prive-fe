@@ -60,7 +60,7 @@ export function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () =
     <Dialog open onClose={onClose} title="Grant access" description="Let a family member see some of your accounts. They can see balances and transactions, never move money.">
       <div className="space-y-5">
         <fieldset>
-          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Family member</legend>
+          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Family member<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
           {family.isPending ? (
             <div className="h-16 animate-pulse rounded-xl bg-sidebar" />
           ) : people.length === 0 ? (
@@ -94,7 +94,7 @@ export function GrantDialog({ own, onClose }: { own: AccountRow[]; onClose: () =
         </fieldset>
 
         <fieldset>
-          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Accounts</legend>
+          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Accounts<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
           <ul className="space-y-2">
             {own.map((one) => (
               <li key={one.id}>

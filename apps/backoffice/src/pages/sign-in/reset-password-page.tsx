@@ -121,7 +121,7 @@ export function ResetPasswordPage() {
             </p>
           </div>
           {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-          <Field id="newPassword" label="New password">
+          <Field id="newPassword" label="New password" required>
             <PasswordInput
               id="newPassword"
               name="newPassword"
@@ -139,7 +139,7 @@ export function ResetPasswordPage() {
             )}
             <PasswordChecklist id="newPassword-rules" password={newPassword} showMissing={triedToSave} />
           </Field>
-          <Field id="confirmPassword" label="Confirm new password" error={confirmPasswordError}>
+          <Field id="confirmPassword" label="Confirm new password" required error={confirmPasswordError}>
             <PasswordInput
               {...describedBy("confirmPassword", confirmPasswordError)}
               name="confirmPassword"

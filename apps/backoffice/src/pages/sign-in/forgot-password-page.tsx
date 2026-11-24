@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
             </p>
           </div>
           {error && <Alert tone="danger">{error}</Alert>}
-          <Field id="email" label="Email">
+          <Field id="email" label="Email" required>
             <TextInput id="email" name="email" type="email" autoComplete="username" required autoFocus />
           </Field>
           {human.siteKey && <HumanCheck key={human.round} siteKey={human.siteKey} onToken={human.setToken} />}

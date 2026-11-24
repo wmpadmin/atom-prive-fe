@@ -795,6 +795,7 @@ export interface Me {
   /** @nullable */
   mobile: string | null;
   joinedOn: string;
+  dashboardOpen: boolean;
 }
 
 export interface NotificationChoiceRequest {

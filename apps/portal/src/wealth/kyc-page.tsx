@@ -334,6 +334,7 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
         <div>
           <label htmlFor="kyc-paper" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             Document
+            <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
           </label>
           <SelectInput
             id="kyc-paper"
@@ -360,6 +361,7 @@ function UploadPaper({ papers, chosen, onClose }: { papers: KycRequirement[]; ch
         <div>
           <label htmlFor="kyc-file" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             File
+            <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
           </label>
           <input
             id="kyc-file"

@@ -147,6 +147,7 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   // are the Admin's alone: nobody else may answer a request, and nobody else may see an archived client.
   { to: "/deactivation-requests", under: "/client-management" },
   { to: "/archived-clients", under: "/client-management" },
+  // The converted prospects sent to Compliance (23 Nov 2026), which the Admin decides on as Compliance do.
   // What the platform runs on: its configuration and the bank feeds. Holdings check, what the banks say each
   // client holds beside the firm's file, is a tab of Bank feeds since 21 Nov 2026, not an entry of its own.
   { to: "/config" },
@@ -211,6 +212,7 @@ const allNavigation: {
     authority: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"],
     under: "/client-management",
   },
+
   {
     to: "/clients",
     label: "All clients",

@@ -1,5 +1,6 @@
 export { Button, IconButton, type ButtonProps } from "./button";
 export { DateInput } from "./date-input";
+export { DateTimeInput } from "./date-time-input";
 export { cn } from "./cn";
 export { describedBy } from "./described-by";
 export { Dialog } from "./dialog";

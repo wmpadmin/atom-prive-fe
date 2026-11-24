@@ -433,7 +433,7 @@ function ClassForm({
     <form onSubmit={save} className="max-w-3xl rounded-xl border border-line bg-canvas/60 p-4">
       <h3 className="text-sm font-semibold">{title}</h3>
       <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
-        <Field id="asset-class-name" label="Name" error={tried && noName ? "Enter a name." : undefined}>
+        <Field id="asset-class-name" label="Name" required error={tried && noName ? "Enter a name." : undefined}>
           <TextInput
             id="asset-class-name"
             aria-invalid={tried && noName}
@@ -446,6 +446,7 @@ function ClassForm({
         <Field
           id="asset-class-short"
           label="Short name"
+          required
           hint="For crowded columns"
           error={tried && noShortName ? "Enter a short name." : undefined}
         >

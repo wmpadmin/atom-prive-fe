@@ -158,7 +158,6 @@ export function StaffProfileFields({
           <Field
             id="defaultRole"
             label="Workspace they open in"
-            required
             error={fields.defaultRole}
             hint="Where they land after signing in. They can change their own on their Settings."
             className="sm:col-span-2"

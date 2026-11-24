@@ -4,7 +4,9 @@ import {
   useListClientsForReview,
   useListExpiredClients,
   useListOnboardingCases,
+  useListProspectsForReview,
   type CasePage,
+  type ProspectQueue,
   type ExpiredClient,
   type ReviewQueue,
   type ReviewRow,
@@ -29,6 +31,7 @@ import { clientTypeLabels } from "../clients/client-labels";
 import { countryName } from "../../lib/countries";
 import { standingLabels, standings } from "./kyc-labels-review";
 import { reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { ProspectsReviewTab } from "./prospects-review-tab";
 import { remindedWhen, SendKycReminder } from "./send-kyc-reminder";
 
 /**
@@ -106,16 +109,6 @@ const MOVABLE: Column[] = [
     )),
   },
   {
-    id: "stillNeeded",
-    label: "Still needed",
-    nowrap: true,
-    cell: (row) => (row.stillNeeded ? (
-      <span className="text-ink-soft">{row.stillNeeded}</span>
-    ) : (
-      <span className="text-ink-muted">Nothing — every paper is in</span>
-    )),
-  },
-  {
     // How far off the client is, beside what they owe next. One paper named says nothing about whether it
     // is the last of three or the first of six, and reading that off the row is the whole reason somebody
     // opens a client they then have nothing to do on.
@@ -185,6 +178,12 @@ export function KycReviewQueuePage() {
     { query: { enabled: decides, placeholderData: keepPreviousData } },
   );
   const awaiting = signing.data?.items ?? [];
+  // Prospective clients whose documents or wealth table were sent to Compliance and wait on a decision
+  // (24 Nov 2026). They are decided on the prospect's own Documents tab; this is the door to it.
+  const prospects = useListProspectsForReview<ProspectQueue, ApiError>();
+  const waitingProspects = prospects.data?.waiting ?? 0;
+  const [tab, setTab] = useState<"PC" | "CLIENTS">(() =>
+    new URLSearchParams(window.location.search).get("tab") === "clients" ? "CLIENTS" : "PC");
   // Clients who were approved and whose paper has since run out. Not pending, so not in the queue below, and
   // no longer settled either: without this box they were on no list anywhere.
   const expired = useListExpiredClients<ExpiredClient[], ApiError>();
@@ -208,6 +207,21 @@ export function KycReviewQueuePage() {
         </p>
       </header>
 
+      {/* Two queues (24 Nov 2026): prospective clients, whose papers are decided before they become clients, and
+          the clients themselves, whose papers are kept current afterwards. */}
+      <div role="tablist" aria-label="Whose KYC" className="flex w-fit rounded-lg border border-line bg-white p-0.5 text-sm font-semibold">
+        {([["PC", `Prospective clients${waitingProspects ? ` (${waitingProspects})` : ""}`], ["CLIENTS", "All clients"]] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={cn("rounded-md px-4 py-1.5", tab === id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-canvas")}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "PC" ? (
+        <ProspectsReviewTab data={prospects.data} failed={prospects.isError ? prospects.error.message : undefined} />
+      ) : (
+      <>
       {queue.isError && <Alert tone="danger">{queue.error.message}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -420,6 +434,8 @@ export function KycReviewQueuePage() {
           />
         )}
       </section>
+      </>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type {
   Employer,
   EntityDetails,
   OnboardingApplication,
+  SigningAuthority,
   StaffMember,
 } from "@atomprive/api-client/backoffice";
 import { countries } from "../../lib/countries";
@@ -17,6 +18,52 @@ export type ClientType = NonNullable<OnboardingApplication["clientType"]>;
 export type Occupation = NonNullable<AccountHolder["occupation"]>;
 export type Relationship = NonNullable<AccountHolder["relationshipToPrimary"]>;
 export type OrganisationType = NonNullable<EntityDetails["organisationType"]>;
+export type SigningMode = NonNullable<SigningAuthority["mode"]>;
+
+/** Who may sign for a joint account (23 Nov 2026), worded for the person entering it. */
+export const signingModeLabels: Record<SigningMode, string> = {
+  ANY_ONE: "Any one of us, acting alone",
+  ALL_JOINTLY: "All of us, jointly",
+  ANY_OF_NAMED: "Some of the holders",
+  OTHER: "Other",
+};
+
+const NUMBER_WORDS = ["one", "two", "three", "four"];
+
+function listed(names: string[]) {
+  return names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** A holder's name as far as it has been entered. */
+export function holderName(holder: AccountHolder, index: number) {
+  return holder.fullName?.trim() || [holder.forenames, holder.surname].filter(Boolean).join(" ").trim() || holderGroup(index);
+}
+
+/**
+ * The signing authority in one line, as the account opening form's signing mandate will say it — the server writes
+ * the same words into that form (Prefill.namedSignatories), so the two read alike.
+ */
+export function signingAuthorityText(application: Pick<FormApplication, "holders" | "signingAuthority">): string | null {
+  const authority = application.signingAuthority;
+  if (!authority?.mode) return null;
+  if (authority.mode === "ANY_ONE") return "Any one of us, acting alone";
+  if (authority.mode === "ALL_JOINTLY") return "All of us, jointly";
+  if (authority.mode === "OTHER") return authority.other?.trim() ? `Other: ${authority.other.trim()}` : "Other";
+  const names = application.holders.flatMap((holder, index) => (holder.signatory ? [holderName(holder, index)] : []));
+  if (names.length === 0) return "Some of the holders (none ticked yet)";
+  if (names.length === 1) return `Only ${names[0]}`;
+  const howMany = authority.howMany ?? 1;
+  if (howMany >= names.length) return `${listed(names)} jointly`;
+  return `Any ${NUMBER_WORDS[howMany - 1] ?? howMany} of ${listed(names)}`;
+}
+
+/** Whether this holder may sign, where the account says so; null for a sole account or a choice not yet made. */
+export function signsFor(application: Pick<FormApplication, "holders" | "signingAuthority">, holder: AccountHolder): boolean | null {
+  const mode = application.signingAuthority?.mode;
+  if (application.holders.length < 2 || !mode) return null;
+  if (mode === "ANY_ONE" || mode === "ALL_JOINTLY") return true;
+  return holder.signatory ?? (mode === "OTHER" ? null : false);
+}
 
 export const MAX_HOLDERS = 4;
 
@@ -57,6 +104,11 @@ export interface FormEntity extends EntityDetails {
 export interface FormApplication extends OnboardingApplication {
   holders: FormHolder[];
   entity: FormEntity;
+  signingAuthority: SigningAuthority;
+}
+
+export function emptySigningAuthority(): SigningAuthority {
+  return { mode: null, howMany: null, other: null };
 }
 
 export function emptyAddress(): Address {
@@ -86,7 +138,8 @@ export function emptyHolder(): FormHolder {
     mailingSameAsResidential: true,
     mailingAddress: emptyAddress(),
     secondaryMailingAddress: null,
-  photo: null,
+    photo: null,
+    signatory: null,
   };
 }
 
@@ -110,7 +163,13 @@ function emptyEntity(): FormEntity {
 }
 
 export function newApplication(): FormApplication {
-  return { clientType: "INDIVIDUAL", relationshipManagerId: null, holders: [emptyHolder()], entity: emptyEntity() };
+  return {
+    clientType: "INDIVIDUAL",
+    relationshipManagerId: null,
+    holders: [emptyHolder()],
+    entity: emptyEntity(),
+    signingAuthority: emptySigningAuthority(),
+  };
 }
 
 /** A saved application in the shape the form edits. */
@@ -137,6 +196,7 @@ export function toForm(saved: OnboardingApplication): FormApplication {
       countriesOfBusiness: saved.entity?.countriesOfBusiness ?? [],
       registeredAddress: { ...emptyAddress(), ...saved.entity?.registeredAddress },
     },
+    signingAuthority: { ...emptySigningAuthority(), ...saved.signingAuthority },
   };
 }
 
@@ -147,6 +207,7 @@ export function tidy(application: FormApplication): OnboardingApplication {
     return {
       ...application,
       holders: [],
+      signingAuthority: null,
       entity: {
         ...entity,
         regulatorName: entity.regulated ? entity.regulatorName : null,
@@ -154,11 +215,23 @@ export function tidy(application: FormApplication): OnboardingApplication {
       },
     };
   }
+  const joint = application.holders.length > 1;
+  const mode = joint ? application.signingAuthority.mode : null;
   return {
     ...application,
     entity: null,
+    // Only a joint account says who signs for it, and only what its choice needs (23 Nov 2026).
+    signingAuthority: mode
+      ? {
+          mode,
+          howMany: mode === "ANY_OF_NAMED" ? application.signingAuthority.howMany : null,
+          other: mode === "OTHER" ? application.signingAuthority.other : null,
+        }
+      : null,
     holders: application.holders.map((holder, index) => ({
       ...holder,
+      signatory: !mode ? null : mode === "ANY_ONE" || mode === "ALL_JOINTLY" ? true
+        : mode === "ANY_OF_NAMED" ? Boolean(holder.signatory) : holder.signatory,
       relationshipToPrimary: index > 0 ? holder.relationshipToPrimary : null,
       otherNationalityCountry: holder.otherNationality ? holder.otherNationalityCountry : null,
       occupationOther: holder.occupation === "OTHER" ? holder.occupationOther : null,
@@ -224,11 +297,12 @@ export function reviewApplication(application: FormApplication, managers: StaffM
     if (!value) problem(field, missing);
     else if (value >= todayIso || value < "1900-01-01") problem(field, notPast);
   };
-  const address = (value: Address | null, at: string) => {
+  // An entity's registered address may have no second line and no state, as Singapore's do not (22 Nov 2026).
+  const address = (value: Address | null, at: string, registered = false) => {
     required(value?.line1, `${at}line1`, "Enter the first line of the address.");
-    required(value?.line2, `${at}line2`, "Enter the second line of the address.");
+    if (!registered) required(value?.line2, `${at}line2`, "Enter the second line of the address.");
     required(value?.city, `${at}city`, "Enter the city.");
-    required(value?.state, `${at}state`, "Enter the state.");
+    if (!registered) required(value?.state, `${at}state`, "Enter the state.");
     required(value?.postalCode, `${at}postalCode`, "Enter the postal code.");
     country(value?.country, `${at}country`, "Choose the country.");
   };
@@ -266,7 +340,7 @@ export function reviewApplication(application: FormApplication, managers: StaffM
         required(entity.organisationTypeOther, "entity.organisationTypeOther", "Say what type of organisation it is.");
       }
     });
-    step("entity-address", "Entity", "Registered address", () => address(entity.registeredAddress, "entity.registeredAddress."));
+    step("entity-address", "Entity", "Registered address", () => address(entity.registeredAddress, "entity.registeredAddress.", true));
     return { problems, steps };
   }
 
@@ -335,6 +409,19 @@ export function reviewApplication(application: FormApplication, managers: StaffM
       if (holder.secondaryMailingAddress) address(holder.secondaryMailingAddress, `${at}secondaryMailingAddress.`);
     });
   });
+  if (application.holders.length > 1) {
+    step("signing", "Joint account", "Signing authority", () => {
+      const { mode, howMany, other } = application.signingAuthority;
+      if (!mode) problem("signingAuthority.mode", "Choose who can sign for this joint account.");
+      else if (mode === "ANY_OF_NAMED") {
+        const ticked = application.holders.filter((holder) => holder.signatory).length;
+        if (ticked === 0) problem("signingAuthority.signatories", "Tick at least one holder who can sign.");
+        else if (!howMany || howMany < 1 || howMany > ticked) {
+          problem("signingAuthority.howMany", `Choose how many of the ticked holders must sign, from 1 to ${ticked}.`);
+        }
+      } else if (mode === "OTHER") required(other, "signingAuthority.other", "Say who can sign for this joint account.");
+    });
+  }
   return { problems, steps };
 }
 
@@ -344,6 +431,7 @@ const businessFields = new Set(["regulated", "regulatorName", "countriesOfBusine
 
 /** The step a field is on, such as "holder-1-contact" for "holders[1].email", to show where a problem is. */
 export function stepOfField(field: string) {
+  if (field.startsWith("signingAuthority.")) return "signing";
   const holder = /^holders\[(\d+)\]\.(\w+)/.exec(field);
   if (holder) {
     const [, index, name = ""] = holder;

@@ -1,4 +1,4 @@
-import { Button, cn, describedBy, Field, IconButton } from "@atomprive/ui";
+import { Button, cn, describedBy, Field, IconButton, RequiredMark } from "@atomprive/ui";
 import { X } from "lucide-react";
 import {
   AddressFields,
@@ -281,7 +281,7 @@ export function DeclarationsStep({
                   onChange={(event) => onChange({ [declaration.id]: event.target.checked })}
                   aria-label={declaration.text.slice(0, 80)}
                 />
-                <span className="text-ink">{withFirm(declaration.text, firmName)}</span>
+                <span className="text-ink">{withFirm(declaration.text, firmName)}<RequiredMark /></span>
               </label>
             </div>
           );

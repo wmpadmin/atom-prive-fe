@@ -1,5 +1,8 @@
 import { ApiError } from "@atomprive/api-client";
+import { SigningAs } from "../../components/signature";
+import { MobileNumberInput } from "../../components/mobile-number-input";
 import {
+  getListProspectPartiesQueryKey,
   getGetProspectQueryKey,
   getListProspectsQueryKey,
   getGetClientManagementOverviewQueryKey,
@@ -11,17 +14,22 @@ import {
   type ProspectRequest,
   type ProspectRequestSource,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, DateInput, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, cn, DateInput, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
-import { SOURCE_LABELS } from "./prospect-labels";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { saveStaged, StagedParties, type StagedParty } from "./entity-parties";
+import { useStaffUser } from "../../auth/session";
+import { CountrySelect } from "../../components/country-select";
 
 type Draft = {
   fullName: string;
   clientType: "INDIVIDUAL" | "ENTITY";
   email: string;
   phone: string;
-  source: ProspectRequestSource;
+  /** ISO two-letter code, or empty when not said (scope §10). */
+  country: string;
+  /** Empty until chosen: a draft may be kept without it (22 Nov 2026). */
+  source: NonNullable<ProspectRequestSource> | "";
   referredBy: string;
   assignedTo: string;
   nextFollowUp: string;
@@ -36,7 +44,8 @@ function draftOf(detail: ProspectDetail | null, me: string | null): Draft {
     clientType: prospect?.clientType ?? "INDIVIDUAL",
     email: prospect?.email ?? "",
     phone: prospect?.phone ?? "",
-    source: prospect?.source ?? "REFERRAL",
+    country: prospect?.country ?? "",
+    source: prospect?.source ?? "",
     referredBy: detail?.referredBy ?? "",
     assignedTo: prospect?.assignedTo?.id ?? me ?? "",
     nextFollowUp: prospect?.nextFollowUp ?? "",
@@ -62,9 +71,15 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => draftOf(editing, onlyMine ? me : null));
+  const user = useStaffUser();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
   const assignees = useListProspectAssignees({ query: { enabled: open && !onlyMine } });
+  // Added by someone who is a relationship manager themselves: they are its RM until changed (23 Nov 2026).
+  const iAmAnRm = !editing && (assignees.data ?? []).some((one) => one.id === me);
+  useEffect(() => {
+    if (iAmAnRm) setDraft((was) => (was.assignedTo ? was : { ...was, assignedTo: me }));
+  }, [iAmAnRm, me]);
 
   // Asked as they type, so a lead who is already a client — or already a prospect — is caught before saving.
   const email = draft.email.trim();
@@ -74,50 +89,111 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
     { query: { enabled: open && (email.length > 4 || phone.replace(/\D/g, "").length > 6) } },
   );
 
-  const saved = (detail: ProspectDetail) => {
+  // An entity's people, held here until the prospect exists, then saved onto it (22 Nov 2026).
+  const [staged, setStaged] = useState<StagedParty[]>([]);
+  const [savingPeople, setSavingPeople] = useState(false);
+  const saved = async (detail: ProspectDetail) => {
+    if (!editing && draft.clientType === "ENTITY" && staged.length > 0) {
+      setSavingPeople(true);
+      const failed = await saveStaged(detail.prospect.id, staged);
+      setSavingPeople(false);
+      if (failed.length > 0) {
+        window.alert(`${detail.prospect.fullName} was added, but ${failed.join(", ")} couldn't be saved. Add them again in the prospect's Stakeholders.`);
+      }
+      void queryClient.invalidateQueries({ queryKey: getListProspectPartiesQueryKey(detail.prospect.id) });
+    }
+    afterSave(detail);
+  };
+  // Set when Cancel or close kept a draft: the list is refreshed and the form just closes.
+  const closingAsDraft = useRef(false);
+  const afterSave = (detail: ProspectDetail) => {
     void queryClient.invalidateQueries({ queryKey: getListProspectsQueryKey().slice(0, 1) });
     void queryClient.invalidateQueries({ queryKey: getGetClientManagementOverviewQueryKey() });
     queryClient.setQueryData(getGetProspectQueryKey(detail.prospect.id), detail);
-    onSaved(detail);
+    if (closingAsDraft.current) onClose();
+    else onSaved(detail);
   };
   const failed = (error: ApiError) => {
+    // Cancel always closes (23 Nov 2026): the draft is kept when it can be, and the form shuts even when it can't.
+    if (closingAsDraft.current) {
+      closingAsDraft.current = false;
+      onClose();
+      return;
+    }
     setErrors(error.problem?.errors ?? {});
     setProblem(error.problem?.errors ? null : error.message);
   };
-  const add = useAddProspect<ApiError>({ mutation: { onSuccess: saved, onError: failed } });
-  const update = useUpdateProspect<ApiError>({ mutation: { onSuccess: saved, onError: failed } });
-  const busy = add.isPending || update.isPending;
+  const add = useAddProspect<ApiError>({ mutation: { onSuccess: (detail) => void saved(detail), onError: failed } });
+  const update = useUpdateProspect<ApiError>({ mutation: { onSuccess: afterSave, onError: failed } });
+  const busy = add.isPending || update.isPending || savingPeople;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((was) => ({ ...was, [key]: value }));
 
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    const request: ProspectRequest = {
+  // Another prospect with the same email or phone is asked about once, at saving; an existing client is refused.
+  const [askedAboutClash, setAskedAboutClash] = useState<"asking" | "yes" | null>(null);
+  const requestOf = (): ProspectRequest => ({
       fullName: draft.fullName,
       clientType: draft.clientType,
       email: email || null,
       phone: phone || null,
-      source: draft.source,
+      country: draft.country || null,
+      source: draft.source || null,
       referredBy: draft.referredBy.trim() || null,
       assignedTo: draft.assignedTo || null,
       nextFollowUp: draft.nextFollowUp || null,
       notes: draft.notes.trim() || null,
       doNotEmail: draft.doNotEmail,
-    };
-    if (editing) update.mutate({ id: editing.prospect.id, data: request });
-    else add.mutate({ data: request });
+      // Money comes in only through the wealth accumulation (23 Nov 2026), so no expected amount is asked here.
+      expectedAum: null,
+      expectedCurrency: null,
+      // Not asked when adding (24 Nov 2026), of a person or an entity: meetings are planned and recorded on the
+      // prospect's Meetings tab, and the stage follows from them.
+      meetingStage: null,
+      plannedMeeting: null,
+      firstMeeting: null,
+  });
+  // A draft (22 Nov 2026): kept with a name at least, finished later. Only a new prospect or a draft can be one.
+  const mayDraft = !editing || editing.prospect.status === "DRAFT";
+  const saveDraft = (then?: () => void) => {
+    if (!draft.fullName.trim()) {
+      setErrors({ fullName: "Enter their name to save a draft." });
+      return;
+    }
+    const options = { onSuccess: then };
+    if (editing) update.mutate({ id: editing.prospect.id, data: requestOf(), params: { draft: true } }, options);
+    else add.mutate({ data: requestOf(), params: { draft: true } }, options);
+  };
+  // Closing a new prospect with a name typed keeps it as a draft rather than losing it.
+  const close = () => {
+    if (!editing && draft.fullName.trim() && !busy) {
+      closingAsDraft.current = true;
+      saveDraft();
+      return;
+    }
+    onClose();
+  };
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (duplicates.data?.prospectName && !duplicates.data.clientName && askedAboutClash !== "yes") {
+      setAskedAboutClash("asking");
+      return;
+    }
+    if (editing) update.mutate({ id: editing.prospect.id, data: requestOf() });
+    else add.mutate({ data: requestOf() });
   };
 
   const clash = duplicates.data;
   return (
     <Dialog
       open={open}
-      size="lg"
+      size="xl"
       title={editing ? `Edit ${editing.prospect.fullName}` : "Add Prospective Client"}
-      onClose={onClose}
+      onClose={close}
     >
-      <form onSubmit={onSubmit} className="space-y-5">
-        <Field id="prospect-type" label="Client type">
+      <form id="prospect-form" onSubmit={onSubmit} className="space-y-5">
+        {/* Chosen when they are added; editing keeps it (23 Nov 2026). */}
+        {!editing && (
+        <Field id="prospect-type" label="Client type" required>
           <div id="prospect-type" role="radiogroup" className="grid grid-cols-2 overflow-hidden rounded-lg border border-line">
             {(["INDIVIDUAL", "ENTITY"] as const).map((type) => (
               <button
@@ -136,10 +212,17 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
             ))}
           </div>
         </Field>
+        )}
 
-        <Field id="prospect-name" label={draft.clientType === "ENTITY" ? "Entity name" : "Name"} required error={errors.fullName}>
-          <TextInput id="prospect-name" value={draft.fullName} onChange={(event) => set("fullName", event.target.value)} />
-        </Field>
+        {/* Wide rather than long (23 Nov 2026): name beside country, email beside phone. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="prospect-name" label={draft.clientType === "ENTITY" ? "Entity name" : "Name"} required error={errors.fullName}>
+            <TextInput id="prospect-name" value={draft.fullName} onChange={(event) => set("fullName", event.target.value)} />
+          </Field>
+          <Field id="prospect-country" label="Country" error={errors.country}>
+            <CountrySelect id="prospect-country" value={draft.country || null} placeholder="Not said" onChange={(code) => set("country", code)} />
+          </Field>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="prospect-email" label="Email" error={errors.email}>
@@ -151,7 +234,7 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
             />
           </Field>
           <Field id="prospect-phone" label="Phone" error={errors.phone}>
-            <TextInput id="prospect-phone" type="tel" value={draft.phone} onChange={(event) => set("phone", event.target.value)} />
+            <MobileNumberInput id="prospect-phone" value={draft.phone} onChange={(value) => set("phone", value)} />
           </Field>
         </div>
 
@@ -164,27 +247,11 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
           </Alert>
         )}
 
+        {/* Source and Referred by are no longer asked (23 Nov 2026); an RM adding one is its relationship manager. */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="prospect-source" label="Source" required>
-            <SelectInput
-              id="prospect-source"
-              value={draft.source}
-              onChange={(event) => set("source", event.target.value as ProspectRequestSource)}
-            >
-              {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </SelectInput>
-          </Field>
-          <Field id="prospect-referred" label="Referred by">
-            <TextInput id="prospect-referred" value={draft.referredBy} onChange={(event) => set("referredBy", event.target.value)} />
-          </Field>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="prospect-assigned" label="Assigned to" error={errors.assignedTo}>
+          <Field id="prospect-assigned" label="Relationship manager" error={errors.assignedTo}>
             {onlyMine ? (
-              <TextInput id="prospect-assigned" value="You" disabled />
+              <TextInput id="prospect-assigned" value={`${user.fullName} (you)`} disabled />
             ) : (
               <SelectInput id="prospect-assigned" value={draft.assignedTo} onChange={(event) => set("assignedTo", event.target.value)}>
                 <option value="">Nobody yet</option>
@@ -199,7 +266,8 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
               id="prospect-next"
               name="nextFollowUp"
               value={draft.nextFollowUp}
-              min={new Date(2000, 0, 1)}
+              // Today or later (23 Nov 2026); an overdue date already set stays shown until it is changed.
+              min={new Date()}
               max={new Date(2100, 0, 1)}
               clearable
               onChange={(value) => set("nextFollowUp", value)}
@@ -215,7 +283,14 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
             placeholder="What they are looking for"
             onChange={(event) => set("notes", event.target.value)}
           />
+          {/* Signed by whoever writes them, when the form is saved (23 Nov 2026). */}
+          {draft.notes.trim() !== "" && <span className="mt-1 block"><SigningAs name={user.fullName} /></span>}
         </Field>
+
+        {!editing && draft.clientType === "ENTITY" && <StagedParties value={staged} onChange={setStaged} />}
+        {editing && draft.clientType === "ENTITY" && (
+          <p className="text-xs text-ink-muted">Directors, owners, UBOs and signatories are kept in the prospect's Stakeholders section.</p>
+        )}
 
         <label className="flex items-center gap-2.5 text-sm">
           <input
@@ -231,12 +306,25 @@ export function ProspectForm({ open, editing, onlyMine, me, onClose, onSaved }: 
         {problem && <Alert tone="danger">{problem}</Alert>}
 
         <div className="flex justify-end gap-3 border-t border-line pt-4">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" onClick={close}>Cancel</Button>
+          {mayDraft && (
+            <Button variant="secondary" disabled={busy} onClick={() => saveDraft()}>Save as draft</Button>
+          )}
           <Button type="submit" disabled={busy || Boolean(clash?.clientName)}>
-            {editing ? "Save changes" : "Add prospect"}
+            {savingPeople ? "Saving people…" : editing?.prospect.status === "DRAFT" ? "Complete and save" : editing ? "Save changes" : "Add prospect"}
           </Button>
         </div>
       </form>
+      <Dialog open={askedAboutClash === "asking"} onClose={() => setAskedAboutClash(null)} title="Duplicate prospect detected"
+        description={`${clash?.prospectName ?? "Another prospect"} (${clash?.prospectReference ?? ""}) already has this email or phone. Do you want to continue?`}>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setAskedAboutClash(null)}>Cancel</Button>
+          <Button onClick={() => {
+            setAskedAboutClash("yes");
+            requestAnimationFrame(() => document.querySelector<HTMLFormElement>("form#prospect-form")?.requestSubmit());
+          }}>Continue</Button>
+        </div>
+      </Dialog>
     </Dialog>
   );
 }

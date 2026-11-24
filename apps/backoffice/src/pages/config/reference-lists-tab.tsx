@@ -123,7 +123,7 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
           <li key={entry.code} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
             {renaming === entry.code ? (
               <form onSubmit={submit} className="flex flex-1 flex-wrap items-end gap-3">
-                <Field id={`rename-${entry.code}`} label="Name" error={errors.fields.name ?? (typedMissing ? "Enter a name." : undefined)} className="min-w-60 flex-1">
+                <Field id={`rename-${entry.code}`} label="Name" required error={errors.fields.name ?? (typedMissing ? "Enter a name." : undefined)} className="min-w-60 flex-1">
                   <TextInput
                     id={`rename-${entry.code}`}
                     aria-invalid={typedMissing}
@@ -185,7 +185,7 @@ function OneList({ kind, title, about, one }: (typeof LISTS)[number]) {
 
       {!renaming && (
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-line px-6 py-4">
-          <Field id={`add-${kind}`} label={`Add a ${one}`} error={errors.fields.name ?? (addingMissing ? `Type the ${one} to add.` : undefined)} className="min-w-60 flex-1">
+          <Field id={`add-${kind}`} label={`Add a ${one}`} required error={errors.fields.name ?? (addingMissing ? `Type the ${one} to add.` : undefined)} className="min-w-60 flex-1">
             <TextInput
               id={`add-${kind}`}
               aria-invalid={addingMissing}

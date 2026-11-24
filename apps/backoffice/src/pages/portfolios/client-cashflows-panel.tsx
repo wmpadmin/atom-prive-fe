@@ -8,7 +8,7 @@ import {
   type CashflowList,
   type CashflowRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, DateInput, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
+import { Alert, Button, DateInput, IconButton, RequiredMark, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -131,6 +131,7 @@ export function ClientCashflowsPanel({ customerId, currency }: {
             <label className="block">
               <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 The day it moved
+                <RequiredMark />
               </span>
               <span className="mt-1 block w-44">
                 <DateInput id="cashflow-on" name="happenedOn" value={on}
@@ -151,6 +152,7 @@ export function ClientCashflowsPanel({ customerId, currency }: {
             <label className="block">
               <span className="block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 How much ({currency})
+                <RequiredMark />
               </span>
               <TextInput id="cashflow-amount" inputMode="decimal" value={amount} className="mt-1 w-40 text-right"
                 onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} />

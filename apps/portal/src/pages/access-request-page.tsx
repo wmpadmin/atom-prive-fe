@@ -274,7 +274,8 @@ function Answer({ request }: { request: RequestRow }) {
           </span>
         </label>
         <label className="text-xs font-semibold text-slate-600">
-          {refusing ? "Why (required)" : "A comment (optional)"}
+          {refusing ? "Why" : "A comment (optional)"}
+          {refusing && <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>}
           <textarea
             id="access-answer-comment"
             rows={3}

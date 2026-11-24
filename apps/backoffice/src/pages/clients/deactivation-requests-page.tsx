@@ -140,7 +140,7 @@ export function DeactivationRequestsPage() {
                     >
                       {row.clientName}
                     </Link>
-                    <span className="block text-xs text-ink-muted">{row.clientCode}</span>
+                    <span className="block text-xs text-ink-muted">{row.clientCode} · {row.reference}</span>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {row.askedByName ?? "—"}
@@ -153,6 +153,12 @@ export function DeactivationRequestsPage() {
                     {row.decisionNote && (
                       <p className="mt-1 text-xs text-ink-muted">
                         You said: {row.decisionNote}
+                      </p>
+                    )}
+                    {/* Whoever took it back, and why (24 Nov 2026); kept apart from the Admin's own note. */}
+                    {row.withdrawReason && (
+                      <p className="mt-1 text-xs">
+                        <span className="text-ink-muted">Withdrawn because:</span> {row.withdrawReason}
                       </p>
                     )}
                   </td>
@@ -237,7 +243,10 @@ function Answer({
       }
       description={
         agreeing
-          ? "They leave every list and every queue in the firm at once. Only you will be able to see them, in Archived clients. Nothing of theirs is deleted, and you can put them back for ninety days."
+          ? answering?.row.restoredBefore
+            // Restored once in their life at most (24 Nov 2026): this time there is no way back.
+            ? "They leave every list and every queue in the firm at once. Only you will be able to see them, in Archived clients. Nothing of theirs is deleted, but they were restored once before, so this time it is permanent: they cannot be put back."
+            : "They leave every list and every queue in the firm at once. Only you will be able to see them, in Archived clients. Nothing of theirs is deleted, and you can put them back for ninety days."
           : "The client carries on exactly as they are, and whoever asked is told why."
       }
       onClose={() => {

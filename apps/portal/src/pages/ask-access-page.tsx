@@ -75,7 +75,7 @@ export function AskAccessPage() {
             ask.mutate({ data: { ownerId: who, bankId: bank, message: message.trim() || null } });
           }}
         >
-          <Step number={1} label="Who you want to ask">
+          <Step number={1} label="Who you want to ask" required>
             <ul className="space-y-2">
               {family.data.map((one) => (
                 <li key={one.customerId}>
@@ -117,7 +117,7 @@ export function AskAccessPage() {
             {whoMissing && <p id="ask-who-error" className="mt-1.5 text-xs text-red-600">Choose who you want to ask.</p>}
           </Step>
 
-          <Step number={2} label="Which bank">
+          <Step number={2} label="Which bank" required>
             {/* The bank's name is the whole of what they may know before being let in. How many accounts
                 sit behind it is already more than a stranger would get, and is what makes the choice
                 meaningful without giving away the accounts themselves. */}
@@ -199,7 +199,7 @@ export function AskAccessPage() {
   );
 }
 
-function Step({ number, label, children }: { number: number; label: string; children: React.ReactNode }) {
+function Step({ number, label, required, children }: { number: number; label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
       <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -209,7 +209,10 @@ function Step({ number, label, children }: { number: number; label: string; chil
         >
           {number}
         </span>
-        {label}
+        <span>
+          {label}
+          {required && <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>}
+        </span>
       </p>
       <div className="mt-2">{children}</div>
     </div>

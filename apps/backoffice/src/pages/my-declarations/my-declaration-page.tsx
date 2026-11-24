@@ -7,7 +7,7 @@ import {
   type MyDeclaration,
 } from "@atomprive/api-client/backoffice";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, DateInput, Field, TextArea, TextInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, DateInput, Field, RequiredMark, TextArea, TextInput, cn } from "@atomprive/ui";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -236,7 +236,9 @@ export function MyDeclarationPage() {
     blanks: declarationBlanks[kind] ?? {},
     startsAt,
     carried,
-    printed: wording.printed,
+    // A declaration signed before the firm's name changed keeps the name it was signed under (22 Nov 2026).
+    printed: typeof answers.firmName === "string" && answers.firmName.trim()
+      ? { ...wording.printed, firmName: answers.firmName } : wording.printed,
     disabled: signed,
     say,
   };
@@ -750,7 +752,7 @@ function SignOff({
           disabled={disabled}
           onChange={(event) => say("agreed", event.target.checked)}
         />
-        <span className="text-sm leading-relaxed text-ink">{AGREED}</span>
+        <span className="text-sm leading-relaxed text-ink">{AGREED}<RequiredMark /></span>
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2">

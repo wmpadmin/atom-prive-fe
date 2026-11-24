@@ -1,4 +1,4 @@
-import { cn, describedBy, Field } from "@atomprive/ui";
+import { cn, describedBy, Field, RequiredMark } from "@atomprive/ui";
 import { ClientSignsThis } from "../../components/client-signs-this";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { Documents, type FormDocuments } from "../../components/form-documents";
@@ -270,7 +270,7 @@ export function DeclarationsStep({
                   onBlur={onBlur}
                   onChange={(event) => onChange({ [declaration.id]: event.target.checked })}
                 />
-                <span>{declaration.text.replaceAll("{{firmName}}", firmName ?? "the Firm")}</span>
+                <span>{declaration.text.replaceAll("{{firmName}}", firmName ?? "the Firm")}<RequiredMark /></span>
               </label>
             </div>
           );

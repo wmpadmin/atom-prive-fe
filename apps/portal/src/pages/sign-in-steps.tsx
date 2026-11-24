@@ -233,7 +233,7 @@ export function CodeStep({
         </p>
       </div>
       {error && <Alert tone="danger">{error}</Alert>}
-      <Field id="code" label="6-digit code">
+      <Field id="code" label="6-digit code" required>
         <input
           id="code"
           name="code"

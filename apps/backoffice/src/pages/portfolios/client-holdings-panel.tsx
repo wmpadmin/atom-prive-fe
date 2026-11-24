@@ -16,7 +16,7 @@ import {
   type PlacingOpen,
   type PositionRow,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Badge, Button, Dialog, TextInput, cn } from "@atomprive/ui";
+import { Alert, Badge, Button, Dialog, RequiredMark, TextInput, cn } from "@atomprive/ui";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { useStaffUser } from "../../auth/session";
@@ -1056,6 +1056,7 @@ function MoveOutPlan({ customerId, assetClass, from, leaving, spare, rows, place
             <div className="mt-5 border-t border-line pt-4">
               <label htmlFor="why-it-moves" className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
                 Why it should move
+                <RequiredMark />
               </label>
               {/* Said from the door it is said at. A proposal is read by somebody, so the reason is for
                   them; a client's asking is read by nobody, so the reason is the only record of why the

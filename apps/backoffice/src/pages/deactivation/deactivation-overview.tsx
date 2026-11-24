@@ -2,6 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useApproveDeactivation,
   useRejectDeactivation,
+  useWithdrawDeactivation,
   type RequestClearances,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Button, Field, StatCard, TextArea } from "@atomprive/ui";
@@ -74,6 +75,7 @@ export function DeactivationOverview({
       {/* Hairlines between the facts are the line colour showing through a one-pixel gap. */}
       <section className="overflow-hidden rounded-2xl border border-line bg-line">
         <dl className="grid gap-px sm:grid-cols-2">
+          <Fact label="Reference" value={standing.reference} wide />
           <Fact label="Requested by" value={standing.askedByName ?? "—"} />
           <Fact label="Requested on" value={formatDateTime(standing.askedAt)} />
           <Fact
@@ -100,8 +102,99 @@ export function DeactivationOverview({
         </dl>
       </section>
 
-      {admin && <Decision customerId={customerId} clientName={clientName} ready={standing.clear} />}
+      {/* Whoever raised it, or an Admin (24 Nov 2026): the server says who, so the card shows only where it works. */}
+      {standing.mayWithdraw && <Withdraw customerId={customerId} />}
+
+      {admin && (
+        <Decision
+          customerId={customerId}
+          clientName={clientName}
+          ready={standing.clear}
+          permanent={standing.restoredBefore}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Taking the request back (24 Nov 2026), for whoever raised it or an Admin. The reason is required: the desks
+ * asked stop their work on it and are told why, at the bell.
+ */
+function Withdraw({ customerId }: { customerId: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  // Withdraw pressed with no reason: the box shows in red until one is typed.
+  const [tried, setTried] = useState(false);
+  const queryClient = useQueryClient();
+  const withdraw = useWithdrawDeactivation<ApiError>({
+    mutation: { onSuccess: () => void queryClient.invalidateQueries() },
+  });
+  const said = reason.trim();
+  const noReason = tried && said.length === 0;
+  const close = () => {
+    setOpen(false);
+    setReason("");
+    setTried(false);
+    withdraw.reset();
+  };
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-line bg-white px-6 py-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold">Withdraw this request</h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Closes the request. The desks asked and Operations are told, with your reason.
+          </p>
+        </div>
+        {!open && (
+          <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+            Withdraw request
+          </Button>
+        )}
+      </div>
+      {open && (
+        <>
+          {withdraw.error && <Alert tone="danger">{withdraw.error.message}</Alert>}
+          <Field
+            id="withdraw-reason"
+            label="Why are you withdrawing it?"
+            required
+            error={noReason ? "Enter a reason to withdraw." : undefined}
+          >
+            <TextArea
+              id="withdraw-reason"
+              aria-invalid={noReason || undefined}
+              rows={2}
+              maxLength={MOST}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Client decided to stay after the review call"
+            />
+          </Field>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" disabled={withdraw.isPending} onClick={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={withdraw.isPending}
+              onClick={() => {
+                if (said.length === 0) {
+                  setTried(true);
+                  document.getElementById("withdraw-reason")?.focus();
+                  return;
+                }
+                withdraw.mutate({ customerId, data: { reason: said } });
+              }}
+            >
+              {withdraw.isPending ? "Withdrawing…" : "Withdraw request"}
+            </Button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -121,7 +214,18 @@ function Fact({ label, value, wide }: { label: string; value: ReactNode; wide?: 
  * only thing the desks will be told. Approving asks once more, because the client leaves every list in
  * the firm the moment it lands.
  */
-function Decision({ customerId, clientName, ready }: { customerId: string; clientName: string; ready: boolean }) {
+function Decision({
+  customerId,
+  clientName,
+  ready,
+  permanent,
+}: {
+  customerId: string;
+  clientName: string;
+  ready: boolean;
+  /** Restored once before (24 Nov 2026): approving archives them for good, with no window to put them back. */
+  permanent: boolean;
+}) {
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
   // Reject pressed with no note: the box shows in red until one is typed.
@@ -146,10 +250,17 @@ function Decision({ customerId, clientName, ready }: { customerId: string; clien
         <h2 className="text-base font-bold">Final review</h2>
         <p className="mt-0.5 text-xs text-ink-muted">
           {ready
-            ? "Approving takes the client off every list at once. Nothing is deleted, and they can be put back for ninety days."
+            ? permanent
+              ? "Approving takes the client off every list at once. Nothing is deleted."
+              : "Approving takes the client off every list at once. Nothing is deleted, and they can be put back for ninety days."
             : "Approval opens once every desk has gone ahead. You can turn the request down at any time."}
         </p>
       </div>
+      {permanent && (
+        <Alert tone="warning">
+          This client was restored once before, so approving is permanent: they cannot be put back again.
+        </Alert>
+      )}
       {failed && <Alert tone="danger">{failed.message}</Alert>}
       <Field
         id="final-review-note"

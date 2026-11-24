@@ -11,7 +11,7 @@ import {
   type ModelsPage,
   type PortfolioStanding,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, DateInput, Dialog, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, DateInput, Dialog, RequiredMark, SelectInput, cn } from "@atomprive/ui";
 import { Receipt } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -644,6 +644,7 @@ export function BulkRebalancingPage() {
           <label className="block">
             <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               The day the trades were done
+              <RequiredMark />
             </span>
             <DateInput
               id="rebalanced-on"

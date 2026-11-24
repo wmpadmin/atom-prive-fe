@@ -241,15 +241,15 @@ function ChangePasswordDialog({ onClose, onChanged }: { onClose: () => void; onC
     <Dialog open title="Change your password" description="You stay signed in here; every other device is signed out." onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {change.error && !fields.currentPassword && !fields.newPassword && <Alert tone="danger">{change.error.message}</Alert>}
-        <Field id="current-password" label="Current password"
+        <Field id="current-password" label="Current password" required
           error={fields.currentPassword ?? (tried && !current ? "Enter your current password." : undefined)}>
           <PasswordInput id="current-password" value={current} autoComplete="current-password" onChange={(event) => setCurrent(event.target.value)} />
         </Field>
-        <Field id="new-password" label="New password" error={fields.newPassword}>
+        <Field id="new-password" label="New password" required error={fields.newPassword}>
           <PasswordInput id="new-password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
         </Field>
         <PasswordChecklist id="new-password-rules" password={password} showMissing={tried} />
-        <Field id="again-password" label="Confirm new password"
+        <Field id="again-password" label="Confirm new password" required
           error={tried && again !== password ? "The two passwords are not the same." : undefined}>
           <PasswordInput id="again-password" value={again} autoComplete="new-password" onChange={(event) => setAgain(event.target.value)} />
         </Field>
@@ -307,11 +307,11 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
               start.mutate({ data: byEmail ? { password, code: null, emailedCode: code } : { password, code, emailedCode: null } });
             }}
           >
-            <Field id="phone-password" label="Your password"
+            <Field id="phone-password" label="Your password" required
               error={fields.password ?? (noPassword ? "Enter your password." : undefined)}>
               <PasswordInput id="phone-password" aria-invalid={noPassword || undefined} value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} />
             </Field>
-            <Field id="phone-code" label={byEmail ? "Code we emailed you" : "Code from your old phone"}
+            <Field id="phone-code" label={byEmail ? "Code we emailed you" : "Code from your old phone"} required
               error={fields.code ?? fields.emailedCode ?? (shortCode ? "Enter the 6-digit code." : undefined)}>
               <input id="phone-code" value={code} aria-invalid={shortCode || undefined} inputMode="numeric" autoComplete="one-time-code"
                 onChange={(event) => setCode(event.target.value.replaceAll(/\D/g, "").slice(0, 6))}
@@ -350,7 +350,7 @@ function NewPhoneDialog({ email, onClose, onMoved }: { email: string; onClose: (
             <p className="text-center text-xs text-ink-muted">
               Can't scan? Enter this key: <span className="font-mono font-bold text-ink">{(setup.secret.match(/.{1,4}/g) ?? []).join(" ")}</span>
             </p>
-            <Field id="new-phone-code" label="Then enter the code your new phone shows"
+            <Field id="new-phone-code" label="Then enter the code your new phone shows" required
               error={fields.code ?? (shortNewCode ? "Enter the 6-digit code." : undefined)}>
               <input id="new-phone-code" value={newCode} aria-invalid={shortNewCode || undefined} inputMode="numeric" autoComplete="one-time-code"
                 onChange={(event) => setNewCode(event.target.value.replaceAll(/\D/g, "").slice(0, 6))}

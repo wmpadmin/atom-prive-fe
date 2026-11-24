@@ -46,7 +46,7 @@ function AddFieldForm({ bankId, onCancel, onAdded }: { bankId: string; onCancel:
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-      <Field id="incomingField" label="Field name" error={fields.incomingField}>
+      <Field id="incomingField" label="Field name" required error={fields.incomingField}>
         <TextInput {...describedBy("incomingField", fields.incomingField)} name="incomingField" placeholder="ACCT_NO" className="font-mono" required />
       </Field>
       <Field id="sampleValue" label="Sample value (optional)" hint="An example value helps recognise the field later." error={fields.sampleValue}>

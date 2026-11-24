@@ -9,7 +9,7 @@ import {
   type ModelsPage,
   type PortfolioStanding,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Button, SelectInput, cn } from "@atomprive/ui";
+import { Alert, Button, RequiredMark, SelectInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { noErrors, toFormErrors, type FormErrors } from "../../lib/api-errors";
@@ -93,6 +93,7 @@ export function ModelStep({ customerId, onDone, onBack }: StepProps) {
       <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
         <label htmlFor="client-model" className="text-xs font-semibold text-ink-soft">
           Measured against
+          <RequiredMark />
         </label>
         <SelectInput
           id="client-model"

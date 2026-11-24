@@ -24,9 +24,9 @@ function sized(bytes: number) {
 const ANSWERS = [
   {
     id: "GO_AHEAD" as const,
-    said: "I confirm nothing of ours is outstanding on this client.",
+    said: "Nothing of ours is outstanding on this client.",
   },
-  { id: "PENDING" as const, said: "We are still working through it." },
+  { id: "PENDING" as const, said: "We are still working through it, and here is what is open." },
   { id: "BLOCKED" as const, said: "We cannot clear it, and here is why." },
 ];
 
@@ -49,7 +49,10 @@ export function SayClearancePanel({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mine = standing.roles.find((one) => one.mine);
-  const [answer, setAnswer] = useState<(typeof ANSWERS)[number]["id"]>("GO_AHEAD");
+  // Nothing chosen to start with (24 Nov 2026): a desk clears by choosing to, not by pressing send.
+  const [answer, setAnswer] = useState<(typeof ANSWERS)[number]["id"] | null>(null);
+  // Go ahead's tick that the desk has checked everything it holds on this client. The server refuses Go ahead without it.
+  const [checked, setChecked] = useState(false);
   const [comments, setComments] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [over, setOver] = useState(false);
@@ -81,13 +84,28 @@ export function SayClearancePanel({
     event.preventDefault();
     setProblem(undefined);
     // Said here as well as on the server, so the refusal arrives before the round trip rather than after.
+    if (!answer) {
+      setProblem("Choose an answer.");
+      return;
+    }
     if (answer === "BLOCKED" && comments.trim() === "") {
       setProblem("Say what is blocking it, so somebody can act on it.");
       return;
     }
+    if (answer === "PENDING" && comments.trim() === "") {
+      setProblem("Say what is still open, so Operations know what they are waiting for.");
+      return;
+    }
+    if (answer === "GO_AHEAD" && !checked) {
+      setProblem("Confirm you have checked everything your desk holds on this client.");
+      return;
+    }
+    const confirmed = answer === "GO_AHEAD" && checked;
     const after = {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getReadClearanceQueryKey(customerId) });
+        setAnswer(null);
+        setChecked(false);
         setComments("");
         setFile(null);
         if (fileRef.current) fileRef.current.value = "";
@@ -99,7 +117,7 @@ export function SayClearancePanel({
         {
           customerId,
           data: { file },
-          params: { standing: answer, comments: comments.trim() || undefined, role: mine?.role },
+          params: { standing: answer, comments: comments.trim() || undefined, role: mine?.role, confirmed },
         },
         after,
       );
@@ -111,7 +129,7 @@ export function SayClearancePanel({
           // Sent as null rather than left out: the field is nullable, and omitting it would leave a
           // previous comment standing beside an answer that no longer carries one.
           // The desk this box is for, so somebody holding several answers for the one shown.
-          data: { standing: answer, comments: comments.trim() || null, role: mine?.role ?? null },
+          data: { standing: answer, comments: comments.trim() || null, role: mine?.role ?? null, confirmed },
         },
         after,
       );
@@ -159,11 +177,31 @@ export function SayClearancePanel({
           ))}
         </fieldset>
 
+        {answer === "GO_AHEAD" && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-canvas px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-primary-600"
+              checked={checked}
+              onChange={(event) => setChecked(event.target.checked)}
+            />
+            <span className="text-sm">
+              I've checked everything my desk holds on this client, and nothing is outstanding.
+            </span>
+          </label>
+        )}
+
         <Field
           id="clearance-comments"
           label="Comments"
-          hint={answer === "BLOCKED" ? "Required — say what is blocking it." : "Optional."}
-          required={answer === "BLOCKED"}
+          hint={
+            answer === "BLOCKED"
+              ? "Required — say what is blocking it."
+              : answer === "PENDING"
+                ? "Required — say what is still open."
+                : "Optional."
+          }
+          required={answer === "BLOCKED" || answer === "PENDING"}
         >
           <TextArea
             id="clearance-comments"
@@ -171,7 +209,13 @@ export function SayClearancePanel({
             onChange={(event) => setComments(event.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder={answer === "BLOCKED" ? "A transfer is still in flight." : ""}
+            placeholder={
+              answer === "BLOCKED"
+                ? "A transfer is still in flight."
+                : answer === "PENDING"
+                  ? "Two trades settle on Friday."
+                  : ""
+            }
           />
         </Field>
 

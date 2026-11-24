@@ -14,6 +14,7 @@ import { useSearchParams } from "react-router";
 import { ListReportButton } from "../layout/list-report";
 import { AssetClassesTab } from "./asset-classes-tab";
 import { BanksTab } from "./banks-tab";
+import { AgreementTemplatesTab } from "./agreement-templates-tab";
 import { EmailTemplatesTab } from "./email-templates-tab";
 import { FieldMappingTab } from "./field-mapping-tab";
 import { FxRatesTab } from "./fx-rates-tab";
@@ -26,6 +27,7 @@ const tabs = [
   { id: "asset-classes", title: "Asset classes", subtitle: "What portfolios are counted in" },
   { id: "lists", title: "Product & relationship types", subtitle: "The firm's own short lists" },
   { id: "templates", title: "Email templates", subtitle: "Subject, body, versions" },
+  { id: "agreements", title: "Agreement templates", subtitle: "Wording or file, versions" },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -76,7 +78,7 @@ export function ConfigPage() {
         <div className="min-w-0">
           <h1 className="text-[1.625rem] font-bold">Config &amp; reference data</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Banks, field mapping, off-boarding approvals, FX rates and email templates. Every change here is written to the
+            Banks, field mapping, off-boarding approvals, FX rates, email and agreement templates. Every change here is written to the
             audit log with your name and timestamp.
           </p>
         </div>
@@ -97,7 +99,7 @@ export function ConfigPage() {
         role="tablist"
         aria-label="Configuration"
         onKeyDown={handleTabKeys}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         {tabs.map((tab) => {
           const selected = tab.id === active;
@@ -144,6 +146,7 @@ export function ConfigPage() {
         {active === "templates" && (
           <EmailTemplatesTab creating={creatingTemplate} onCreatingChange={setCreatingTemplate} />
         )}
+        {active === "agreements" && <AgreementTemplatesTab />}
       </div>
     </div>
   );

@@ -446,7 +446,7 @@ function EditorForm({ template, onDirtyChange, previewClient }: {
 
       {mode === "edit" && (
         <form ref={form} id="template-form" onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <Field id="subject" label="Subject" error={errors.fields.subject}>
+          <Field id="subject" label="Subject" required error={errors.fields.subject}>
             <TextInput
               {...describedBy("subject", errors.fields.subject)}
               name="subject"
@@ -457,7 +457,7 @@ function EditorForm({ template, onDirtyChange, previewClient }: {
               className="bg-slate-50"
             />
           </Field>
-          <Field id="body" label="Body" error={errors.fields.body}>
+          <Field id="body" label="Body" required error={errors.fields.body}>
             <textarea
               {...describedBy("body", errors.fields.body)}
               ref={bodyRef}
@@ -702,10 +702,10 @@ function CreateTemplateForm({ onCancel, onCreated }: { onCancel: () => void; onC
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-      <Field id="name" label="Email name" error={fields.name}>
+      <Field id="name" label="Email name" required error={fields.name}>
         <TextInput {...describedBy("name", fields.name)} name="name" placeholder="Quarterly statement ready" required />
       </Field>
-      <Field id="description" label="When it's sent" error={fields.description}>
+      <Field id="description" label="When it's sent" required error={fields.description}>
         <TextInput {...describedBy("description", fields.description)} name="description" placeholder="Sent when a quarterly statement is published" required />
       </Field>
       <div className="flex justify-end gap-3">

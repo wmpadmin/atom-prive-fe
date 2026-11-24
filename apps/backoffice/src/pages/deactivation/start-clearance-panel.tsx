@@ -9,9 +9,10 @@ import { Alert, Button, DateInput, Field, TextArea } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-function daysFromToday(days: number) {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+/** "2026-11-24" as a local date, so the day doesn't move with the time zone. */
+function localDate(iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 /**
@@ -83,13 +84,19 @@ export function StartClearancePanel({
       <form onSubmit={send} className="mt-4 space-y-4">
         {problem && <Alert tone="danger">{problem}</Alert>}
 
-        <Field id="clearance-deadline" label="Wanted by" required>
+        {/* The bounds are the server's (24 Nov 2026): Operations extend, only an Admin brings it forward. */}
+        <Field
+          id="clearance-deadline"
+          label="Wanted by"
+          required
+          hint={out ? "Later at any time. Only an Admin can bring it forward." : undefined}
+        >
           <DateInput
             id="clearance-deadline"
             name="deadline"
             value={deadline}
-            min={daysFromToday(0)}
-            max={daysFromToday(365)}
+            min={localDate(standing.earliestDeadline)}
+            max={localDate(standing.latestDeadline)}
             onChange={setDeadline}
           />
         </Field>

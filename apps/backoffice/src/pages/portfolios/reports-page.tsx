@@ -157,7 +157,7 @@ export function PortfolioReportsPage() {
               beside, and the date fields underneath lined up with nothing at all. */}
           <form onSubmit={submit} className="mt-3 space-y-4">
             <ReportFields>
-            <Field id="report-kind" label="What you want" error={errors.fields.kind}>
+            <Field id="report-kind" label="What you want" required error={errors.fields.kind}>
               <SelectInput id="report-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
                 {KINDS.map((one) => (
                   <option key={one.kind} value={one.kind}>
@@ -166,7 +166,7 @@ export function PortfolioReportsPage() {
                 ))}
               </SelectInput>
             </Field>
-            <Field id="report-scope" label="Who it is about" error={errors.fields.scope}>
+            <Field id="report-scope" label="Who it is about" required error={errors.fields.scope}>
               <SelectInput
                 id="report-scope"
                 value={scope}
@@ -183,7 +183,7 @@ export function PortfolioReportsPage() {
             {scope === "FIRM" ? (
               <NotAsked id="report-which" label="Which one" says="Every client — nothing to pick" />
             ) : (
-              <Field id="report-which" label="Which one" error={errors.fields.scopeId}>
+              <Field id="report-which" label="Which one" required error={errors.fields.scopeId}>
                 <SelectInput id="report-which" value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
                   <option value="">{scope === "MODEL" ? "Choose a model" : "Choose a client"}</option>
                   {scope === "MODEL"

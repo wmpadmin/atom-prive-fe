@@ -1,7 +1,7 @@
 import { ApiError } from "@atomprive/api-client";
 import { useListCustomers, useSignInAs, useStaffToView, type CustomerPage, type StaffToView } from "@atomprive/api-client/backoffice";
 import { supportViewAddress } from "@atomprive/support/support-view";
-import { Alert, Button } from "@atomprive/ui";
+import { Alert, Button, RequiredMark } from "@atomprive/ui";
 import { Eye, Search } from "lucide-react";
 import { useState } from "react";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
@@ -123,6 +123,7 @@ export function SignInAsPage() {
           <div>
             <label htmlFor="sign-in-as-reason" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               Reason or ticket number
+              <RequiredMark />
             </label>
             <textarea
               id="sign-in-as-reason"

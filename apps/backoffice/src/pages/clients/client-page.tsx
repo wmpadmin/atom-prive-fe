@@ -3,6 +3,7 @@ import {
   getReadClientAskQueryKey,
   readClientAsk,
   useAskToDeactivate,
+  useCouldNotReachTheClient,
   useKeepTheAccount,
   type ClientAsk,
   getGetCustomerQueryKey,
@@ -39,17 +40,19 @@ import {
 } from "./client-file-panels";
 import { assignmentNotice, clientsHref, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
 import { ClientAccessPanel } from "./client-access-panel";
+import { ClientDocumentsTab } from "./client-documents-tab";
 import { KycPapersPanel } from "./kyc-papers-panel";
 import { DeactivationTab } from "../deactivation/deactivation-tab";
 import { ClientFormsPanel } from "./client-forms-panel";
 import { SecurityTab } from "./security-tab";
+import { CallNotes } from "../prospects/call-notes";
 import { ClientOverviewTab, GenerateReport } from "./client-overview";
 import { Popover } from "../book/overview-dialogs";
 
-const STATUS_LABELS: Record<CustomerDetail["client"]["status"], string> = { ACTIVE: "Active", DEACTIVATED: "Deactivated", ARCHIVED: "Archived" };
-const STATUS_TONES: Record<CustomerDetail["client"]["status"], "success" | "warning" | "neutral"> = { ACTIVE: "success", DEACTIVATED: "warning", ARCHIVED: "neutral" };
+const STATUS_LABELS: Record<CustomerDetail["client"]["status"], string> = { ACTIVE: "Active", DEACTIVATED: "Deactivated", ARCHIVED: "Archived", ONBOARDING: "Being onboarded" };
+const STATUS_TONES: Record<CustomerDetail["client"]["status"], "success" | "warning" | "neutral"> = { ACTIVE: "success", DEACTIVATED: "warning", ARCHIVED: "neutral", ONBOARDING: "warning" };
 
-type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "documents" | "security" | "activity" | "deactivation";
+type Tab = "overview" | "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "transactions" | "kyc" | "documents" | "callNotes" | "security" | "activity" | "deactivation";
 
 /** @param needs what the reader has to hold for this tab to be theirs; left out, the tab is everyone's */
 const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
@@ -63,10 +66,15 @@ const TABS: { id: Tab; label: string; needs?: Authority[] }[] = [
   { id: "banks", label: "Bank accounts" },
   { id: "holdings", label: "Holdings" },
   { id: "transactions", label: "Transactions" },
+  // The client's KYC papers (24 Nov 2026): an expired one re-uploaded by the RM or Operations, then on to Compliance.
+  { id: "kyc", label: "Documents", needs: [...OPENS_CLIENT_DOCUMENTS] },
   // Named for what is on it: the client's form pack. "Documents" was the word for the KYC papers as
   // well — the passport and the proof of address, which are read on the client's KYC screens — so one
   // word pointed at two different piles.
   { id: "documents", label: "Forms" },
+  // Each contact the RM has with the client, vetted by Operations and signed by the RM (22 Nov 2026): the desks
+  // that follow prospects follow the clients they become.
+  { id: "callNotes", label: "Call notes", needs: ["PROSPECTIVE_CLIENTS:VIEW", "PROSPECTIVE_CLIENTS:OWN_CLIENTS"] },
   // How the client signs in to the portal, and the firm's hold on it. Operations and Admin act; Compliance reads.
   { id: "security", label: "Security & Authentication", needs: ["CLIENT_SIGN_IN:VIEW", "CLIENT_SIGN_IN:CHANGE"] },
   { id: "activity", label: "Activity" },
@@ -96,7 +104,6 @@ export function ClientPage() {
   // Everyone with access reads the file; only Operations correct it, because Operations entered it. Compliance
   // read the whole record to decide on the KYC and a head of desk decides who sees the client — neither types
   // over the details. An Admin has it because an Admin holds every permission there is.
-  const canEdit = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE");
   const location = useLocation();
   // The same file opens from All clients and from My clients. Back goes where they came from: a relationship
   // manager has no All clients screen to return to.
@@ -105,6 +112,10 @@ export function ClientPage() {
   const backLabel = mine ? "My clients" : "All clients";
   const queryClient = useQueryClient();
   const detail = useGetCustomer<CustomerDetail, ApiError>(clientId);
+  // An archived client's file is read, never changed, until the Admin restores them (24 Nov 2026). The server
+  // refuses every change; the file stops offering them, and says why above the tabs.
+  const archived = detail.data?.client.status === "ARCHIVED";
+  const canEdit = hasAuthority(user, "ONBOARD_CLIENTS:CHANGE") && !archived;
   // Coming back from one of the client's forms opens the tab it was reached from, rather than the top of
   // the file: whoever went into a document is on their way back to the rest of them.
   const tabs = TABS.filter((option) => !option.needs || hasAnyAuthority(user, ...option.needs));
@@ -145,7 +156,7 @@ export function ClientPage() {
    */
   // Whoever looks after this client: their relationship manager, or Operations across the book. The same
   // set the API admits, and the API checks the "own" half that this cannot see from here.
-  const canAskToDeactivate = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
+  const canAskToDeactivate = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE) && !archived;
   const [assigning, setAssigning] = useState(false);
   const [removing, setRemoving] = useState<StaffMember | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -270,6 +281,17 @@ export function ClientPage() {
         </div>
       </header>
 
+      {archived && (
+        <Alert tone="info">
+          <span className="font-semibold">This client is archived.</span> You can read everything, but nothing on
+          their file can be changed.{" "}
+          <Link to="/archived-clients" className="font-semibold text-primary-700 underline underline-offset-2">
+            Restore them from Archived clients
+          </Link>{" "}
+          to make changes.
+        </Alert>
+      )}
+
       {notice && <Alert tone="success">{notice}</Alert>}
 
       {tab === "overview" && (
@@ -282,7 +304,7 @@ export function ClientPage() {
           onDoneArranging={() => setArranging(false)}
           // What the reference layout has no place for and the firm still works from, as cards on the same board.
           extra={[
-            ...(setsAccess ? [{ id: "access", node: <Boxed><ClientAccessPanel clientId={clientId} /></Boxed> }] : []),
+            ...(setsAccess && !archived ? [{ id: "access", node: <Boxed><ClientAccessPanel clientId={clientId} /></Boxed> }] : []),
             ...(readsKycPapers ? [{ id: "kyc-papers", node: <Boxed><KycPapersPanel clientId={client.id} /></Boxed> }] : []),
             ...(readsProposals ? [{ id: "proposals", node: <Boxed><ProposalsPanel clientId={client.id} arrangeable={false} /></Boxed> }] : []),
             {
@@ -307,6 +329,13 @@ export function ClientPage() {
         />
       )}
 
+      {tab === "callNotes" && (
+        <section className="rounded-2xl border border-line bg-white px-6 py-5">
+          <h2 className="mb-3 text-base font-bold">Call notes</h2>
+          <CallNotes customerId={client.id}
+            mayWrite={hasAnyAuthority(user, "PROSPECTIVE_CLIENTS:CHANGE", "PROSPECTIVE_CLIENTS:OWN_CLIENTS")} />
+        </section>
+      )}
       {tab === "security" && <SecurityTab clientId={client.id} clientName={client.fullName} />}
       {tab === "family" && (
         <FamilyPanel
@@ -353,6 +382,7 @@ export function ClientPage() {
       {tab === "banks" && <BankAccountsPanel client={client} />}
       {tab === "holdings" && <HoldingsPanel onSeeThePortfolio={openThePortfolio} />}
       {tab === "transactions" && <TransactionsPanel />}
+      {tab === "kyc" && <ClientDocumentsTab clientId={client.id} />}
       {tab === "documents" && <ClientFormsPanel client={client} />}
       {tab === "activity" && <ActivityPanel activity={activity} />}
       {/* The whole of the deactivation on the client's own file: where it stands, the reader's own
@@ -590,8 +620,9 @@ function AskToDeactivate({
 
 /**
  * The client asked, from their portal, for their account to be closed (S20). It waits here for whoever looks
- * after them: raise the deactivation through the usual dialog, with their words carried in, or write down
- * that they have changed their mind.
+ * after them: raise the deactivation through the usual dialog, with their words carried in, write down
+ * that they have changed their mind, or (24 Nov 2026) record a try that did not reach them — the request stays
+ * here, each try listed under it, and Operations hear on the third.
  */
 function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; clientName: string; onRaise: (why: string) => void }) {
   const queryClient = useQueryClient();
@@ -612,6 +643,19 @@ function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; 
       },
     },
   });
+  // A try that did not get through: how they tried is required, as it is for a change of mind.
+  const [trying, setTrying] = useState(false);
+  const [how, setHow] = useState("");
+  const [triedEmpty, setTriedEmpty] = useState(false);
+  const unreachable = useCouldNotReachTheClient<ApiError>({
+    mutation: {
+      onSuccess: () => {
+        setTrying(false);
+        setHow("");
+        void queryClient.invalidateQueries({ queryKey: getReadClientAskQueryKey(clientId) });
+      },
+    },
+  });
   const ask = asked.data;
   if (!ask) return null;
   const on = new Date(ask.askedAt);
@@ -622,14 +666,60 @@ function ClientAskBanner({ clientId, clientName, onRaise }: { clientId: string; 
       <div className="min-w-0 text-sm">
         <p>
           <b>{clientName} asked to close their account</b>
-          <span className="text-ink-muted"> · {on.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}, from the portal</span>
+          <span className="text-ink-muted"> · {ask.reference} · {on.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}, from the portal</span>
         </p>
         {ask.reason && <p className="text-ink-muted">“{ask.reason}”</p>}
+        {ask.attempts.length > 0 && (
+          <div className="mt-2 text-xs">
+            <p className="font-semibold">
+              Couldn&rsquo;t reach them {ask.attempts.length} {ask.attempts.length === 1 ? "time" : "times"}
+            </p>
+            <ul>
+              {ask.attempts.map((one, at) => (
+                <li key={`${one.triedAt}-${at}`} className="text-ink-muted">
+                  {new Date(one.triedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  {" · "}
+                  {one.triedByName ?? "—"} · {one.note}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="sm" onClick={() => { setKeeping(true); setTried(false); }}>They&rsquo;ve changed their mind</Button>
-        <Button size="sm" onClick={() => onRaise(`Client asked on ${day}${ask.reason ? `: ${ask.reason}` : "."}`)}>Ask for deactivation</Button>
+        <Button variant="secondary" size="sm" onClick={() => { setTrying(true); setTriedEmpty(false); unreachable.reset(); }}>Couldn&rsquo;t reach them</Button>
+        <Button size="sm" onClick={() => onRaise(`Client asked on ${day} (${ask.reference})${ask.reason ? `: ${ask.reason}` : "."}`)}>Ask for deactivation</Button>
       </div>
+      <Dialog
+        open={trying}
+        title={`Couldn't reach ${clientName}`}
+        description="The request stays with you. Each try is kept on their file with the time."
+        onClose={() => setTrying(false)}
+      >
+        <div className="space-y-3">
+          {unreachable.error && <Alert tone="danger">{unreachable.error.message}</Alert>}
+          <Field id="unreachable-how" label="How did you try?" required error={triedEmpty && !how.trim() ? "Say how you tried." : undefined}>
+            <TextArea id="unreachable-how" rows={3} aria-invalid={triedEmpty && !how.trim()} maxLength={2000} value={how} onChange={(event) => setHow(event.target.value)} placeholder="Called mobile twice, no answer; sent an email" />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setTrying(false)}>Cancel</Button>
+            <Button
+              disabled={unreachable.isPending}
+              onClick={() => {
+                if (!how.trim()) {
+                  setTriedEmpty(true);
+                  requestAnimationFrame(() => document.getElementById("unreachable-how")?.focus());
+                  return;
+                }
+                unreachable.mutate({ customerId: clientId, data: { note: how.trim() } });
+              }}
+            >
+              {unreachable.isPending ? "Saving…" : "Save attempt"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
       <Dialog
         open={keeping}
         title={`${clientName} is keeping their account`}

@@ -1,5 +1,5 @@
 import { useFirmName } from "./firm-name";
-import { Alert, Button, IconButton, TextArea, cn } from "@atomprive/ui";
+import { Alert, Button, IconButton, RequiredMark, TextArea, cn } from "@atomprive/ui";
 import { X } from "lucide-react";
 import { Boxes, Tick } from "../../components/form-boxes";
 import { FirmSignsThis } from "../../components/client-signs-this";
@@ -597,6 +597,7 @@ function Assessed({
     <li className="grid gap-3 rounded-xl border border-line bg-white p-3.5 sm:grid-cols-[1fr_18rem] sm:items-start sm:gap-4">
       <label htmlFor={id} className="text-sm leading-relaxed text-ink">
         {text}
+        <RequiredMark />
       </label>
       <div>
         <TextArea

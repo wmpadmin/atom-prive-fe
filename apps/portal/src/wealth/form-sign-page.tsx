@@ -126,6 +126,7 @@ function SignPanel({ formId, kind, title }: { formId?: string; kind?: PackKind; 
           <>
             <label htmlFor="typed-signature" className="mb-1.5 block text-2xs font-semibold tracking-wider text-ink-muted uppercase">
               Your full name
+              <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
             </label>
             <input
               id="typed-signature"
@@ -143,6 +144,7 @@ function SignPanel({ formId, kind, title }: { formId?: string; kind?: PackKind; 
       <label className="mt-4 flex max-w-xl items-start gap-3 text-sm text-ink">
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} className="mt-0.5 size-4 accent-primary-600" />
         I have read the {title} and agree to it. I understand this is my electronic signature.
+        <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
       </label>
 
       {sign.isError && (

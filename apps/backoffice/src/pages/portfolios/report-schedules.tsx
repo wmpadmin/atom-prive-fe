@@ -119,7 +119,7 @@ export function ReportSchedules({
               crammed into one row with the button on the end left every box too narrow to read. */}
           <form onSubmit={submit} className="mt-3 space-y-4">
             <ReportFields>
-            <Field id="sched-kind" label="What you want" error={errors.fields.kind}>
+            <Field id="sched-kind" label="What you want" required error={errors.fields.kind}>
               <SelectInput id="sched-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
                 {kinds.map((one) => (
                   <option key={one.kind} value={one.kind}>
@@ -128,7 +128,7 @@ export function ReportSchedules({
                 ))}
               </SelectInput>
             </Field>
-            <Field id="sched-scope" label="Who it is about" error={errors.fields.scope}>
+            <Field id="sched-scope" label="Who it is about" required error={errors.fields.scope}>
               <SelectInput
                 id="sched-scope"
                 value={scope}
@@ -147,7 +147,7 @@ export function ReportSchedules({
             {scope === "FIRM" ? (
               <NotAsked id="sched-which" label="Which one" says="Every client — nothing to pick" />
             ) : (
-              <Field id="sched-which" label="Which one" error={errors.fields.scopeId}>
+              <Field id="sched-which" label="Which one" required error={errors.fields.scopeId}>
                 <SelectInput id="sched-which" value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
                   <option value="">{scope === "MODEL" ? "Choose a model" : "Choose a client"}</option>
                   {scope === "MODEL"
@@ -164,7 +164,7 @@ export function ReportSchedules({
                 </SelectInput>
               </Field>
             )}
-            <Field id="sched-cadence" label="How often" error={errors.fields.cadence}>
+            <Field id="sched-cadence" label="How often" required error={errors.fields.cadence}>
               <SelectInput
                 id="sched-cadence"
                 value={cadence}
@@ -180,7 +180,7 @@ export function ReportSchedules({
             {/* A report about a model or the whole firm has nobody in particular to tell, so it is not a
                 choice to be greyed out — it is a choice that does not arise. */}
             {canTellSomebody ? (
-              <Field id="sched-send" label="Email it to" error={errors.fields.sendTo}>
+              <Field id="sched-send" label="Email it to" required error={errors.fields.sendTo}>
                 <SelectInput
                   id="sched-send"
                   value={sendTo}

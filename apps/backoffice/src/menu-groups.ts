@@ -26,7 +26,9 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
     { key: "client-work", routes: ["/forms", "/client-documents", "/trade-logs"] },
   ],
   COMPLIANCE: [
-    { key: "kyc", routes: ["/kyc", "/clients", "/kyc-documents", "/kyc-checklist"] },
+    // Prospective Clients and All clients under Client Management, as on the other desks (24 Nov 2026).
+    { key: "kyc",
+      routes: ["/kyc", "/client-management", "/prospective-clients", "/clients", "/kyc-documents", "/kyc-checklist"] },
     { key: "oversight", routes: ["/trails", "/family-access-trail", "/audit-log", "/aml-risk"] },
   ],
   OPERATIONS: [
