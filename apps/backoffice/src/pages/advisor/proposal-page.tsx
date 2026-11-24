@@ -20,7 +20,7 @@ import {
   type ProposalDetail,
   type ProposalRowStatus,
 } from "@atomprive/api-client/backoffice";
-import { Alert, Avatar, Badge, Button, cn, describedBy, Dialog, Field, SelectInput, TextArea, TextInput } from "@atomprive/ui";
+import { Alert, Avatar, Badge, Button, cn, describedBy, Dialog, Field, RequiredMark, SelectInput, TextArea, TextInput } from "@atomprive/ui";
 import { ChevronLeft } from "lucide-react";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
@@ -440,7 +440,7 @@ export function ProposalPage() {
       <form ref={form} onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-line bg-white p-6">
         {editable ? (
           <>
-        <Field id="customerId" label="Client" error={errors.fields.customerId}>
+        <Field id="customerId" label="Client" required error={errors.fields.customerId}>
           <SelectInput
             {...describedBy("customerId", errors.fields.customerId)}
             name="customerId"
@@ -476,7 +476,7 @@ export function ProposalPage() {
           )}
         </Field>
 
-        <Field id="title" label="Title" error={errors.fields.title}>
+        <Field id="title" label="Title" required error={errors.fields.title}>
           <TextInput
             {...describedBy("title", errors.fields.title)}
             name="title"
@@ -516,6 +516,7 @@ export function ProposalPage() {
         <fieldset>
           <legend className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             What would move
+            <RequiredMark />
           </legend>
           <p className="mt-1 text-xs text-ink-muted">
             Out of one line of the portfolio and into another, picked from this client's own allocation. A
@@ -546,7 +547,7 @@ export function ProposalPage() {
           )}
         </fieldset>
 
-        <Field id="body" label="Rationale shown to the client" error={errors.fields.body}>
+        <Field id="body" label="Rationale shown to the client" required error={errors.fields.body}>
           <textarea
             {...describedBy("body", errors.fields.body)}
             name="body"

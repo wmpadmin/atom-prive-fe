@@ -12,6 +12,8 @@ import {
   type ChecklistView,
   type CustomerPage,
   type PaperRow,
+  changeChecklistPaperSettings,
+  type ChecklistPaperSettings,
 } from "@atomprive/api-client/backoffice";
 import { Alert, Badge, Button, Dialog, Field, Switch, TextInput, cn } from "@atomprive/ui";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
@@ -120,6 +122,10 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
   const [managing, setManaging] = useState(false);
   // The paper whose clients are being changed, or null while adding a new one.
   const [editing, setEditing] = useState<PaperRow | null>(null);
+  // The paper and kind of client whose settings are open (23 Nov 2026).
+  const [setting, setSetting] = useState<{ paper: PaperRow; clientType: ClientType } | null>(null);
+  const settingsOf = (clientType: ClientType, paperId: string) =>
+    view.lists.find((list) => list.clientType === clientType)?.settings[paperId];
   const ask = useAskForPaper<ApiError>({ mutation: { onSuccess: onChanged } });
   const stop = useStopAskingForPaper<ApiError>({ mutation: { onSuccess: onChanged } });
   const failed = ask.error ?? stop.error;
@@ -249,6 +255,12 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
                     {kinds.includes(clientType) && REACH_NOTE[reachOf(clientType, paper.id)] && (
                       <span className="mt-0.5 block text-xs text-ink-muted">{REACH_NOTE[reachOf(clientType, paper.id)]}</span>
                     )}
+                    {kinds.includes(clientType) && settingsOf(clientType, paper.id) && (
+                      <button type="button" onClick={() => setSetting({ paper, clientType })}
+                        className="mt-0.5 block text-left text-xs text-primary-700 hover:underline">
+                        {summaryOf(settingsOf(clientType, paper.id)!)}
+                      </button>
+                    )}
                   </span>
                 ))}
                 <span className="flex justify-end">
@@ -263,6 +275,12 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
           })}
         </ul>
       </section>
+
+      {setting && settingsOf(setting.clientType, setting.paper.id) && (
+        <SettingsDialog paper={setting.paper} clientType={setting.clientType}
+          settings={settingsOf(setting.clientType, setting.paper.id)!}
+          onClose={() => setSetting(null)} onSaved={() => { setSetting(null); onChanged(); }} />
+      )}
 
       {/* Keyed by what it is opened for, so each opening starts from that paper's own answers. */}
       <PapersTheFirmKnowsOf
@@ -402,6 +420,7 @@ function PapersTheFirmKnowsOf({ open, paper: editing, was, onClose, onChanged }:
         <Field
           id="name-a-paper"
           label="What is it called?"
+          required={!editing}
           hint={editing ? "The name stays as it is." : "A name already on the list is matched rather than added twice, whatever its case or spacing."}
           error={unnamed ? "Enter a name." : undefined}
         >
@@ -513,7 +532,7 @@ function PickClients({ chosen, invalid, onPick, onDrop }: {
   );
   const matches = (found.data?.items ?? []).filter((one) => !chosen.some((picked) => picked.id === one.id));
   return (
-    <Field id="pick-a-client" label="Clients" error={invalid ? "Choose at least one client." : undefined}>
+    <Field id="pick-a-client" label="Clients" required error={invalid ? "Choose at least one client." : undefined}>
       <div className="space-y-2">
         <TextInput id="pick-a-client" aria-invalid={invalid || undefined} value={typed} placeholder="Search a client by name or code"
           autoComplete="off" onChange={(event) => setTyped(event.target.value)} />
@@ -547,5 +566,71 @@ function PickClients({ chosen, invalid, onPick, onDrop }: {
         )}
       </div>
     </Field>
+  );
+}
+
+const CATEGORIES: Record<ChecklistPaperSettings["category"], string> = {
+  IDENTITY: "Identity", ADDRESS: "Address proof", INCOME: "Income", SOURCE_OF_FUNDS: "Source of funds", ENTITY: "Entity", OTHER: "Other",
+};
+
+/** One line saying what Compliance set for a paper on a list (23 Nov 2026). */
+function summaryOf(settings: ChecklistPaperSettings) {
+  return [settings.mandatory ? "Mandatory" : "Optional", CATEGORIES[settings.category],
+    settings.multipleFiles ? null : "one file", settings.expiryRequired ? "expiry required" : null,
+    settings.onboardingOnly ? "onboarding only" : null].filter(Boolean).join(" · ") + " — settings";
+}
+
+/**
+ * What a paper on a kind of client's list asks (23 Nov 2026): mandatory before a prospect is approved, its category,
+ * several files or one, an expiry date required, and instructions for the RM and Operations.
+ */
+function SettingsDialog({ paper, clientType, settings, onClose, onSaved }: {
+  paper: PaperRow;
+  clientType: ClientType;
+  settings: ChecklistPaperSettings;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [mandatory, setMandatory] = useState(settings.mandatory);
+  const [category, setCategory] = useState(settings.category);
+  const [multiple, setMultiple] = useState(settings.multipleFiles);
+  const [expiry, setExpiry] = useState(settings.expiryRequired);
+  const [instructions, setInstructions] = useState(settings.instructions ?? "");
+  const [problem, setProblem] = useState<string>();
+  async function save() {
+    setProblem(undefined);
+    try {
+      await changeChecklistPaperSettings(clientType, paper.id, {
+        mandatory, category, multipleFiles: multiple, expiryRequired: expiry, instructions: instructions.trim() || null,
+      });
+      onSaved();
+    } catch (caught) {
+      setProblem(caught instanceof ApiError ? caught.message : "That couldn't be saved.");
+    }
+  }
+  return (
+    <Dialog open onClose={onClose} title={`${paper.name} · ${KIND_OF_CLIENT[clientType]}`} description="What this paper asks of this kind of client.">
+      <div className="space-y-4">
+        {problem && <Alert tone="danger">{problem}</Alert>}
+        <Switch label="Mandatory before Compliance approve a prospect" on={mandatory} onLabel="Mandatory" offLabel="Optional" onChange={setMandatory} />
+        <Field id="paper-category" label="Category">
+          <select id="paper-category" value={category} onChange={(event) => setCategory(event.target.value as typeof category)}
+            className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm">
+            {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </select>
+        </Field>
+        <Switch label="Several files may be put on file for it" on={multiple} onLabel="Several files" offLabel="One file" onChange={setMultiple} />
+        <Switch label="It must carry an expiry date" on={expiry} onLabel="Expiry required" offLabel="No expiry" onChange={setExpiry} />
+        <Field id="paper-instructions" label="Instructions for the RM and Operations" hint="Shown beside the paper when they upload it.">
+          <TextInput id="paper-instructions" value={instructions} maxLength={500} placeholder="e.g. Utility bill or tenancy, under 3 months old"
+            onChange={(event) => setInstructions(event.target.value)} />
+        </Field>
+        {settings.onboardingOnly && <p className="text-xs text-ink-muted">Asked only while a prospect is onboarded; not part of a client's standing KYC.</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => void save()}>Save</Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

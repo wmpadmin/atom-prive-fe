@@ -7,7 +7,10 @@ import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { useRelationshipTypes } from "../../lib/relationship-types";
 import {
   holderGroup,
+  holderName,
   occupationLabels,
+  signingAuthorityText,
+  signsFor,
   organisationTypeLabels,
   reviewApplication,
   type FormApplication,
@@ -38,6 +41,12 @@ interface SummaryProps {
   managers: StaffMember[] | undefined;
   /** When given, each section offers Edit, which opens that step. */
   onEdit?: (stepId: string) => void;
+}
+
+/** A joint holder's part in signing, as a tag beside their name (23 Nov 2026). */
+function signingTag(signs: boolean | null) {
+  if (signs === null) return null;
+  return signs ? <Badge tone="success">Signatory</Badge> : <Badge tone="neutral">May not sign</Badge>;
 }
 
 /** Everything entered, section by section, as the last step of the form and for cases already submitted. */
@@ -120,6 +129,7 @@ export function ApplicationSummary({ application, managers, onEdit }: SummaryPro
             ["Forenames", holder.forenames],
             ["Surname", holder.surname],
             ...(index > 0 ? ([["Relationship", relationshipTypes.labelFor(holder.relationshipToPrimary)]] as Row[]) : []),
+            ...(application.holders.length > 1 ? ([["Signing", signingTag(signsFor(application, holder))]] as Row[]) : []),
             ["Date of birth", date(holder.dateOfBirth)],
             ["NRIC or passport", holder.idNumber],
             ["Expires", date(holder.idExpiry)],
@@ -145,6 +155,19 @@ export function ApplicationSummary({ application, managers, onEdit }: SummaryPro
         },
       );
     });
+    if (application.holders.length > 1) {
+      const signers = application.holders.flatMap((holder, index) => (signsFor(application, holder) ? [holderName(holder, index)] : []));
+      const notSigning = application.holders.flatMap((holder, index) => (signsFor(application, holder) === false ? [holderName(holder, index)] : []));
+      sections.push({
+        id: "signing",
+        title: "Joint account · Signing authority",
+        rows: [
+          ["Signing authority", signingAuthorityText(application)],
+          ["Authorised signatories", signers.join(", ") || null],
+          ...(notSigning.length > 0 ? ([["May not sign", notSigning.join(", ")]] as Row[]) : []),
+        ],
+      });
+    }
   }
 
   return (

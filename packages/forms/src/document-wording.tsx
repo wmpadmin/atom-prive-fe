@@ -63,7 +63,7 @@ const THE_CLIENTS_BLOCK = /^(client|customer|the client|for the client|client\(s
 
 /**
  * Whose block a line belongs to, read off the heading above it. A document sets its signing out in blocks —
- * "For and on behalf of AMALTAS PARTNERS LIMITED" and then "CLIENT" — with each block's name, signature and
+ * "For and on behalf of ATOM PRIVÉ LIMITED" and then "CLIENT" — with each block's name, signature and
  * date under its own heading. The lines themselves say only "Signature:" and "Date:", so who they belong to
  * is whichever heading came last.
  */

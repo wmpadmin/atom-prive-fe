@@ -81,8 +81,9 @@ export function OnboardingCasePage() {
     }
   }
 
-  if (isNew && !canOnboard) {
-    return <Navigate to={backTo} replace />;
+  // A client is started only by converting a prospect now (23 Nov 2026): nothing begins here.
+  if (isNew) {
+    return <Navigate to="/prospective-clients" replace />;
   }
   if (editing) {
     return (

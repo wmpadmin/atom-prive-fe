@@ -215,7 +215,7 @@ function NoTinReasons({
   if (held.tin.trim()) return null;
   return (
     <div className="sm:col-span-2">
-      <Boxes legend={legend} error={field(`${at}.tin`).error}>
+      <Boxes legend={legend} required error={field(`${at}.tin`).error}>
         {noTinReasons.map((reason) => (
           <Tick
             key={reason.value}

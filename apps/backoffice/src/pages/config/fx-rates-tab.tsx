@@ -407,6 +407,7 @@ function UpdateRateForm({ rate, onCancel, onSaved }: { rate: FxRateRow; onCancel
       <Field
         id="unitsPerUsd"
         label={`${rate.code} per 1 USD`}
+        required
         hint={valid ? `So 1 ${rate.code} = ${formatConverted(1 / parsed)} USD` : "How much one US dollar buys, for example 1.3142."}
         error={error}
       >
@@ -458,7 +459,7 @@ function AddCurrencyForm({ existing, onCancel, onAdded }: { existing: string[]; 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
-      <Field id="code" label="Currency" error={errors.fields.code}>
+      <Field id="code" label="Currency" required error={errors.fields.code}>
         <SelectInput {...describedBy("code", errors.fields.code)} name="code" defaultValue="" required>
           <option value="" disabled>
             Choose a currency

@@ -207,19 +207,19 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         }}
       >
         <div>
-          <label htmlFor="invite-name" className={label}>Full name</label>
+          <label htmlFor="invite-name" className={label}>Full name<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></label>
           <input id="invite-name" name="invite-name" required maxLength={200} value={fullName} onChange={(event) => setFullName(event.target.value)} className={field}
             aria-invalid={nameMissing || undefined} aria-describedby={nameMissing ? "invite-name-error" : undefined} />
           {nameMissing && <p id="invite-name-error" className="mt-1 text-xs text-red-600">Enter their full name.</p>}
         </div>
         <div>
-          <label htmlFor="invite-email" className={label}>Email</label>
+          <label htmlFor="invite-email" className={label}>Email<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></label>
           <input id="invite-email" name="invite-email" type="email" required maxLength={320} value={email} onChange={(event) => setEmail(event.target.value)} className={field}
             aria-invalid={emailMissing || undefined} aria-describedby={emailMissing ? "invite-email-error" : undefined} />
           {emailMissing && <p id="invite-email-error" className="mt-1 text-xs text-red-600">Enter their email.</p>}
         </div>
         <div>
-          <label htmlFor="invite-relationship" className={label}>They are your</label>
+          <label htmlFor="invite-relationship" className={label}>They are your<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></label>
           <select id="invite-relationship" name="invite-relationship" value={relationshipCode} onChange={(event) => setRelationshipCode(event.target.value)} className={field}>
             {RELATIONSHIPS.map((one) => (
               <option key={one.code} value={one.code}>

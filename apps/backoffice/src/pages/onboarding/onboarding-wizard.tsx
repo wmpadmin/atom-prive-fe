@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker, useNavigate } from "react-router";
 import { toFormErrors } from "../../lib/api-errors";
 import { ConfirmDialog } from "../config/confirm-dialog";
+import { EntityParties } from "../prospects/entity-parties";
 import {
   emptyHolder,
   holderGroup,
@@ -34,9 +35,17 @@ import {
   OccupationStep,
   PersonalDetailsStep,
   RegisteredAddressStep,
+  SigningAuthorityStep,
 } from "./onboarding-steps";
 
 const REVIEW: ReviewStep = { id: "review", group: "Finish", label: "Review & submit", complete: false, fields: [] };
+
+/**
+ * An entity's directors, owners, UBOs, authorised signatories, trusts and companies (22 Nov 2026), carried over from
+ * the prospect or added here. Never holds the form up: there is no minimum, and a missing required detail is a
+ * warning on the person, not a step left unfinished.
+ */
+const PEOPLE: ReviewStep = { id: "entity-people", group: "Entity", label: "Stakeholders", complete: true, fields: [] };
 
 const descriptions: Record<string, string> = {
   client: "Is the client a person or an organisation, and which relationship manager will look after them?",
@@ -46,6 +55,8 @@ const descriptions: Record<string, string> = {
   "entity-details": "As shown on the certificate of incorporation.",
   "entity-business": "Who regulates the entity, where it does business and what kind of organisation it is.",
   "entity-address": "Where the entity is registered.",
+  signing: "Who can sign and give instructions on this joint account. It fills the account opening form's signing mandate.",
+  "entity-people": "Its directors, owners, UBOs and authorised signatories, and any trust or company an owner holds through. Details only; documents come later.",
   review: "Check every section. Once submitted, the details can't be changed.",
 };
 
@@ -78,7 +89,7 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
   const [tried, setTried] = useState<string | null>(null);
 
   const review = useMemo(() => reviewApplication(application, managers), [application, managers]);
-  const steps = [...review.steps, REVIEW];
+  const steps = application.clientType === "ENTITY" ? [...review.steps, PEOPLE, REVIEW] : [...review.steps, REVIEW];
   const index = Math.max(0, steps.findIndex((step) => step.id === currentId));
   const current = steps[index] ?? REVIEW;
   const everyStepComplete = review.steps.every((step) => step.complete);
@@ -92,6 +103,27 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
     unsaved.current = dirty;
   }, [dirty]);
   const blocker = useBlocker(({ currentLocation, nextLocation }) => unsaved.current && currentLocation.pathname !== nextLocation.pathname);
+  // Leaving the form — Cancel, the back link, another menu screen — keeps what was typed: it is saved as a draft
+  // first, so a client half-entered when somebody walks in is still on All clients under Saved drafts (22 Nov 2026).
+  // Only when the save is refused does the person choose between staying and leaving without it.
+  const [leaveFailed, setLeaveFailed] = useState<string>();
+  const savingOnLeave = useRef(false);
+  useEffect(() => {
+    if (blocker.state !== "blocked" || savingOnLeave.current || leaveFailed) return;
+    savingOnLeave.current = true;
+    persist()
+      // Not onSaved: for a new case that moves to the case's own address, and the person is on their way elsewhere.
+      .then(() => blocker.proceed())
+      .catch((caught: unknown) => {
+        const errors = toFormErrors(caught);
+        setLeaveFailed(errors.form ?? Object.values(errors.fields)[0] ?? "The draft couldn't be saved.");
+      })
+      .finally(() => {
+        savingOnLeave.current = false;
+      });
+    // persist reads the form as it stands when the leaving starts, which is the form to keep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -221,6 +253,24 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
     }
     if (current.id === "entity-details") return <EntityDetailsStep entity={application.entity} onChange={changeEntity} field={field} />;
     if (current.id === "entity-business") return <BusinessRegulationStep entity={application.entity} onChange={changeEntity} field={field} />;
+    if (current.id === "entity-people") {
+      return caseId ? <EntityParties caseId={caseId} mayChange /> : (
+        <div className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-ink-muted">
+          Save a draft first, then add the entity's people and owners here.
+          <div className="mt-3"><Button variant="secondary" onClick={() => void saveDraft()}>Save draft</Button></div>
+        </div>
+      );
+    }
+    if (current.id === "signing") {
+      return (
+        <SigningAuthorityStep
+          application={application}
+          onChange={(patch) => change((app) => ({ ...app, signingAuthority: { ...app.signingAuthority, ...patch } }))}
+          onHolder={changeHolder}
+          field={field}
+        />
+      );
+    }
     if (current.id === "entity-address") return <RegisteredAddressStep entity={application.entity} onChange={changeEntity} field={field} />;
     const [, holderIndex, part] = /^holder-(\d+)-(\w+)$/.exec(current.id) ?? [];
     const at = Number(holderIndex);
@@ -339,13 +389,19 @@ export function OnboardingWizard({ caseId, initial, managers, listHref, onSaved 
       </div>
 
       <ConfirmDialog
-        open={blocker.state === "blocked"}
-        title="Leave without saving?"
-        description="The changes since you last saved will be lost. Save a draft first to keep them."
-        confirmLabel="Leave"
+        open={blocker.state === "blocked" && leaveFailed !== undefined}
+        title="The draft couldn't be saved"
+        description={`${leaveFailed ?? ""} Stay to put it right, or leave without saving the changes since the last save.`}
+        confirmLabel="Leave without saving"
         tone="danger"
-        onConfirm={() => blocker.proceed?.()}
-        onClose={() => blocker.reset?.()}
+        onConfirm={() => {
+          setLeaveFailed(undefined);
+          blocker.proceed?.();
+        }}
+        onClose={() => {
+          setLeaveFailed(undefined);
+          blocker.reset?.();
+        }}
       />
       <ConfirmDialog
         open={removingHolder !== null}

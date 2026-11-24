@@ -72,13 +72,13 @@ function BankForm({ bank, onCancel, onSaved }: { bank: BankView | null; onCancel
     <form onSubmit={handleSubmit} className="space-y-4">
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="name" label="Bank name" error={fields.name} className="sm:col-span-2">
+        <Field id="name" label="Bank name" required error={fields.name} className="sm:col-span-2">
           <TextInput {...describedBy("name", fields.name)} name="name" defaultValue={bank?.name} placeholder="DBS Bank" required />
         </Field>
-        <Field id="bic" label="BIC / SWIFT code" error={fields.bic}>
+        <Field id="bic" label="BIC / SWIFT code" required error={fields.bic}>
           <TextInput {...describedBy("bic", fields.bic)} name="bic" defaultValue={bank?.bic} placeholder="DBSSSGSG" className="font-mono uppercase" required />
         </Field>
-        <Field id="countryCode" label="Country" error={fields.countryCode}>
+        <Field id="countryCode" label="Country" required error={fields.countryCode}>
           <SelectInput {...describedBy("countryCode", fields.countryCode)} name="countryCode" defaultValue={bank?.countryCode ?? ""} required>
             <option value="" disabled>
               Choose a country
@@ -90,7 +90,7 @@ function BankForm({ bank, onCancel, onSaved }: { bank: BankView | null; onCancel
             ))}
           </SelectInput>
         </Field>
-        <Field id="connectionType" label="Connection" error={fields.connectionType}>
+        <Field id="connectionType" label="Connection" required error={fields.connectionType}>
           <SelectInput
             {...describedBy("connectionType", fields.connectionType)}
             name="connectionType"
@@ -109,7 +109,7 @@ function BankForm({ bank, onCancel, onSaved }: { bank: BankView | null; onCancel
             <TextInput id="schedule" value={scheduleLabels.ON_UPLOAD} disabled aria-describedby="schedule-hint" />
           </Field>
         ) : (
-          <Field id="schedule" label="Schedule" error={fields.schedule}>
+          <Field id="schedule" label="Schedule" required error={fields.schedule}>
             <SelectInput
               {...describedBy("schedule", fields.schedule)}
               name="schedule"
@@ -124,7 +124,7 @@ function BankForm({ bank, onCancel, onSaved }: { bank: BankView | null; onCancel
           </Field>
         )}
         {connection !== "MANUAL_UPLOAD" && (
-          <Field id="endpoint" label={endpointLabel} error={fields.endpoint} className="sm:col-span-2">
+          <Field id="endpoint" label={endpointLabel} required error={fields.endpoint} className="sm:col-span-2">
             <TextInput
               {...describedBy("endpoint", fields.endpoint)}
               name="endpoint"

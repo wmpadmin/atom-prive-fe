@@ -154,7 +154,7 @@ function CredentialsForm({ bank, held, onClose }: { bank: Pick<BankView, "id" | 
       <div className="grid gap-4 sm:grid-cols-2">
         {sftp ? (
           <>
-            <Field id="cred-host" label="Host" error={errors.fields.host} className="sm:col-span-2">
+            <Field id="cred-host" label="Host" required error={errors.fields.host} className="sm:col-span-2">
               <TextInput {...describedBy("cred-host", errors.fields.host)} id="cred-host" value={host} placeholder="sftp.bank.com"
                 onChange={(event) => setHost(event.target.value)} />
             </Field>
@@ -162,13 +162,13 @@ function CredentialsForm({ bank, held, onClose }: { bank: Pick<BankView, "id" | 
               <TextInput {...describedBy("cred-port", errors.fields.port)} id="cred-port" inputMode="numeric" value={port}
                 onChange={(event) => setPort(event.target.value.replace(/[^0-9]/g, ""))} />
             </Field>
-            <Field id="cred-user" label="User name" error={errors.fields.username}>
+            <Field id="cred-user" label="User name" required error={errors.fields.username}>
               <TextInput {...describedBy("cred-user", errors.fields.username)} id="cred-user" value={username} autoComplete="off"
                 onChange={(event) => setUsername(event.target.value)} />
             </Field>
           </>
         ) : (
-          <Field id="cred-base" label="API address" error={errors.fields.apiBaseUrl} className="sm:col-span-2">
+          <Field id="cred-base" label="API address" required error={errors.fields.apiBaseUrl} className="sm:col-span-2">
             <TextInput {...describedBy("cred-base", errors.fields.apiBaseUrl)} id="cred-base" value={apiBaseUrl}
               placeholder="https://api.bank.com/custody/v2/statements" onChange={(event) => setApiBaseUrl(event.target.value)} />
           </Field>
@@ -198,18 +198,18 @@ function CredentialsForm({ bank, held, onClose }: { bank: Pick<BankView, "id" | 
 
         {!sftp && signIn === "OAUTH_CLIENT" && (
           <>
-            <Field id="cred-token" label="Token address" error={errors.fields.tokenUrl} className="sm:col-span-2">
+            <Field id="cred-token" label="Token address" required error={errors.fields.tokenUrl} className="sm:col-span-2">
               <TextInput {...describedBy("cred-token", errors.fields.tokenUrl)} id="cred-token" value={tokenUrl}
                 placeholder="https://auth.bank.com/oauth2/token" onChange={(event) => setTokenUrl(event.target.value)} />
             </Field>
-            <Field id="cred-client" label="Client ID" error={errors.fields.clientId} className="sm:col-span-2">
+            <Field id="cred-client" label="Client ID" required error={errors.fields.clientId} className="sm:col-span-2">
               <TextInput {...describedBy("cred-client", errors.fields.clientId)} id="cred-client" value={clientId} autoComplete="off"
                 onChange={(event) => setClientId(event.target.value)} />
             </Field>
           </>
         )}
 
-        <Field id="cred-secret" label={SECRET_LABELS[signIn]} error={errors.fields.secret} className="sm:col-span-2">
+        <Field id="cred-secret" label={SECRET_LABELS[signIn]} required={needsNewSecret} error={errors.fields.secret} className="sm:col-span-2">
           {!needsNewSecret && shown ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 px-3 py-2 text-sm">
               <span className="text-ink-soft">•••••••• set on {formatDate(shown.setAt)} by {shown.setBy}</span>
@@ -229,7 +229,7 @@ function CredentialsForm({ bank, held, onClose }: { bank: Pick<BankView, "id" | 
           )}
         </Field>
         {needsNewSecret && (
-          <Field id="cred-again" label={`Confirm ${SECRET_LABELS[signIn].toLowerCase()}`}
+          <Field id="cred-again" label={`Confirm ${SECRET_LABELS[signIn].toLowerCase()}`} required
             error={errors.fields.again ?? (mismatch ? "Not the same as above yet." : undefined)} className="sm:col-span-2">
             {signIn === "SSH_KEY" ? (
               <SecretArea {...describedBy("cred-again", errors.fields.again)} id="cred-again" rows={5} value={again}

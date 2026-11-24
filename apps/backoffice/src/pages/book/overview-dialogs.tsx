@@ -145,7 +145,7 @@ export function EditTableDialog({ cfg, onApply, onClose }: {
   return (
     <Dialog open title="Edit table" description="Name the table, and choose its columns and their order." onClose={onClose}>
       <div className="space-y-4">
-        <Field id="table-title" label="Title" error={untitled ? "Enter a title." : undefined}>
+        <Field id="table-title" label="Title" required error={untitled ? "Enter a title." : undefined}>
           <TextInput id="table-title" aria-invalid={untitled || undefined} value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} />
         </Field>
         <div>

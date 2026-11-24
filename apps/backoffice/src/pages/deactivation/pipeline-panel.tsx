@@ -111,7 +111,7 @@ function Row({ row }: { row: PipelineRow }) {
           state={{ tab: "deactivation" }} className="text-ink hover:text-primary-700 hover:underline">
           {row.clientName}
         </Link>
-        <span className="block text-xs text-ink-muted">{row.clientCode}</span>
+        <span className="block text-xs text-ink-muted">{row.clientCode} · {row.reference}</span>
       </th>
       <td className="px-4 py-3 text-ink-soft">
         {row.askedByName ?? "—"}

@@ -227,7 +227,7 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
       <div className="space-y-4">
         {agreeing && asked.kind === "accounts" && (
           <fieldset>
-            <legend className={LABEL}>Accounts to share</legend>
+            <legend className={LABEL}>Accounts to share<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
             <ul className="space-y-2">
               {asked.accounts.map((one) => (
                 <li key={one.id}>
@@ -252,7 +252,7 @@ function AnswerDialog({ asked, agreeing, onClose }: { asked: Asked; agreeing: bo
           </div>
         )}
         <div>
-          <label htmlFor="answer-comment" className={LABEL}>{agreeing ? "A note (optional)" : "Why"}</label>
+          <label htmlFor="answer-comment" className={LABEL}>{agreeing ? "A note (optional)" : "Why"}{!agreeing && <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>}</label>
           <textarea
             id="answer-comment"
             name="answer-comment"
@@ -315,7 +315,7 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
     <Dialog open onClose={onClose} title="New access request" description="Ask a family member to let you see their accounts or their wealth. Nothing is shared until they approve.">
       <div className="space-y-5">
         <fieldset>
-          <legend className={LABEL}>Family member</legend>
+          <legend className={LABEL}>Family member<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
           {family.isPending ? (
             <div className="h-16 animate-pulse rounded-xl bg-sidebar" />
           ) : people.length === 0 ? (
@@ -349,7 +349,7 @@ function NewRequestDialog({ onClose }: { onClose: () => void }) {
 
         {chosen && (
           <fieldset>
-            <legend className={LABEL}>What you'd like to see</legend>
+            <legend className={LABEL}>What you'd like to see<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
             <ul className="space-y-2">
               {[{ id: "wealth", label: "Their wealth", hint: "Portfolio, assets owned outside it, and loans" }, ...chosen.banks.map((bank) => ({ id: bank.bankId, label: `Accounts at ${bank.bankName}`, hint: "They choose which accounts to share" }))].map((one, at) => (
                 <li key={one.id}>

@@ -36,7 +36,7 @@ describe("an Admin's menu", () => {
     }
   });
 
-  it("is the nineteen screens the firm gives an Admin, and no more", () => {
+  it("is the twenty-one screens the firm gives an Admin, and no more", () => {
     // In the order of the sidebar's headings since 11 Nov 2026: the top block, staff and access, clients,
     // the platform, oversight, and the person's own.
     expect(menuFor(anAdmin(ADMIN_PERMISSIONS)).map((item) => item.to)).toEqual([

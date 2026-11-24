@@ -219,7 +219,7 @@ export function ShareDialog({ people, onClose }: { people: FamilyPerson[]; onClo
         )}
 
         <fieldset>
-          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Family member</legend>
+          <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">Family member<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></legend>
           {others.length === 0 ? (
             <p className="rounded-xl bg-sidebar px-4 py-3 text-sm text-ink-muted">There is nobody else in your family group to share with yet.</p>
           ) : (

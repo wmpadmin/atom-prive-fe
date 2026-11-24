@@ -122,7 +122,7 @@ export function ArchivedClientsPage() {
                     <td className="px-4 py-3 text-sm">
                       {how ? (
                         <>
-                          Asked by {how.askedByName ?? "—"}
+                          {how.reference} · asked by {how.askedByName ?? "—"}
                           <span className="block text-xs text-ink-muted">
                             approved by {how.decidedByName ?? "—"}
                           </span>
@@ -141,6 +141,9 @@ export function ArchivedClientsPage() {
                         <Badge tone="info">
                           {how.daysLeftToRestore} {how.daysLeftToRestore === 1 ? "day" : "days"} left
                         </Badge>
+                      ) : how && !how.restoreUntil && how.restoredBefore ? (
+                        // Archived again after a restore (24 Nov 2026): no window was ever opened.
+                        <Badge tone="neutral">Permanent: restored once before</Badge>
                       ) : (
                         <Badge tone="neutral">Window closed</Badge>
                       )}

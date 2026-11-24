@@ -42,7 +42,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/session-context";
 import { AS_THE_FIRM_WRITES, displayFrom, displayKey, setDisplay } from "../lib/display";
 import { initialsOf } from "../lib/money";
@@ -77,6 +77,12 @@ const PLACES: Place[] = [
   { label: "Reports", icon: BarChart3, to: "/new/reports" },
   { label: "Settings", icon: Settings, to: "/new/settings" },
 ];
+
+/**
+ * What a client who came in as a prospect sees until a bank account is linked (scope §11, 23 Nov 2026): their forms,
+ * their KYC and documents, their settings. There is nothing for a dashboard to show before then.
+ */
+const FORMS_ONLY = ["/new/forms", "/new/kyc", "/new/documents", "/new/settings", "/new/security", "/new/support"];
 
 const HELP: Place = { label: "Help & Support", icon: LifeBuoy, to: "/new/support" };
 
@@ -124,18 +130,18 @@ function NavItem({ place, onGo }: { place: Place; onGo: () => void }) {
   );
 }
 
-function Sidebar({ onGo }: { onGo: () => void }) {
+function Sidebar({ onGo, formsOnly }: { onGo: () => void; formsOnly: boolean }) {
   const waiting = proposalsWaiting(useMyProposals<ClientProposalRow[], ApiError>().data);
   return (
     <div className="flex h-full flex-col">
-      <Link to="/new" onClick={onGo} className="flex items-center gap-2.5 px-3 pb-6">
+      <Link to={formsOnly ? "/new/forms" : "/new"} onClick={onGo} className="flex items-center gap-2.5 px-3 pb-6">
         <span className="flex size-8 items-center justify-center rounded-lg bg-brand-900 text-sm font-bold text-on-fill">
           A
         </span>
         <span className="text-base font-bold text-brand-900">Atom Privé</span>
       </Link>
       <ul className="space-y-0.5">
-        {PLACES.map((place) => (
+        {PLACES.filter((place) => !formsOnly || FORMS_ONLY.includes(place.to ?? "")).map((place) => (
           <NavItem key={place.label} place={place.to === "/new/proposals" ? { ...place, count: waiting } : place} onGo={onGo} />
         ))}
       </ul>
@@ -303,7 +309,12 @@ export function WealthLayout() {
     }
   }, [where]);
 
+  // Closed until a bank account is linked, for a client who came in as a prospect; open for everyone else.
+  const formsOnly = me.data?.dashboardOpen === false;
   const view = currentSupportView();
+  if (formsOnly && !FORMS_ONLY.some((place) => where.pathname.startsWith(place))) {
+    return <Navigate to="/new/forms" replace />;
+  }
   const endView = () => {
     void endClientView()
       .catch(() => undefined)
@@ -322,7 +333,7 @@ export function WealthLayout() {
         aria-label="Portal"
         className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-line bg-sidebar px-4 py-6 lg:block print:hidden"
       >
-        <Sidebar onGo={() => undefined} />
+        <Sidebar onGo={() => undefined} formsOnly={formsOnly} />
       </nav>
 
       {menuOpen && (
@@ -342,7 +353,7 @@ export function WealthLayout() {
             >
               <X aria-hidden="true" className="size-4" />
             </button>
-            <Sidebar onGo={() => setMenuOpen(false)} />
+            <Sidebar onGo={() => setMenuOpen(false)} formsOnly={formsOnly} />
           </nav>
         </div>
       )}

@@ -5,7 +5,11 @@ import { ChoiceCards } from "../../components/choice-cards";
 import { MobileNumberInput } from "../../components/mobile-number-input";
 import {
   emptyAddress,
+  holderName,
   occupationLabels,
+  signingAuthorityText,
+  signingModeLabels,
+  type SigningMode,
   organisationTypeLabels,
   type ClientType,
   type FormApplication,
@@ -380,7 +384,101 @@ export function BusinessRegulationStep({ entity, onChange, field }: EntityStepPr
 export function RegisteredAddressStep({ entity, onChange, field }: EntityStepProps) {
   return (
     <FormSection title="Registered address" description="The entity's registered office.">
-      <AddressFields at="entity.registeredAddress." value={entity.registeredAddress} onChange={(registeredAddress) => onChange({ registeredAddress })} field={field} insistOnLine2 />
+      <AddressFields at="entity.registeredAddress." value={entity.registeredAddress} onChange={(registeredAddress) => onChange({ registeredAddress })} field={field} insistOnState={false} />
     </FormSection>
+  );
+}
+
+/**
+ * Who may sign for a joint account (23 Nov 2026): any one of the holders alone, all of them together, a number of the
+ * holders ticked here, or an arrangement in words. Fills the account opening form's signing mandate.
+ */
+export function SigningAuthorityStep({ application, onChange, onHolder, field }: {
+  application: FormApplication;
+  onChange: (patch: Partial<FormApplication["signingAuthority"]>) => void;
+  onHolder: (index: number, patch: Partial<FormHolder>) => void;
+  field: FieldFor;
+}) {
+  const { mode, howMany, other } = application.signingAuthority;
+  const ticked = application.holders.filter((holder) => holder.signatory).length;
+  const named = mode === "ANY_OF_NAMED" || mode === "OTHER";
+  const signatories = field("signingAuthority.signatories");
+  const count = field("signingAuthority.howMany");
+  const { labelFor } = useRelationshipTypes();
+  const summary = signingAuthorityText(application);
+  return (
+    <div className="space-y-6">
+      <ChoiceCards<SigningMode>
+        name="signingAuthority.mode"
+        legend="Who can sign and give instructions on this account"
+        required
+        value={mode}
+        onChange={(next) => onChange({ mode: next, howMany: next === "ANY_OF_NAMED" ? (howMany ?? 1) : howMany })}
+        error={field("signingAuthority.mode").error}
+        choices={(Object.keys(signingModeLabels) as SigningMode[]).map((value) => ({
+          value,
+          label: signingModeLabels[value],
+          description: value === "ANY_ONE" ? "Every holder can sign alone"
+            : value === "ALL_JOINTLY" ? "Every holder signs together"
+            : value === "ANY_OF_NAMED" ? "A number of the holders ticked below"
+            : "Say the arrangement in words",
+        }))}
+      />
+      {mode === "ANY_OF_NAMED" && (
+        <Field id="signingAuthority.howMany" label="How many of the ticked holders must sign together" required error={count.error} className="sm:max-w-xs">
+          <SelectInput
+            {...describedBy("signingAuthority.howMany", count.error)}
+            value={howMany ?? ""}
+            onChange={(event) => onChange({ howMany: Number(event.target.value) })}
+            onBlur={count.onBlur}
+          >
+            {Array.from({ length: Math.max(1, ticked) }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n === 1 ? "Any one of them" : n === ticked ? `All ${n} of them` : `Any ${n} of them`}</option>
+            ))}
+          </SelectInput>
+        </Field>
+      )}
+      {mode === "OTHER" && (
+        <TextField id="signingAuthority.other" label="Who can sign" value={other} onChange={(next) => onChange({ other: next })} field={field}
+          placeholder="e.g. Rahul alone up to USD 100,000; above that, Rahul and Anita together" className="sm:max-w-2xl" />
+      )}
+      {named && (
+        <fieldset aria-describedby={signatories.error ? "signingAuthority.signatories-error" : undefined}>
+          <legend className="text-sm font-semibold">
+            Authorised signatories{mode === "ANY_OF_NAMED" && <span className="text-red-600"> *</span>}
+          </legend>
+          <p className="text-xs text-ink-muted">Tick every holder who may sign. The others hold the account but may not sign for it.</p>
+          <ul className="mt-2 divide-y divide-line rounded-xl border border-line">
+            {application.holders.map((holder, index) => (
+              <li key={index}>
+                <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm">
+                  <input
+                    id={`holders[${index}].signatory`}
+                    type="checkbox"
+                    className="size-4"
+                    checked={Boolean(holder.signatory)}
+                    onChange={(event) => {
+                      onHolder(index, { signatory: event.target.checked });
+                      signatories.onBlur();
+                    }}
+                  />
+                  <span className="font-medium">{holderName(holder, index)}</span>
+                  <span className="text-xs text-ink-muted">
+                    {index === 0 ? "Primary holder" : holder.relationshipToPrimary ? labelFor(holder.relationshipToPrimary) : "Joint holder"}
+                  </span>
+                  {holder.signatory === false && <span className="ml-auto text-xs text-ink-muted">May not sign</span>}
+                </label>
+              </li>
+            ))}
+          </ul>
+          {signatories.error && <p id="signingAuthority.signatories-error" className="mt-1 text-xs text-red-600">{signatories.error}</p>}
+        </fieldset>
+      )}
+      {summary && mode && (mode !== "ANY_OF_NAMED" || ticked > 0) && (
+        <p className="rounded-lg bg-canvas px-3 py-2 text-xs text-ink-muted">
+          The account opening form's signing mandate will say: <span className="font-semibold text-ink">{summary}</span>
+        </p>
+      )}
+    </div>
   );
 }

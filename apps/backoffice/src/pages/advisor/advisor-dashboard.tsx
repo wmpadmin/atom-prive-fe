@@ -2,7 +2,9 @@ import { ApiError } from "@atomprive/api-client";
 import {
   useGetRelationshipManagerDashboard,
   useListCurrencies,
+  useListCallNotesToSign,
   useListPacksToSign,
+  type CallNoteRow,
   type Currency,
   type RelationshipManagerDashboard as Figures,
   type SignaturePackPage,
@@ -20,6 +22,7 @@ import {
   Layers,
   Link2,
   ListChecks,
+  PenLine,
   PhoneCall,
   TrendingUp,
   UserMinus,
@@ -31,6 +34,8 @@ import { Link } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { useBookPanel } from "../../components/book-panel";
 import { menuFor } from "../../menu";
+import { formatDate } from "../../lib/labels";
+import { MODES, SignDialog } from "../prospects/call-notes";
 import {
   AskTheAssistant,
   Breakdown,
@@ -60,7 +65,7 @@ const PERIODS = [
   { days: 365, label: "Last 12 months" },
 ];
 
-type CardId = "clients" | "approvals" | "kyc" | "portfolios" | "chase" | "signatures" | "links" | "assistant";
+type CardId = "clients" | "approvals" | "callNotes" | "kyc" | "portfolios" | "chase" | "signatures" | "links" | "assistant";
 
 const CARD: Record<CardId, CardMeta> = {
   clients: { title: "My clients overview", area: "main", charts: ["donut", "horizontal-bar", "mindmap", "table"] },
@@ -69,6 +74,8 @@ const CARD: Record<CardId, CardMeta> = {
   portfolios: { title: "Portfolio summary", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   chase: { title: "Client engagement & chase", area: "main", charts: ["table", "horizontal-bar", "donut"] },
   signatures: { title: "Waiting on your signature", area: "main" },
+  // Call notes waiting for this RM to sign before they go to Operations to review (23 Nov 2026).
+  callNotes: { title: "Call notes to sign", area: "main" },
   assistant: { title: "AI Assistant", area: "side" },
   links: { title: "Key links", area: "side" },
 };
@@ -76,7 +83,7 @@ const CARD: Record<CardId, CardMeta> = {
 
 /** What the dashboard opens on: the four that matter most, chosen 13 Nov 2026; the rest wait in Add cards. A layout someone saved is kept. */
 // What the dashboard showed when the portal was set up: what a new person sees, and what Reset to default view brings back.
-const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "kyc", "portfolios", "chase", "assistant"];
+const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "callNotes", "kyc", "portfolios", "chase", "assistant"];
 
 /** Which screen each counted line is worked from. A line whose screen the reader's menu lacks has no link. */
 const WORKED_FROM: Record<string, string[]> = {
@@ -282,6 +289,7 @@ export function AdvisorDashboard() {
       </Panel>
     ),
     signatures: <Signatures to={goTo("/to-sign")} clientLink={clientLink} />,
+    callNotes: <CallNotesToSign />,
     links: (
       <Panel icon={Link2} title="Key links">
         <ul className="space-y-1.5">
@@ -343,6 +351,46 @@ export function AdvisorDashboard() {
         "chase.counts": sharesFigure("Client engagement & chase, counted", "Work", (data.chase).map((one) => ({ name: one.label, value: one.count })), (value: number) => String(Math.round(value)), ["horizontal-bar", "donut", "bar", "table"]),
       } : undefined} screen="Relationship Manager dashboard" empty="Nothing on your dashboard. Use Customize view to add the cards you want." />
     </div>
+  );
+}
+
+/**
+ * Call notes that wait for this RM's signature before Operations review them (23 Nov 2026), newest first. Each opens the
+ * note on its prospect or client, where it is signed.
+ */
+function CallNotesToSign() {
+  const notes = useListCallNotesToSign<CallNoteRow[], ApiError>({ query: { refetchInterval: 60_000 } });
+  const rows = notes.data ?? [];
+  const [signing, setSigning] = useState<CallNoteRow | null>(null);
+  return (
+    <Panel icon={PenLine} title={`Call notes to sign${notes.data ? ` (${rows.length})` : ""}`}>
+      {signing && (
+        <SignDialog one={signing} onClose={() => setSigning(null)} onDone={() => { setSigning(null); void notes.refetch(); }} />
+      )}
+      {notes.isError ? <p className="text-sm text-ink-muted">These couldn't be loaded just now.</p>
+        : !notes.data ? <p className="text-sm text-ink-muted">Loading…</p>
+          : rows.length === 0 ? <p className="text-sm text-ink-muted">No call notes are waiting on your signature.</p>
+            : (
+              <ul className="divide-y divide-line">
+                {rows.slice(0, 6).map((one) => (
+                  <li key={one.id} className="flex items-center gap-3 py-2.5 text-sm">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-ink">{one.subjectName}</span>
+                      <span className="block truncate text-xs text-ink-muted">
+                        {formatDate(one.happenedOn)} · {MODES[one.mode as keyof typeof MODES] ?? one.mode} · written by {one.writtenBy}
+                      </span>
+                    </span>
+                    {/* Signed here: the RM may no longer be the one who can open the prospect's page. */}
+                    <button type="button" onClick={() => setSigning(one)}
+                      className="inline-flex h-8 shrink-0 items-center rounded-lg border border-primary-600 px-3 text-xs font-semibold text-primary-700 hover:bg-primary-50">
+                      Sign off
+                    </button>
+                  </li>
+                ))}
+                {rows.length > 6 && <li className="pt-2 text-xs text-ink-muted">and {rows.length - 6} more</li>}
+              </ul>
+            )}
+    </Panel>
   );
 }
 

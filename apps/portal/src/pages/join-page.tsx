@@ -189,6 +189,7 @@ export function JoinPage() {
 
               <Label htmlFor="join-name" className="mt-4">
                 Full name
+                <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
               </Label>
               <input
                 id="join-name"
@@ -261,7 +262,7 @@ export function JoinPage() {
             }}
           >
             <div className="sm:col-start-1 sm:row-start-1">
-            <Label htmlFor="join-password">Choose a password</Label>
+            <Label htmlFor="join-password">Choose a password<span aria-hidden="true" className="ml-0.5 text-red-600">*</span></Label>
             <input
               id="join-password"
               type="password"
@@ -284,6 +285,7 @@ export function JoinPage() {
 
             <Label htmlFor="join-again" className="mt-4">
               And again
+              <span aria-hidden="true" className="ml-0.5 text-red-600">*</span>
             </Label>
             <input
               id="join-again"

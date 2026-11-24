@@ -70,6 +70,7 @@ import { ResetPasswordPage } from "./pages/sign-in/reset-password-page";
 import { OnboardingCasePage } from "./pages/onboarding/onboarding-case-page";
 import { ClientManagementOverviewPage } from "./pages/prospects/client-management-overview-page";
 import { ProspectiveClientsPage } from "./pages/prospects/prospective-clients-page";
+import { ProspectPage } from "./pages/prospects/prospect-page";
 import { PostOnboardingPage } from "./pages/onboarding/post-onboarding-page";
 import { ModelDetailPage } from "./pages/portfolios/model-detail-page";
 import { ManagementInformationPage } from "./pages/portfolios/management-information-page";
@@ -205,6 +206,7 @@ export const router = createBrowserRouter([
               { path: "client-management", element: <Navigate to="/client-management/overview" replace /> },
               { path: "client-management/overview", element: <ClientManagementOverviewPage /> },
               { path: "prospective-clients", element: <ProspectiveClientsPage /> },
+              { path: "prospective-clients/:id", element: <ProspectPage /> },
             ],
           },
           // Adding an account holder by hand is gone, screen and address both. Somebody does not join an

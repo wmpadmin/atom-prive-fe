@@ -237,7 +237,7 @@ export function PortfolioSettingsPage() {
               <NotYet>Alerts are what the platform does today; a rebalance is raised by hand from Bulk rebalancing.</NotYet>
             </Box>
             <Box icon={<Clock />} title="Proposals" lead="How long a client has to approve or reject a proposal sent to them.">
-              <Field id="set-answer-days" label="Days to answer" error={errors.fields.proposalAnswerDays}>
+              <Field id="set-answer-days" label="Days to answer" required error={errors.fields.proposalAnswerDays}>
                 <span className="relative block max-w-48">
                   <TextInput {...describedBy("set-answer-days", errors.fields.proposalAnswerDays)} id="set-answer-days"
                     inputMode="numeric" disabled={!mayChange} value={typed.proposalAnswerDays} className="pr-12"
@@ -607,7 +607,7 @@ function Figure({ id, label, value, error, disabled, onChange }: {
   id: string; label: string; value: string; error?: string; disabled: boolean; onChange: (value: string) => void;
 }) {
   return (
-    <Field id={id} label={label} error={error}>
+    <Field id={id} label={label} required error={error}>
       <span className="relative block">
         <TextInput {...describedBy(id, error)} id={id} inputMode="decimal" disabled={disabled} value={value} className="pr-8"
           onChange={(event) => onChange(event.target.value)} />

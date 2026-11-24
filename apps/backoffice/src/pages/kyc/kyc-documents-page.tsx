@@ -95,10 +95,16 @@ const MOVABLE: Column[] = [
 
 export function KycDocumentReviewPage() {
   const navigate = useNavigate();
-  const [state, setState] = useState<KycDocumentRowReviewState>("AWAITING_REVIEW");
+  // The Prospective clients tab is the history of what Compliance decided on prospects' papers (24 Nov 2026): it opens on
+  // the approved ones, and what still waits is worked from the KYC review queue.
+  const [state, setState] = useState<KycDocumentRowReviewState>(() =>
+    new URLSearchParams(window.location.search).get("whose") === "pc" ? "APPROVED" : "AWAITING_REVIEW");
   const [search, setSearch] = useState("");
   // Oldest first is how Compliance work; newest first is for finding what has just come in.
   const [newestFirst, setNewestFirst] = useState(false);
+  // Two piles, each with its own history (24 Nov 2026): the clients' papers, and those prospective clients sent in.
+  const [whose, setWhose] = useState<"CLIENTS" | "PC">(() =>
+    new URLSearchParams(window.location.search).get("whose") === "pc" ? "PC" : "CLIENTS");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [picking, setPicking] = useState(false);
@@ -110,7 +116,7 @@ export function KycDocumentReviewPage() {
   // ago sits at the end of a long queue, where filtering page one never found it.
   const words = useDebouncedValue(search.trim(), 300);
   const queue = useListKycDocuments<KycQueue, ApiError>(
-    { state, query: words || undefined, newestFirst, page, size },
+    { state, query: words || undefined, newestFirst, page, size, prospects: whose === "PC" },
     { query: { placeholderData: keepPreviousData } },
   );
   const shown = queue.data?.items ?? [];
@@ -131,7 +137,8 @@ export function KycDocumentReviewPage() {
   async function wholeQueue() {
     const rows: KycDocumentRow[] = [];
     for (let at = 0; ; at++) {
-      const one = await listKycDocuments({ state, query: words || undefined, newestFirst, page: at, size: 100 });
+      const one = await listKycDocuments({ state, query: words || undefined, newestFirst, page: at, size: 100,
+        prospects: whose === "PC" });
       rows.push(...one.items);
       if (one.items.length === 0 || rows.length >= one.totalItems) break;
     }
@@ -163,6 +170,7 @@ export function KycDocumentReviewPage() {
         <div className="flex flex-wrap items-center gap-3">
           <ListReportButton list="KYC document review" load={wholeQueue}
             filters={saidFilters({ Status: reviewStateLabels[state], Search: words })} />
+          {whose === "CLIENTS" && (
           <Button
             variant="secondary"
             disabled={oldest === undefined}
@@ -172,13 +180,30 @@ export function KycDocumentReviewPage() {
           >
             Review oldest
           </Button>
-          {mayAdd && (
+          )}
+          {mayAdd && whose === "CLIENTS" && (
             <Button onClick={() => setPicking(true)}>
               Add a document
             </Button>
           )}
         </div>
       </header>
+
+      <div role="tablist" aria-label="Whose papers" className="flex w-fit rounded-lg border border-line bg-white p-0.5 text-sm font-semibold">
+        {([["CLIENTS", "All clients"], ["PC", "Prospective clients"]] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={whose === id}
+            onClick={() => {
+              setWhose(id);
+              setPage(0);
+              // Prospects' papers are a history of decisions; clients' open on what waits (24 Nov 2026).
+              if (id === "PC" && state === "AWAITING_REVIEW") setState("APPROVED");
+              if (id === "CLIENTS" && whose === "PC") setState("AWAITING_REVIEW");
+            }}
+            className={cn("rounded-md px-4 py-1.5", whose === id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-canvas")}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       <PickClientDialog
         open={picking}
@@ -188,7 +213,8 @@ export function KycDocumentReviewPage() {
 
       {queue.isError && <Alert tone="danger">{queue.error.message}</Alert>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={cn("grid gap-4 sm:grid-cols-2", whose === "PC" ? "xl:grid-cols-3" : "xl:grid-cols-4")}>
+        {whose === "CLIENTS" && (
         <Tile
           label="Awaiting review"
           count={queue.data?.awaitingReview}
@@ -201,6 +227,7 @@ export function KycDocumentReviewPage() {
           chosen={state === "AWAITING_REVIEW"}
           onChoose={() => show("AWAITING_REVIEW")}
         />
+        )}
         <Tile
           label="Re-upload"
           count={queue.data?.reUploadRequested}
@@ -231,7 +258,11 @@ export function KycDocumentReviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
           <div>
             <h2 className="text-base font-bold">{reviewStateLabels[state]}</h2>
-            <p className="mt-0.5 text-xs text-ink-muted">Click a document to read it. Review opens the client's pack, where the decision is recorded.</p>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {whose === "PC"
+                ? "What Compliance decided on prospects' papers. Click a document to read it; Review opens the document with its decision."
+                : "Click a document to read it. Review opens the client's pack, where the decision is recorded."}
+            </p>
           </div>
           {/* The arrangements beside the search rather than above the card: both are ways of reading this
               one table, and a reader looking for either looks on this line. */}
@@ -367,9 +398,11 @@ export function KycDocumentReviewPage() {
                     <button
                       type="button"
                       onClick={(event) => {
-                        // The row opens the paper; this opens the client's pack, where it is decided on.
+                        // The row opens the paper; this opens the client's pack, where it is decided on. A prospect's
+                        // opens the document itself with its decision (24 Nov 2026), the history it is part of.
                         event.stopPropagation();
-                        void navigate(`/kyc/${row.customerId}?from=review`);
+                        void navigate(whose === "PC" ? `/kyc/${row.customerId}/documents/${row.id}?from=review`
+                          : `/kyc/${row.customerId}?from=review`);
                       }}
                       className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50"
                     >

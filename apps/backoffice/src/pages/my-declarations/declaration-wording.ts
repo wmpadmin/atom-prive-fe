@@ -23,7 +23,7 @@ export interface DeclarationWording {
 
 export const declarationWording: Record<string, DeclarationWording> = {
   CONFLICT_OF_INTEREST: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "Conflict of Interest Declaration and Management Form", strong: false, number: null, rows: [] },
@@ -34,7 +34,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   AML_PROCEDURES_CERTIFICATION: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "AML Procedures Certification", strong: false, number: null, rows: [] },
@@ -55,7 +55,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   AUTHORISED_INDIVIDUALS: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "Authorised Individuals Declaration", strong: false, number: null, rows: [] },
@@ -69,7 +69,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   COMPLIANCE_MANUAL_CERTIFICATION: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "Compliance Manual Certification (Annual / new Joinee)", strong: false, number: null, rows: [] },
@@ -88,7 +88,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   OUTSIDE_INTERESTS: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "Declaration and Management of Outside Interests Form", strong: false, number: null, rows: [] },
@@ -117,7 +117,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   DATA_CONSENT: {
-    printed: {"firmName": "Amaltas Partners Limited"},
+    printed: {"firmName": "Atom Privé Limited"},
     blocks: [
       { kind: "HEADING", text: "Employee’s Consent for Data Collection, Processing, Storage, Disclosure and Erasure", strong: false, number: null, rows: [] },
       { kind: "PARAGRAPH", text: "I acknowledge that I have read the Employment Contract and hereby accept the policies and procedures contained therein. I understand that the Employee Handbook may be revised by the organization without prior notice and that such revisions may supersede, modify, or eliminate existing policies, procedures, and benefits. I acknowledge and agree that it is my responsibility to abide by the Employee Handbook at all times.", strong: false, number: null, rows: [] },
@@ -129,7 +129,7 @@ export const declarationWording: Record<string, DeclarationWording> = {
     ],
   },
   FIT_AND_PROPER: {
-    printed: {"firmName": "AMALTAS PARTNERS LIMITED"},
+    printed: {"firmName": "ATOM PRIVÉ LIMITED"},
     blocks: [
       { kind: "PARAGRAPH", text: "{{firmName}}", strong: false, number: null, rows: [] },
       { kind: "HEADING", text: "Fit and Proper Declaration", strong: false, number: null, rows: [] },

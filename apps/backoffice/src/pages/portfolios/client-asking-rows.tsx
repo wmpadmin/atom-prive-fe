@@ -171,7 +171,7 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
               and a heading over each one only repeats what the borders already say. */}
           <h4 className="sr-only">{rows.length === 1 ? "What moves" : `Line ${at + 1}`}</h4>
           <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto]">
-            <Field id={`out-of-${at}`} label="Out of">
+            <Field id={`out-of-${at}`} label="Out of" required>
               <div className="space-y-2">
                 <SelectInput
                   id={`out-of-${at}`}
@@ -219,7 +219,7 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
                 </p>
               </div>
             </Field>
-            <Field id={`into-${at}`} label="Into">
+            <Field id={`into-${at}`} label="Into" required>
               <div className="space-y-2">
                 <SelectInput
                   id={`into-${at}`}
@@ -278,7 +278,7 @@ export function ClientAskingRows({ holdings, rows, disabled, onChange }: {
             {/* What the chosen line holds, said beside the box rather than checked in it. The server
                 refuses an amount a line cannot give, and it is the only place that rule lives; saying the
                 figure here is what stops somebody meeting that refusal in the first place. */}
-            <Field id={`amount-${at}`} label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`}>
+            <Field id={`amount-${at}`} label={`Amount${holdings?.currency ? ` (${holdings.currency})` : ""}`} required>
               <TextInput
                 id={`amount-${at}`}
                 inputMode="decimal"

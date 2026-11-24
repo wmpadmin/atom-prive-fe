@@ -7,7 +7,6 @@ import {
   useListProposals,
   type CustomerPage,
   type CustomerRow,
-  type DraftRow,
   type ProposalPage,
   type ProposalRow,
   type StaffMember,
@@ -26,7 +25,7 @@ import { useColumnDrag } from "../../lib/column-drag";
 import { useTableView } from "../../lib/table-view";
 import { formatDate, formatRelative } from "../../lib/labels";
 import { ListReportButton, saidFilters } from "../layout/list-report";
-import { hasAnyAuthority, hasAuthority, ONBOARDS_CLIENTS_CHANGE } from "../../lib/permissions";
+import { hasAuthority } from "../../lib/permissions";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
@@ -81,34 +80,6 @@ function managersOn(customer: CustomerRow): StaffMember[] {
 
 
 /** One column beside the client's name: its heading, and what it draws on a row. */
-/**
- * What a case still being entered puts in a client's column.
- *
- * <p>A dash wherever the answer is "nobody has been registered yet". That is most of them, and it is
- * the honest reading: there is no client code because no code has been issued, no KYC because nothing
- * has been asked for, and no last login because there is nobody to log in.
- */
-function draftCell(columnId: string, draft: DraftRow) {
-  if (columnId === "onboarding") {
-    // The stage alone, for the same reason as the registered rows above: the count is the case's steps,
-    // and beside a stage named after forms it is read as a count of forms.
-    return <span className="font-medium text-ink">{draft.stage}</span>;
-  }
-  if (columnId === "clientType") {
-    return clientTypeOfDraft(draft.clientType);
-  }
-  if (columnId === "advisors") {
-    return <StaffStack people={draft.relationshipManager ? [draft.relationshipManager] : []} desk="relationship managers" />;
-  }
-  return <span className="text-ink-muted">—</span>;
-}
-
-/** The case's own word for what kind of client this will be, said the way the list says it. */
-function clientTypeOfDraft(clientType: string) {
-  const known = clientKindLabels[clientType as keyof typeof clientKindLabels];
-  return known ?? clientType.charAt(0) + clientType.slice(1).toLowerCase();
-}
-
 type Column = {
   id: string;
   label: string;
@@ -342,13 +313,11 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
   const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
   const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
-  const canOnboard = hasAnyAuthority(user, ...ONBOARDS_CLIENTS_CHANGE);
 
   const today = new Date();
   const movable = movableFor({ mine, newestProposal });
   // Cases still being entered. The server decides whether to send any — first page, nothing filtered —
   // so the screen only has to draw what it is given.
-  const drafts = customers.data?.drafts ?? [];
   // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
   // about them and not about which page they landed on, and a hook that is skipped on one render is a hook
   // React cannot keep in order. Kept apart for the two screens this component is, because they are not
@@ -380,11 +349,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
       <BackToOverview />
       <ListPageHeader
         title={mine ? "My clients" : "All clients"}
-        lead={
-          mine
-            ? "The clients assigned to you, with their code, relationship managers and last login."
-            : "Every client registered with the firm, with their code, where their onboarding stands and last login."
-        }
+        lead={mine ? "The clients assigned to you, with their code, relationship managers and last login." : undefined}
       >
         <div className="flex flex-wrap items-center gap-2">
           <ColumnPicker
@@ -416,27 +381,26 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
       {customers.isError && <Alert tone="danger">{customers.error.message}</Alert>}
 
       {/* Above the table: which of their arrangements a reader is in is read before anything in it. */}
-      <ViewTabs
-        views={view.views}
-        current={view.current}
-        edited={view.current === null ? view.arranged : view.changed}
-        onPick={(name) => (name === null ? view.reset() : view.apply(name))}
-        onSave={view.saveAs}
-        onDelete={view.remove}
-        firstLabel={mine ? "Everyone of mine" : "Every client"}
-      />
 
       <RecordList
         caption="Clients"
+        // The saved views beside the search, on the right (23 Nov 2026).
+        action={
+          <ViewTabs
+            views={view.views}
+            current={view.current}
+            edited={view.current === null ? view.arranged : view.changed}
+            onPick={(name) => (name === null ? view.reset() : view.apply(name))}
+            onSave={view.saveAs}
+            onDelete={view.remove}
+            firstLabel={mine ? "Everyone of mine" : "Every client"}
+          />
+        }
         search={
           <ClientSearch value={typed.search} filters={filters} onChange={typed.change} onSearch={typed.apply} />
         }
-        action={
-          // Starting a client is done from here now: the list of cases it used to sit above is gone,
-          // and a case begins with a client whether or not the firm has a record of them yet. Beside
-          // the search box rather than up in the heading — it is the work, not a way of reading it.
-          canOnboard ? <Button onClick={() => navigate("/onboarding/new")}>Start onboarding</Button> : undefined
-        }
+        // No client is started from here (23 Nov 2026): every client begins as a prospect, converted under
+        // Prospective Clients, and arrives on this list only once onboarded.
         filters={
           <>
             {!mine && (
@@ -554,7 +518,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         loading={customers.isPending}
         loadingLabel="Loading clients…"
         empty={
-          rows.length > 0 || drafts.length > 0 ? undefined : filtered ? (
+          rows.length > 0 ? undefined : filtered ? (
             <ClearFiltersLink onClear={clearFilters}>No clients match your search and filters.</ClearFiltersLink>
           ) : (
             "No clients yet. Clients appear here once Operations submit their onboarding details."
@@ -569,35 +533,6 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         onPage={(next) => update({ page: next > 0 ? next + 1 : null })}
         onSize={(next) => update({ size: next === PAGE_SIZES[0] ? null : next })}
       >
-              {/* Cases still being entered, above the clients they are on their way to becoming. They
-                  come back from the server on the first page only and never under a filter: a draft has
-                  no KYC standing, no registered date and no code to match a search against, so one
-                  surviving a filter would be the screen stating something about it that is not true. */}
-              {drafts.map((draft) => (
-                <tr
-                  key={draft.caseId}
-                  onClick={() => void navigate(`/onboarding/${draft.caseId}`)}
-                  className="cursor-pointer bg-amber-50/40 hover:bg-amber-50/70"
-                >
-                  {canSelect && <td className="py-3 pl-5" />}
-                  <td className={cn("py-3 pr-4", canSelect ? "pl-3" : "pl-5")}>
-                    <span className="flex items-center gap-3">
-                      <Avatar name={draft.clientName ?? "?"} photo={draft.clientPhoto} />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-ink">
-                          {draft.clientName?.trim() || "Not named yet"}
-                        </span>
-                        <span className="block text-xs text-amber-700">Being entered</span>
-                      </span>
-                    </span>
-                  </td>
-                  {shownColumns.map((column) => (
-                    <td key={column.id} className={cn("px-4 py-3 text-sm", column.nowrap && "whitespace-nowrap")}>
-                      {draftCell(column.id, draft)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
               {rows.map((customer) => (
                 // The row opens the client, the same as their name does; what is in the row keeps its own job.
                 <tr

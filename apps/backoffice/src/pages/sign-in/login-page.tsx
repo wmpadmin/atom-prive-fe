@@ -131,10 +131,10 @@ export function LoginPage() {
           </div>
           {error && <Alert tone="danger">{error}</Alert>}
           {!error && justReset && <Alert tone="success">Your password has been changed. Sign in with it now.</Alert>}
-          <Field id="email" label="Email">
+          <Field id="email" label="Email" required>
             <TextInput id="email" name="email" type="email" autoComplete="username" required autoFocus />
           </Field>
-          <Field id="password" label="Password">
+          <Field id="password" label="Password" required>
             <PasswordInput id="password" name="password" autoComplete="current-password" required />
           </Field>
           {options.data?.passwordReset && (

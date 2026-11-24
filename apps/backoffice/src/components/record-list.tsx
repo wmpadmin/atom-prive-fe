@@ -9,12 +9,12 @@ import { PAGE_SIZES } from "../lib/page-sizes";
  */
 
 /** The top of a list screen: what it is, what it is for, and the controls that act on the whole list. */
-export function ListPageHeader({ title, lead, children }: { title: string; lead: string; children?: ReactNode }) {
+export function ListPageHeader({ title, lead, children }: { title: string; lead?: string; children?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="text-[1.625rem] font-bold">{title}</h1>
-        <p className="mt-1 text-sm text-ink-muted">{lead}</p>
+        {lead && <p className="mt-1 text-sm text-ink-muted">{lead}</p>}
       </div>
       {children}
     </header>

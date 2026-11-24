@@ -106,7 +106,7 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
                     >
                       {row.clientName}
                     </Link>
-                    <span className="block text-xs text-ink-muted">{row.clientCode}</span>
+                    <span className="block text-xs text-ink-muted">{row.clientCode} · {row.reference}</span>
                   </th>
                   <td className="px-4 py-3 text-ink-soft">{row.roleSaid}</td>
                   <td className="px-4 py-3">
@@ -155,13 +155,18 @@ function Rows({ title, rows }: { title: string; rows: MyClearanceRow[] }) {
 /** One desk's answer on one client: go ahead, still pending, or blocked with the reason. */
 function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const [standing, setStanding] = useState<SayClearanceRequestStanding>(
-    row.standing === "AWAITED" ? "GO_AHEAD" : (row.standing as SayClearanceRequestStanding),
+  // Nothing chosen for a desk that has not answered (24 Nov 2026): a desk clears by choosing to, not by saving.
+  const [standing, setStanding] = useState<SayClearanceRequestStanding | null>(
+    row.standing === "AWAITED" ? null : (row.standing as SayClearanceRequestStanding),
   );
   const [comments, setComments] = useState(row.comments ?? "");
-  // Set by a Save on "blocked" with no reason; the box then shows red until one is written.
+  // Go ahead's tick that the desk has checked everything it holds on this client; asked for again on every Go ahead.
+  const [checked, setChecked] = useState(false);
+  // Set by a Save with something missing; what is missing then shows red until it is put right.
   const [tried, setTried] = useState(false);
-  const missing = standing === "BLOCKED" && !comments.trim();
+  // Blocked and Still pending both say what is open (24 Nov 2026).
+  const missing = (standing === "BLOCKED" || standing === "PENDING") && !comments.trim();
+  const unticked = standing === "GO_AHEAD" && !checked;
   const say = useSayClearance<ApiError>({
     mutation: {
       onSuccess: () => {
@@ -188,8 +193,27 @@ function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => vo
             </button>
           ))}
         </div>
-        <Field id="clearance-comments" label={standing === "BLOCKED" ? "What is blocking it" : "Note"} required={standing === "BLOCKED"}
-          error={tried && missing ? "Say what is blocking it." : undefined}>
+        {tried && !standing && <p className="text-sm text-danger">Choose an answer.</p>}
+        {standing === "GO_AHEAD" && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-canvas px-3 py-2.5">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-primary-600"
+              checked={checked}
+              onChange={(event) => setChecked(event.target.checked)}
+            />
+            <span className="text-sm">
+              I've checked everything my desk holds on this client, and nothing is outstanding.
+              {tried && unticked && <span className="mt-0.5 block text-danger">Tick this to go ahead.</span>}
+            </span>
+          </label>
+        )}
+        <Field
+          id="clearance-comments"
+          label={standing === "BLOCKED" ? "What is blocking it" : standing === "PENDING" ? "What is still open" : "Note"}
+          required={standing === "BLOCKED" || standing === "PENDING"}
+          error={tried && missing ? (standing === "BLOCKED" ? "Say what is blocking it." : "Say what is still open.") : undefined}
+        >
           <TextArea id="clearance-comments" rows={3} aria-invalid={tried && missing} value={comments} onChange={(event) => setComments(event.target.value)} />
         </Field>
         {say.error && <Alert tone="danger">{say.error.message}</Alert>}
@@ -198,12 +222,15 @@ function AnswerDialog({ row, onClose }: { row: MyClearanceRow; onClose: () => vo
           <Button
             disabled={say.isPending}
             onClick={() => {
-              if (missing) {
+              if (!standing || missing || unticked) {
                 setTried(true);
-                document.getElementById("clearance-comments")?.focus();
+                if (missing) document.getElementById("clearance-comments")?.focus();
                 return;
               }
-              say.mutate({ customerId: row.customerId, data: { standing, comments: comments.trim() || null, role: row.role } });
+              say.mutate({
+                customerId: row.customerId,
+                data: { standing, comments: comments.trim() || null, role: row.role, confirmed: standing === "GO_AHEAD" && checked },
+              });
             }}
           >
             Save answer

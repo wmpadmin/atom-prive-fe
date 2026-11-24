@@ -37,15 +37,16 @@ export const MENU_ORDER: string[] = [
   // It works because the three barely overlap: where two of them hold the same screen they want it in
   // the same place, and where they disagree it is over screens only one of them can open at all.
   //
-  //   Compliance        KYC review queue, All clients, KYC document review, What KYC asks for,
-  //                     Trails, Family access trail, Audit log
+  //   Compliance        KYC review queue, Client Management (Prospective Clients, All clients),
+  //                     KYC document review, What KYC asks for, Trails, Family access trail, Audit log
   //   Relationship mgr  Assigned customers, Approvals, Client documents, To sign, Trade logs
   //   Operations        Approvals, All clients, Forms, Client documents, Post onboarding notice,
   //                     Ingestion monitoring, Sync errors
   //
   // Each desk's first screen first: the queue Compliance works every morning, the book a relationship
-  // manager opens on, and the queue Operations answers.
-  "/client-management", "/kyc", "/my-clients", "/approvals",
+  // manager opens on, and the queue Operations answers. Compliance alone open both the KYC queue and Client
+  // Management (24 Nov 2026), and keep their queue above it.
+  "/kyc", "/client-management", "/my-clients", "/approvals",
 
   // Then the client, and the two reviews that decide whether the firm may act for them at all.
   "/clients", "/kyc-documents", "/kyc-checklist",
