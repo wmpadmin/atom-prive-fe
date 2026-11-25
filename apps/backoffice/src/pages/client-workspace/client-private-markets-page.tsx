@@ -32,6 +32,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 echarts.use([ScatterChart, MarkLineComponent, LabelLayout]);
 
@@ -66,8 +67,8 @@ const DEFAULT_CARDS = Object.keys(CARDS) as PrivateMarketsCard[];
 
 export function ClientPrivateMarketsPage() {
   const { customerId = "" } = useParams();
-  const pm = useGetClientWorkspacePrivateMarkets<ClientPrivateMarkets, ApiError>(customerId);
-  const data = pm.data;
+  const pm = useGetClientWorkspacePrivateMarkets<ClientPrivateMarkets, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(pm.data);
   const view = useViewLayout("workspace.private-markets", CARDS, DEFAULT_CARDS);
 
   if (pm.isError) return <Alert tone="danger">{pm.error.message}</Alert>;

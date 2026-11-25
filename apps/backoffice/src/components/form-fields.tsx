@@ -103,14 +103,16 @@ interface CountryFieldProps {
   field: FieldFor;
   /** A country the form does not insist on, such as the one in an address only given if it differs. */
   optional?: boolean;
+  /** The form prints this line but the answer above it has not opened it yet. */
+  disabled?: boolean;
   className?: string;
 }
 
-export function CountryField({ id, label, value, onChange, field, optional, className }: CountryFieldProps) {
+export function CountryField({ id, label, value, onChange, field, optional, disabled, className }: CountryFieldProps) {
   const { error, onBlur } = field(id);
   return (
-    <Field id={id} label={label} required={!optional} error={error} className={className}>
-      <CountrySelect {...describedBy(id, error)} value={value} onChange={onChange} onBlur={onBlur} />
+    <Field id={id} label={label} required={!optional && !disabled} error={error} className={className}>
+      <CountrySelect {...describedBy(id, error)} value={disabled ? null : value} onChange={onChange} onBlur={onBlur} disabled={disabled} />
     </Field>
   );
 }

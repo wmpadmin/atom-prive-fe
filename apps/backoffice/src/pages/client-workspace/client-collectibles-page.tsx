@@ -18,7 +18,7 @@ import { Link, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { openApiFile } from "../../lib/download";
 import { formatDate } from "../../lib/labels";
-import { writesProposals } from "../../lib/permissions";
+import { hasAnyAuthority, KEEPS_OWNED_ASSETS } from "../../lib/permissions";
 import { Chart, ink } from "../book/overview-charts";
 import { CardMenu, CustomizeButton, LayoutGrid, useViewLayout, type LayoutMeta } from "../layout/custom-view";
 import { ReportButton } from "../layout/report";
@@ -28,6 +28,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam } from "../../components/shown-currency";
 
 /**
  * A client's Collectibles & Real Assets register, laid out section by section as the firm's 10 Nov design draws it.
@@ -39,7 +40,7 @@ import type { FigureDetail } from "./figure-panel";
  */
 export function ClientCollectiblesPage() {
   const { customerId = "" } = useParams();
-  const co = useGetClientWorkspaceCollectibles<ClientCollectibles, ApiError>(customerId);
+  const co = useGetClientWorkspaceCollectibles<ClientCollectibles, ApiError>(customerId, useCurrencyParam());
   const data = co.data;
   const [filter, setFilter] = useState("ALL");
 
@@ -584,7 +585,8 @@ function Photo({ item, at = 0, tall, onOpen }: { item: CoItem; at?: number; tall
   const fileId = item.photos[at];
   const url = fileId ? getReadOwnedAssetFileUrl(customerId, item.id, fileId) : null;
   const src = usePhoto(url);
-  const adds = writesProposals(user) && (at === 0 || at === item.photos.length);
+  // The client's relationship manager adds photos, as they keep what the client owns (25 Nov 2026).
+  const adds = hasAnyAuthority(user, ...KEEPS_OWNED_ASSETS) && (at === 0 || at === item.photos.length);
   const upload = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);

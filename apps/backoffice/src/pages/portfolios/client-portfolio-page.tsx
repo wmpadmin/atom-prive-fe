@@ -155,7 +155,7 @@ export function ClientPortfolioPage() {
   // out from the lines, and the API refuses a figure that disagrees with them.
   const lines = useListClientHoldings<ClientHoldings, ApiError>(customerId);
   // Whether the client is read from a bank's file, so his staff-entered lines are said to be what they are.
-  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, { query: { staleTime: 60_000 } });
+  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, undefined, { query: { staleTime: 60_000 } });
   const models = useListModelPortfolios<ModelsPage, ApiError>();
   const assetClasses = useAssetClasses();
   const [errors, setErrors] = useState<FormErrors>(noErrors);

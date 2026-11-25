@@ -17,7 +17,6 @@ import {
   ChevronRight,
   FileSignature,
   FileStack,
-  Gem,
   IdCard,
   Layers,
   Link2,
@@ -89,7 +88,6 @@ const DEFAULT_CARDS: CardId[] = ["clients", "approvals", "callNotes", "kyc", "po
 const WORKED_FROM: Record<string, string[]> = {
   proposals: ["/approvals?queue=proposals"],
   "portfolio-changes": ["/approvals"],
-  "owned-assets": ["/approvals?queue=owned-assets"],
   clearances: ["/my-clearances"],
   "kyc-to-chase": ["/my-clients"],
   "papers-expiring": ["/my-clients"],
@@ -101,7 +99,6 @@ const WORKED_FROM: Record<string, string[]> = {
 const ICON_FOR: Record<string, LucideIcon> = {
   proposals: ListChecks,
   "portfolio-changes": ArrowLeftRight,
-  "owned-assets": Gem,
   clearances: UserMinus,
   "kyc-to-chase": FileStack,
   "papers-expiring": CalendarClock,

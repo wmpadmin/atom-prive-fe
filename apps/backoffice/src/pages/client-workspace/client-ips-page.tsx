@@ -20,6 +20,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's IPS Monitoring, laid out the way the firm's own design draws it: the policy's terms, a scorecard of its
@@ -32,8 +33,8 @@ import type { FigureDetail } from "./figure-panel";
  */
 export function ClientIpsPage() {
   const { customerId = "" } = useParams();
-  const ips = useGetClientIps<ClientIps, ApiError>(customerId);
-  const data = ips.data;
+  const ips = useGetClientIps<ClientIps, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(ips.data);
   const view = useViewLayout("workspace.ips", CARDS, DEFAULT_CARDS);
 
   if (ips.isError) return <Alert tone="danger">{ips.error.message}</Alert>;
@@ -195,7 +196,7 @@ function Scorecard({ data, chart }: { data: ClientIps; chart: CardChart }) {
     <Card title="Compliance Scorecard"
       lead={data.bankFile
         ? (data.checks.length === 0 && data.allocation.length === 0 ? undefined
-          : `${s.rules} rules monitored · bands and ${data.converted ? "the cash, currency and single-line limits from his bank lines in USD" : "recorded measures"}${s.notMeasured > 0 ? ` · ${s.notMeasured} not measured: the bank file has nothing for them` : ""}`)
+          : `${s.rules} rules monitored · bands and ${data.converted ? `the cash, currency and single-line limits from his bank lines in ${data.converted.currency}` : "recorded measures"}${s.notMeasured > 0 ? ` · ${s.notMeasured} not measured: the bank file has nothing for them` : ""}`)
         : `${s.rules} rules monitored${s.notMeasured > 0 ? ` · ${s.notMeasured} could not be measured` : ""}`}
       picker={!data.bankFile && s.rules > 0 && chart.picker}
       action={data.bankFile && data.checks.length > 0 && <StaffEntered />}>

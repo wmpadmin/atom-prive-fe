@@ -2,7 +2,7 @@ import { ApiError } from "@atomprive/api-client";
 import { useGetProspect, type ProspectDetail } from "@atomprive/api-client/backoffice";
 import { cn } from "@atomprive/ui";
 import {
-  ArrowLeft, Bookmark, CalendarDays, ChartNoAxesColumn, Clock, FileText, Info, Mail, NotebookPen, Pencil,
+  ArrowLeft, Bookmark, CalendarDays, ChartNoAxesColumn, FileText, Info, Mail, NotebookPen, Pencil,
   FolderOpen, Landmark, Signature, Users, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -16,14 +16,12 @@ import { EntityParties } from "./entity-parties";
 import { ProspectAgreement } from "./prospect-agreement";
 import { ProspectDocumentsTab } from "./prospect-documents-tab";
 import { ProspectHolders } from "./prospect-holders";
-import { ProspectMeetings } from "./prospect-meetings";
-import { ProspectTimeline } from "./prospect-timeline";
 import { ProspectWealth } from "./prospect-wealth";
 import { ProspectForm } from "./prospect-form";
 import { LOST_REASONS, OPEN_STATUSES, SOURCE_LABELS, STATUS_LABELS, STATUS_PILLS } from "./prospect-labels";
 import { EmailBox, LogFollowUp, LostDialog, Muted, Reopen } from "./prospect-panel";
 
-type Tab = "details" | "holders" | "people" | "documents" | "wealth" | "agreement" | "meetings" | "call-notes" | "timeline" | "email";
+type Tab = "details" | "holders" | "people" | "documents" | "wealth" | "agreement" | "call-notes" | "email";
 
 /**
  * One prospect on a page of its own (22 Nov 2026): the firm found the side panel too tight, the ownership graph above
@@ -83,9 +81,8 @@ export function ProspectPage() {
       // Signed by the client on the portal, then by the Admin here, once Compliance approve everything (23 Nov 2026).
       { id: "agreement" as const, label: "Agreement", icon: Signature },
     ] : []),
-    { id: "meetings", label: "Meetings", icon: CalendarDays },
+    // Meetings and Activity log were taken off (25 Nov 2026): each contact is on Call notes.
     { id: "call-notes", label: "Call notes", icon: NotebookPen },
-    { id: "timeline", label: "Activity log", icon: Clock },
     ...(detail.mayChange && open && row.email && !row.doNotEmail ? [{ id: "email" as const, label: "Send email", icon: Mail }] : []),
   ];
   const current = tabs.some((one) => one.id === tab) ? tab : "details";
@@ -191,8 +188,6 @@ export function ProspectPage() {
         {current === "documents" && <ProspectDocumentsTab detail={detail} />}
         {current === "agreement" && <ProspectAgreement prospectId={row.id} entity={entity} />}
         {current === "wealth" && <ProspectWealth prospectId={row.id} prospectName={row.fullName} mayChange={detail.mayChange} />}
-        {current === "meetings" && <ProspectMeetings prospectId={row.id} mayChange={detail.mayChange && open} />}
-        {current === "timeline" && <ProspectTimeline prospectId={row.id} />}
         {current === "call-notes" && <CallNotes prospectId={row.id} mayWrite={detail.mayChange && !draft} />}
         {current === "email" && <EmailBox detail={detail} />}
       </section>

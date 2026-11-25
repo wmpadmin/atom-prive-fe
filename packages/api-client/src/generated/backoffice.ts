@@ -202,7 +202,6 @@ export interface CallNoteRequest {
      * @maxLength 8000
      */
   discussion: string;
-  submit: boolean;
 }
 
 /**
@@ -1760,13 +1759,6 @@ export interface OwnedAssetDetailsRequest {
   owners: OwnerShareRequest[];
 }
 
-export interface OwnedAssetChangeFile {
-  id: string;
-  fileName: string;
-  contentType: string;
-  size: number;
-}
-
 export interface OwnedAssetRequest {
   /**
      * @minLength 0
@@ -1850,10 +1842,6 @@ export interface OwnedAssetChangeRow {
   answeredAt: string | null;
   /** @nullable */
   reason: string | null;
-  canAnswer: boolean;
-  canWithdraw: boolean;
-  raisedByClient: boolean;
-  files: OwnedAssetChangeFile[];
 }
 
 export interface OwnedAssetDetailsSaved {
@@ -2361,6 +2349,480 @@ export interface Address {
   country: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type HolderDetailsGender = typeof HolderDetailsGender[keyof typeof HolderDetailsGender] | null;
+
+
+export const HolderDetailsGender = {
+  MALE: 'MALE',
+  FEMALE: 'FEMALE',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderDetailsMaritalStatus = typeof HolderDetailsMaritalStatus[keyof typeof HolderDetailsMaritalStatus] | null;
+
+
+export const HolderDetailsMaritalStatus = {
+  SINGLE: 'SINGLE',
+  MARRIED: 'MARRIED',
+  DIVORCED: 'DIVORCED',
+  WIDOWED: 'WIDOWED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderDetailsEmploymentStatus = typeof HolderDetailsEmploymentStatus[keyof typeof HolderDetailsEmploymentStatus] | null;
+
+
+export const HolderDetailsEmploymentStatus = {
+  EMPLOYED: 'EMPLOYED',
+  SELF_EMPLOYED: 'SELF_EMPLOYED',
+  RETIRED: 'RETIRED',
+  NOT_EMPLOYED: 'NOT_EMPLOYED',
+} as const;
+
+export interface PepPerson {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  name: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  function: string | null;
+}
+
+export type HolderProfileServicesItem = typeof HolderProfileServicesItem[keyof typeof HolderProfileServicesItem];
+
+
+export const HolderProfileServicesItem = {
+  INVESTMENT_ADVICE: 'INVESTMENT_ADVICE',
+  DISCRETIONARY_PORTFOLIO_MANAGEMENT: 'DISCRETIONARY_PORTFOLIO_MANAGEMENT',
+  NON_DISCRETIONARY_PORTFOLIO_MANAGEMENT: 'NON_DISCRETIONARY_PORTFOLIO_MANAGEMENT',
+  REAL_ESTATE_INVESTMENTS: 'REAL_ESTATE_INVESTMENTS',
+  PRIVATE_EQUITY_INVESTMENTS: 'PRIVATE_EQUITY_INVESTMENTS',
+  FAMILY_OFFICE_SERVICES: 'FAMILY_OFFICE_SERVICES',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileTurnover = typeof HolderProfileTurnover[keyof typeof HolderProfileTurnover] | null;
+
+
+export const HolderProfileTurnover = {
+  LESS_THAN_500K: 'LESS_THAN_500K',
+  FROM_500K_TO_1M: 'FROM_500K_TO_1M',
+  MORE_THAN_1M: 'MORE_THAN_1M',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileNetWealth = typeof HolderProfileNetWealth[keyof typeof HolderProfileNetWealth] | null;
+
+
+export const HolderProfileNetWealth = {
+  LESS_THAN_500K: 'LESS_THAN_500K',
+  FROM_500K_TO_5M: 'FROM_500K_TO_5M',
+  FROM_5M_TO_10M: 'FROM_5M_TO_10M',
+  FROM_10M_TO_25M: 'FROM_10M_TO_25M',
+  MORE_THAN_25M: 'MORE_THAN_25M',
+} as const;
+
+export type HolderProfileWealthSourcesItem = typeof HolderProfileWealthSourcesItem[keyof typeof HolderProfileWealthSourcesItem];
+
+
+export const HolderProfileWealthSourcesItem = {
+  PROFESSIONAL_OR_BUSINESS_ACTIVITIES: 'PROFESSIONAL_OR_BUSINESS_ACTIVITIES',
+  INHERITANCE_OR_GIFTS: 'INHERITANCE_OR_GIFTS',
+  PENSION_OR_STOCK_OPTION_PAY_OUT: 'PENSION_OR_STOCK_OPTION_PAY_OUT',
+  REAL_ESTATE_TRANSACTIONS: 'REAL_ESTATE_TRANSACTIONS',
+  MANAGING_PERSONAL_INVESTMENTS: 'MANAGING_PERSONAL_INVESTMENTS',
+  SALE_OF_OWN_BUSINESS: 'SALE_OF_OWN_BUSINESS',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileIncome = typeof HolderProfileIncome[keyof typeof HolderProfileIncome] | null;
+
+
+export const HolderProfileIncome = {
+  UP_TO_100K: 'UP_TO_100K',
+  FROM_100K_TO_250K: 'FROM_100K_TO_250K',
+  FROM_250K_TO_500K: 'FROM_250K_TO_500K',
+  FROM_500K_TO_1M: 'FROM_500K_TO_1M',
+  MORE_THAN_1M: 'MORE_THAN_1M',
+} as const;
+
+export type HolderProfileIncomeSourcesItem = typeof HolderProfileIncomeSourcesItem[keyof typeof HolderProfileIncomeSourcesItem];
+
+
+export const HolderProfileIncomeSourcesItem = {
+  SALARY_OR_PENSION: 'SALARY_OR_PENSION',
+  INCOME_FROM_INVESTMENTS: 'INCOME_FROM_INVESTMENTS',
+  BUSINESS_INCOME: 'BUSINESS_INCOME',
+  RENTAL_INCOME: 'RENTAL_INCOME',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileKnowledge = typeof HolderProfileKnowledge[keyof typeof HolderProfileKnowledge] | null;
+
+
+export const HolderProfileKnowledge = {
+  POOR: 'POOR',
+  MODERATE: 'MODERATE',
+  GOOD: 'GOOD',
+  EXCELLENT: 'EXCELLENT',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileActiveFor = typeof HolderProfileActiveFor[keyof typeof HolderProfileActiveFor] | null;
+
+
+export const HolderProfileActiveFor = {
+  LESS_THAN_1_YEAR: 'LESS_THAN_1_YEAR',
+  FROM_1_TO_2_YEARS: 'FROM_1_TO_2_YEARS',
+  FROM_3_TO_5_YEARS: 'FROM_3_TO_5_YEARS',
+  MORE_THAN_5_YEARS: 'MORE_THAN_5_YEARS',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileManagedBy = typeof HolderProfileManagedBy[keyof typeof HolderProfileManagedBy] | null;
+
+
+export const HolderProfileManagedBy = {
+  BY_MYSELF: 'BY_MYSELF',
+  WITH_ADVICE_OF_A_FINANCIAL_ADVISOR: 'WITH_ADVICE_OF_A_FINANCIAL_ADVISOR',
+  NON_DISCRETIONARY_MANAGEMENT: 'NON_DISCRETIONARY_MANAGEMENT',
+  DISCRETIONARY_MANAGEMENT: 'DISCRETIONARY_MANAGEMENT',
+} as const;
+
+export type HolderProfileProductsItem = typeof HolderProfileProductsItem[keyof typeof HolderProfileProductsItem];
+
+
+export const HolderProfileProductsItem = {
+  SHARES: 'SHARES',
+  BONDS: 'BONDS',
+  COLLECTIVE_INVESTMENT_FUNDS: 'COLLECTIVE_INVESTMENT_FUNDS',
+  REAL_ESTATE: 'REAL_ESTATE',
+  STRUCTURED_PRODUCTS: 'STRUCTURED_PRODUCTS',
+  DERIVATIVES: 'DERIVATIVES',
+  INSURANCE_INVESTMENTS: 'INSURANCE_INVESTMENTS',
+  COMMODITIES: 'COMMODITIES',
+  CURRENCIES: 'CURRENCIES',
+  HEDGE_FUNDS: 'HEDGE_FUNDS',
+  PRIVATE_EQUITY: 'PRIVATE_EQUITY',
+  INSURANCE_PRODUCTS: 'INSURANCE_PRODUCTS',
+} as const;
+
+/**
+ * @nullable
+ */
+export type HolderProfileDecisions = typeof HolderProfileDecisions[keyof typeof HolderProfileDecisions] | null;
+
+
+export const HolderProfileDecisions = {
+  SELDOM: 'SELDOM',
+  MONTHLY: 'MONTHLY',
+  WEEKLY: 'WEEKLY',
+  DAILY: 'DAILY',
+} as const;
+
+export interface HolderProfile {
+  /** @nullable */
+  pep: boolean | null;
+  /**
+     * @minItems 0
+     * @maxItems 2
+     * @nullable
+     */
+  pepPeople: PepPerson[] | null;
+  /**
+     * @minItems 0
+     * @maxItems 6
+     * @nullable
+     */
+  services: HolderProfileServicesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  servicesOther: string | null;
+  /** @nullable */
+  turnover: HolderProfileTurnover;
+  /** @nullable */
+  netWealth: HolderProfileNetWealth;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  netWealthOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 6
+     * @nullable
+     */
+  wealthSources: HolderProfileWealthSourcesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  wealthSourcesOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  wealthCountries: string[] | null;
+  /** @nullable */
+  income: HolderProfileIncome;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     */
+  incomeSources: HolderProfileIncomeSourcesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  incomeSourcesOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  incomeCountries: string[] | null;
+  /** @nullable */
+  knowledge: HolderProfileKnowledge;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  knowledgeOther: string | null;
+  /** @nullable */
+  activeFor: HolderProfileActiveFor;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  activeForOther: string | null;
+  /** @nullable */
+  managedBy: HolderProfileManagedBy;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  managedByOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 12
+     * @nullable
+     */
+  products: HolderProfileProductsItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  productsOther: string | null;
+  /** @nullable */
+  decisions: HolderProfileDecisions;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  decisionsOther: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type TaxResidenceReason = typeof TaxResidenceReason[keyof typeof TaxResidenceReason] | null;
+
+
+export const TaxResidenceReason = {
+  A: 'A',
+  B: 'B',
+  C: 'C',
+} as const;
+
+export interface TaxResidence {
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  country: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  tin: string | null;
+  /** @nullable */
+  reason: TaxResidenceReason;
+}
+
+export interface HolderDetails {
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  title: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  middleNames: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  previousNames: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  otherNames: string | null;
+  /** @nullable */
+  gender: HolderDetailsGender;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  placeOfBirth: string | null;
+  /** @nullable */
+  maritalStatus: HolderDetailsMaritalStatus;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  spouseName: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  otherNationalities: string[] | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     * @items.minLength 0
+     * @items.maxLength 2
+     */
+  citizenship: string[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  legalDomicile: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  fiscalResidence: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  emirate: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  mailingEmirate: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  secondPhone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     * @nullable
+     */
+  fax: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     * @nullable
+     */
+  secondFax: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 320
+     * @nullable
+     */
+  secondEmail: string | null;
+  /** @nullable */
+  employmentStatus: HolderDetailsEmploymentStatus;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  sector: string | null;
+  /** @nullable */
+  skipped: boolean | null;
+  profile: HolderProfile | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     */
+  taxResidences: TaxResidence[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  noTinExplanation: string | null;
+}
+
 export interface AccountHolder {
   /**
      * @minLength 0
@@ -2447,6 +2909,488 @@ export interface AccountHolder {
   photo: string | null;
   /** @nullable */
   signatory: boolean | null;
+  details: HolderDetails | null;
+}
+
+/**
+ * @nullable
+ */
+export type CompanyDetailsForm = typeof CompanyDetailsForm[keyof typeof CompanyDetailsForm] | null;
+
+
+export const CompanyDetailsForm = {
+  CORPORATE_PRIVATE: 'CORPORATE_PRIVATE',
+  CORPORATE_LISTED: 'CORPORATE_LISTED',
+  TRUST: 'TRUST',
+} as const;
+
+export type CompanyDetailsActivitiesItem = typeof CompanyDetailsActivitiesItem[keyof typeof CompanyDetailsActivitiesItem];
+
+
+export const CompanyDetailsActivitiesItem = {
+  COMMERCIAL: 'COMMERCIAL',
+  INVESTMENT: 'INVESTMENT',
+  PERSONAL_INVESTMENT_VEHICLE: 'PERSONAL_INVESTMENT_VEHICLE',
+  HOLDING: 'HOLDING',
+} as const;
+
+export type CompanyDetailsServicesItem = typeof CompanyDetailsServicesItem[keyof typeof CompanyDetailsServicesItem];
+
+
+export const CompanyDetailsServicesItem = {
+  INVESTMENT_ADVICE: 'INVESTMENT_ADVICE',
+  DISCRETIONARY_PORTFOLIO_MANAGEMENT: 'DISCRETIONARY_PORTFOLIO_MANAGEMENT',
+  NON_DISCRETIONARY_PORTFOLIO_MANAGEMENT: 'NON_DISCRETIONARY_PORTFOLIO_MANAGEMENT',
+  REAL_ESTATE_INVESTMENTS: 'REAL_ESTATE_INVESTMENTS',
+  PRIVATE_EQUITY_INVESTMENTS: 'PRIVATE_EQUITY_INVESTMENTS',
+  FAMILY_OFFICE_SERVICES: 'FAMILY_OFFICE_SERVICES',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CompanyDetailsTurnover = typeof CompanyDetailsTurnover[keyof typeof CompanyDetailsTurnover] | null;
+
+
+export const CompanyDetailsTurnover = {
+  LESS_THAN_500K: 'LESS_THAN_500K',
+  FROM_500K_TO_1M: 'FROM_500K_TO_1M',
+  MORE_THAN_1M: 'MORE_THAN_1M',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CompanyDetailsNetWealth = typeof CompanyDetailsNetWealth[keyof typeof CompanyDetailsNetWealth] | null;
+
+
+export const CompanyDetailsNetWealth = {
+  LESS_THAN_500K: 'LESS_THAN_500K',
+  FROM_500K_TO_5M: 'FROM_500K_TO_5M',
+  FROM_5M_TO_10M: 'FROM_5M_TO_10M',
+  FROM_10M_TO_25M: 'FROM_10M_TO_25M',
+  MORE_THAN_25M: 'MORE_THAN_25M',
+} as const;
+
+export type CompanyDetailsWealthSourcesItem = typeof CompanyDetailsWealthSourcesItem[keyof typeof CompanyDetailsWealthSourcesItem];
+
+
+export const CompanyDetailsWealthSourcesItem = {
+  BUSINESS_INCOME: 'BUSINESS_INCOME',
+  INCOME_FROM_INVESTMENTS: 'INCOME_FROM_INVESTMENTS',
+  SHAREHOLDERS_EQUITY: 'SHAREHOLDERS_EQUITY',
+  PRIVATE_PLACEMENT: 'PRIVATE_PLACEMENT',
+  SALE_OF_INVESTMENTS: 'SALE_OF_INVESTMENTS',
+} as const;
+
+export type CompanyDetailsCapitalSourcesItem = typeof CompanyDetailsCapitalSourcesItem[keyof typeof CompanyDetailsCapitalSourcesItem];
+
+
+export const CompanyDetailsCapitalSourcesItem = {
+  PROFESSIONAL_INCOME: 'PROFESSIONAL_INCOME',
+  SALE_OF_INVESTMENTS: 'SALE_OF_INVESTMENTS',
+  REAL_ESTATE_TRANSACTIONS: 'REAL_ESTATE_TRANSACTIONS',
+  GIFT_OR_INHERITANCE: 'GIFT_OR_INHERITANCE',
+  INCOME_FROM_INVESTMENTS: 'INCOME_FROM_INVESTMENTS',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CompanyDetailsActiveFor = typeof CompanyDetailsActiveFor[keyof typeof CompanyDetailsActiveFor] | null;
+
+
+export const CompanyDetailsActiveFor = {
+  LESS_THAN_1_YEAR: 'LESS_THAN_1_YEAR',
+  FROM_1_TO_2_YEARS: 'FROM_1_TO_2_YEARS',
+  FROM_3_TO_5_YEARS: 'FROM_3_TO_5_YEARS',
+  MORE_THAN_5_YEARS: 'MORE_THAN_5_YEARS',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CompanyDetailsManagedBy = typeof CompanyDetailsManagedBy[keyof typeof CompanyDetailsManagedBy] | null;
+
+
+export const CompanyDetailsManagedBy = {
+  BY_MYSELF: 'BY_MYSELF',
+  WITH_ADVICE_OF_A_FINANCIAL_ADVISOR: 'WITH_ADVICE_OF_A_FINANCIAL_ADVISOR',
+  NON_DISCRETIONARY_MANAGEMENT: 'NON_DISCRETIONARY_MANAGEMENT',
+  DISCRETIONARY_MANAGEMENT: 'DISCRETIONARY_MANAGEMENT',
+} as const;
+
+export type CompanyDetailsProductsItem = typeof CompanyDetailsProductsItem[keyof typeof CompanyDetailsProductsItem];
+
+
+export const CompanyDetailsProductsItem = {
+  SHARES: 'SHARES',
+  BONDS: 'BONDS',
+  COLLECTIVE_INVESTMENT_FUNDS: 'COLLECTIVE_INVESTMENT_FUNDS',
+  SUKUK: 'SUKUK',
+  STRUCTURED_PRODUCTS: 'STRUCTURED_PRODUCTS',
+  DERIVATIVES: 'DERIVATIVES',
+  INSURANCE_INVESTMENTS: 'INSURANCE_INVESTMENTS',
+  COMMODITIES: 'COMMODITIES',
+  CURRENCIES: 'CURRENCIES',
+  HEDGE_FUNDS: 'HEDGE_FUNDS',
+  PRIVATE_EQUITY: 'PRIVATE_EQUITY',
+  INSURANCE_PRODUCTS: 'INSURANCE_PRODUCTS',
+} as const;
+
+export interface NamedPerson {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  name: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  position: string | null;
+}
+
+export interface Shareholder {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  name: string | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  sharePercent: number | null;
+  /**
+     * @minLength 0
+     * @maxLength 600
+     * @nullable
+     */
+  controllers: string | null;
+}
+
+export interface CompanyDetails {
+  /** @nullable */
+  form: CompanyDetailsForm;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  tradingNames: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  placeOfIncorporation: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  registeredEmirate: string | null;
+  tradingAddress: Address | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  tradingEmirate: string | null;
+  mailingAddress: Address | null;
+  /**
+     * @minLength 0
+     * @maxLength 60
+     * @nullable
+     */
+  mailingEmirate: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  contactName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  phone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  secondPhone: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     * @nullable
+     */
+  fax: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     * @nullable
+     */
+  secondFax: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 320
+     * @nullable
+     */
+  email: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 320
+     * @nullable
+     */
+  secondEmail: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  website: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     */
+  activities: CompanyDetailsActivitiesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 600
+     * @nullable
+     */
+  activitiesDetail: string | null;
+  /** @nullable */
+  partOfGroup: boolean | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  groupName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  groupCountry: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  externalAuditor: string | null;
+  /** @nullable */
+  pep: boolean | null;
+  pepPerson: PepPerson | null;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     * @nullable
+     */
+  directors: NamedPerson[] | null;
+  /** @nullable */
+  listed: boolean | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  exchange: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 40
+     * @nullable
+     */
+  ticker: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 6
+     * @nullable
+     */
+  shareholders: Shareholder[] | null;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     * @nullable
+     */
+  signatories: NamedPerson[] | null;
+  /**
+     * @minItems 0
+     * @maxItems 6
+     * @nullable
+     */
+  services: CompanyDetailsServicesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  servicesOther: string | null;
+  /** @nullable */
+  turnover: CompanyDetailsTurnover;
+  /** @nullable */
+  netWealth: CompanyDetailsNetWealth;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  netWealthOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 5
+     * @nullable
+     */
+  wealthSources: CompanyDetailsWealthSourcesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  wealthSourcesOther: string | null;
+  /** @nullable */
+  personalInvestmentVehicle: boolean | null;
+  /**
+     * @minItems 0
+     * @maxItems 5
+     * @nullable
+     */
+  capitalSources: CompanyDetailsCapitalSourcesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  capitalSourcesOther: string | null;
+  /** @nullable */
+  activeFor: CompanyDetailsActiveFor;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  activeForOther: string | null;
+  /** @nullable */
+  managedBy: CompanyDetailsManagedBy;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  managedByOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 12
+     * @nullable
+     */
+  products: CompanyDetailsProductsItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  productsOther: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type ControllingPersonType = typeof ControllingPersonType[keyof typeof ControllingPersonType] | null;
+
+
+export const ControllingPersonType = {
+  OWNERSHIP: 'OWNERSHIP',
+  OTHER_MEANS: 'OTHER_MEANS',
+  SENIOR_MANAGING_OFFICIAL: 'SENIOR_MANAGING_OFFICIAL',
+  SETTLOR: 'SETTLOR',
+  TRUSTEE: 'TRUSTEE',
+  PROTECTOR: 'PROTECTOR',
+  BENEFICIARY: 'BENEFICIARY',
+  TRUST_OTHER: 'TRUST_OTHER',
+  SETTLOR_EQUIVALENT: 'SETTLOR_EQUIVALENT',
+  TRUSTEE_EQUIVALENT: 'TRUSTEE_EQUIVALENT',
+  PROTECTOR_EQUIVALENT: 'PROTECTOR_EQUIVALENT',
+  BENEFICIARY_EQUIVALENT: 'BENEFICIARY_EQUIVALENT',
+  OTHER_EQUIVALENT: 'OTHER_EQUIVALENT',
+} as const;
+
+export interface ControllingPerson {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  fullName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 20
+     * @nullable
+     */
+  title: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  surname: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  firstName: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  middleNames: string | null;
+  /** @nullable */
+  dateOfBirth: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 120
+     * @nullable
+     */
+  townOfBirth: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  countryOfBirth: string | null;
+  residenceAddress: Address | null;
+  mailingAddress: Address | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     */
+  taxResidences: TaxResidence[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  noTinExplanation: string | null;
+  /** @nullable */
+  type: ControllingPersonType;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  typeOther: string | null;
 }
 
 /**
@@ -2461,6 +3405,81 @@ export const EntityDetailsOrganisationType = {
   TRADING_COMPANY: 'TRADING_COMPANY',
   OTHER: 'OTHER',
 } as const;
+
+/**
+ * @nullable
+ */
+export type EntitySelfCertificationClassification = typeof EntitySelfCertificationClassification[keyof typeof EntitySelfCertificationClassification] | null;
+
+
+export const EntitySelfCertificationClassification = {
+  INVESTMENT_ENTITY_NON_PARTICIPATING: 'INVESTMENT_ENTITY_NON_PARTICIPATING',
+  OTHER_FINANCIAL_INSTITUTION: 'OTHER_FINANCIAL_INSTITUTION',
+  ACTIVE_NFE_LISTED: 'ACTIVE_NFE_LISTED',
+  ACTIVE_NFE_GOVERNMENT: 'ACTIVE_NFE_GOVERNMENT',
+  ACTIVE_NFE_OTHER: 'ACTIVE_NFE_OTHER',
+  PASSIVE_NFE: 'PASSIVE_NFE',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EntitySelfCertificationListedAs = typeof EntitySelfCertificationListedAs[keyof typeof EntitySelfCertificationListedAs] | null;
+
+
+export const EntitySelfCertificationListedAs = {
+  TRADED: 'TRADED',
+  RELATED_ENTITY: 'RELATED_ENTITY',
+} as const;
+
+export interface EntitySelfCertification {
+  /**
+     * @minLength 0
+     * @maxLength 2
+     * @nullable
+     */
+  placeOfOperations: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     */
+  taxResidences: TaxResidence[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  noTinExplanation: string | null;
+  /** @nullable */
+  classification: EntitySelfCertificationClassification;
+  /** @nullable */
+  listedAs: EntitySelfCertificationListedAs;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  relatedEntity: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  securitiesMarket: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  activeCategory: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     */
+  controllingPersons: ControllingPerson[] | null;
+}
 
 export interface EntityDetails {
   /**
@@ -2532,6 +3551,8 @@ export interface EntityDetails {
      */
   organisationTypeOther: string | null;
   registeredAddress: Address | null;
+  company: CompanyDetails | null;
+  selfCertification: EntitySelfCertification | null;
 }
 
 /**
@@ -2571,6 +3592,140 @@ export interface SigningAuthority {
   other: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type RiskProfilingEducation = typeof RiskProfilingEducation[keyof typeof RiskProfilingEducation] | null;
+
+
+export const RiskProfilingEducation = {
+  PRIMARY_OR_LOWER: 'PRIMARY_OR_LOWER',
+  SECONDARY: 'SECONDARY',
+  DIPLOMA_OR_HIGHER: 'DIPLOMA_OR_HIGHER',
+} as const;
+
+/**
+ * @nullable
+ */
+export type RiskProfilingPreferredProfile = typeof RiskProfilingPreferredProfile[keyof typeof RiskProfilingPreferredProfile] | null;
+
+
+export const RiskProfilingPreferredProfile = {
+  CONSERVATIVE: 'CONSERVATIVE',
+  BALANCED: 'BALANCED',
+  AGGRESSIVE: 'AGGRESSIVE',
+} as const;
+
+export type RiskProfilingLeveragePurposesItem = typeof RiskProfilingLeveragePurposesItem[keyof typeof RiskProfilingLeveragePurposesItem];
+
+
+export const RiskProfilingLeveragePurposesItem = {
+  EQUITIES_BONDS: 'EQUITIES_BONDS',
+  LIFE_INSURANCE: 'LIFE_INSURANCE',
+  THIRD_PARTY_DEPOSIT: 'THIRD_PARTY_DEPOSIT',
+  BRIDGE: 'BRIDGE',
+} as const;
+
+/**
+ * @nullable
+ */
+export type OwnerEducationEducation = typeof OwnerEducationEducation[keyof typeof OwnerEducationEducation] | null;
+
+
+export const OwnerEducationEducation = {
+  PRIMARY_OR_LOWER: 'PRIMARY_OR_LOWER',
+  SECONDARY: 'SECONDARY',
+  DIPLOMA_OR_HIGHER: 'DIPLOMA_OR_HIGHER',
+} as const;
+
+export interface OwnerEducation {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  owner: string | null;
+  /** @nullable */
+  education: OwnerEducationEducation;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  qualification: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type RiskProfilingKnowledge = {[key: string]: 'NONE' | 'KNOWLEDGE' | 'UNDER_5' | 'OVER_6'} | null;
+
+/**
+ * @nullable
+ */
+export type RiskProfilingAnswers = {[key: string]: string} | null;
+
+export interface RiskProfiling {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  filledInFor: string | null;
+  /** @nullable */
+  education: RiskProfilingEducation;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  qualification: string | null;
+  /** @nullable */
+  knowledge: RiskProfilingKnowledge;
+  /** @nullable */
+  answers: RiskProfilingAnswers;
+  /** @nullable */
+  agrees: boolean | null;
+  /** @nullable */
+  preferredProfile: RiskProfilingPreferredProfile;
+  /**
+     * @minItems 0
+     * @maxItems 4
+     * @nullable
+     */
+  leveragePurposes: RiskProfilingLeveragePurposesItem[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 300
+     * @nullable
+     */
+  leverageOther: string | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     */
+  owners: OwnerEducation[] | null;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  excludedCountries: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 1000
+     * @nullable
+     */
+  excludedSectors: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  circumstances: string | null;
+}
+
 export interface OnboardingApplication {
   /** @nullable */
   clientType: OnboardingApplicationClientType;
@@ -2584,6 +3739,18 @@ export interface OnboardingApplication {
   holders: AccountHolder[] | null;
   entity: EntityDetails | null;
   signingAuthority: SigningAuthority | null;
+  /**
+     * @minItems 0
+     * @maxItems 20
+     * @nullable
+     */
+  riskProfiles: RiskProfiling[] | null;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     * @nullable
+     */
+  beneficialOwners: AccountHolder[] | null;
 }
 
 export type CaseSummaryClientType = typeof CaseSummaryClientType[keyof typeof CaseSummaryClientType];
@@ -2686,24 +3853,24 @@ export const JsonNodeNodeType = {
 
 export interface JsonNode {
   floatingPointNumber?: boolean;
-  number?: boolean;
-  container?: boolean;
-  valueNode?: boolean;
-  missingNode?: boolean;
   nodeType?: JsonNodeNodeType;
-  string?: boolean;
-  integralNumber?: boolean;
-  pojo?: boolean;
-  short?: boolean;
-  int?: boolean;
-  double?: boolean;
+  binary?: boolean;
   long?: boolean;
-  bigDecimal?: boolean;
-  bigInteger?: boolean;
   /** @deprecated */
   textual?: boolean;
   boolean?: boolean;
-  binary?: boolean;
+  bigInteger?: boolean;
+  double?: boolean;
+  bigDecimal?: boolean;
+  int?: boolean;
+  short?: boolean;
+  pojo?: boolean;
+  valueNode?: boolean;
+  missingNode?: boolean;
+  container?: boolean;
+  string?: boolean;
+  integralNumber?: boolean;
+  number?: boolean;
   empty?: boolean;
   array?: boolean;
   null?: boolean;
@@ -4010,6 +5177,8 @@ export interface CallNoteRow {
   signatureKind: string | null;
   /** @nullable */
   signature: string | null;
+  /** @nullable */
+  signedAs: string | null;
   mayEdit: boolean;
   mayVet: boolean;
   maySign: boolean;
@@ -5477,16 +6646,6 @@ export interface ScheduleRequest {
   format: ScheduleRequestFormat;
 }
 
-export interface OwnedAssetAnswer {
-  approve: boolean;
-  /**
-     * @minLength 0
-     * @maxLength 1000
-     * @nullable
-     */
-  reason: string | null;
-}
-
 export interface OwnedAssetCategoryRequest {
   /**
      * @minLength 0
@@ -6140,71 +7299,6 @@ export interface Given {
 
 export interface PortalAccessGiven {
   given: Given[];
-}
-
-export interface NewHoldingAnswer {
-  approve: boolean;
-  /**
-     * @minLength 0
-     * @maxLength 500
-     * @nullable
-     */
-  reason: string | null;
-}
-
-export interface Amount {
-  currency: string;
-  value: number;
-}
-
-export interface NewHoldingRow {
-  id: string;
-  customerId: string;
-  clientName: string;
-  /** @nullable */
-  clientCode: string | null;
-  bankName: string;
-  /** @nullable */
-  isin: string | null;
-  name: string;
-  /** @nullable */
-  bankClass: string | null;
-  /** @nullable */
-  assetClass: string | null;
-  /** @nullable */
-  units: number | null;
-  amounts: Amount[];
-  /** @nullable */
-  asOf: string | null;
-  status: string;
-  raisedAt: string;
-  /** @nullable */
-  answeredBy: string | null;
-  /** @nullable */
-  answeredAt: string | null;
-  /** @nullable */
-  reason: string | null;
-  canAnswer: boolean;
-}
-
-export interface NewHoldingQueue {
-  items: NewHoldingRow[];
-  waiting: number;
-}
-
-export interface NewHoldingsAnswer {
-  /**
-     * @minItems 1
-     * @maxItems 200
-     */
-  ids: string[];
-  approve: boolean;
-  /**
-     * @minLength 0
-     * @maxLength 500
-     * @nullable
-     */
-  reason: string | null;
 }
 
 export interface MarketTurn {
@@ -7887,6 +8981,65 @@ export interface ClientWhoSignedIn {
   latest: Session | null;
 }
 
+export interface HoldingHit {
+  customerId: string;
+  clientName: string;
+  /** @nullable */
+  clientCode: string | null;
+  name: string;
+  /** @nullable */
+  identifier: string | null;
+  /** @nullable */
+  assetClass: string | null;
+  /** @nullable */
+  units: number | null;
+  value: number;
+  currency: string;
+  source: string;
+}
+
+export interface ProspectHit {
+  id: string;
+  reference: string;
+  name: string;
+  /** @nullable */
+  email: string | null;
+  clientType: string;
+  status: string;
+}
+
+export interface ModelHit {
+  id: string;
+  name: string;
+  /** @nullable */
+  riskProfile: string | null;
+  status: string;
+}
+
+export interface ProposalHit {
+  id: string;
+  reference: string;
+  title: string;
+  status: string;
+  clientName: string;
+}
+
+export interface StaffHit {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+}
+
+export interface GlobalSearchResult {
+  typed: string;
+  holdings: HoldingHit[];
+  prospects: ProspectHit[];
+  models: ModelHit[];
+  proposals: ProposalHit[];
+  staff: StaffHit[];
+}
+
 export interface RejectedRecordRow {
   id: string;
   /** @nullable */
@@ -8130,11 +9283,6 @@ export interface ModelPerformanceTable {
   year: number;
   currency: string;
   asOf: string;
-}
-
-export interface OwnedAssetChangeQueue {
-  items: OwnedAssetChangeRow[];
-  waiting: number;
 }
 
 export interface OverviewViewList {
@@ -8406,12 +9554,10 @@ export interface OwnedAssetRow {
 export interface ClientOwnedAssets {
   customerId: string;
   currency: string;
-  asksFirst: boolean;
   value: number;
   cost: number;
   insured: number;
   items: OwnedAssetRow[];
-  waiting: OwnedAssetChangeRow[];
 }
 
 export interface ClassChange {
@@ -8933,6 +10079,7 @@ export interface ProspectReviewRow {
   papersRequired: number;
   toCheck: number;
   wealthWaiting: boolean;
+  readyToDecide: boolean;
 }
 
 export interface ProspectQueue {
@@ -13079,6 +14226,10 @@ page?: number;
 size?: number;
 };
 
+export type SearchEverythingParams = {
+q: string;
+};
+
 export type RejectedRecordsParams = {
 limit?: number;
 };
@@ -13396,6 +14547,34 @@ export type ListEmailPlaceholdersParams = {
 template?: string;
 };
 
+export type GetClientWorkspaceParams = {
+currency?: string;
+};
+
+export type GetClientStructureParams = {
+currency?: string;
+};
+
+export type GetClientRiskParams = {
+currency?: string;
+};
+
+export type GetClientWorkspacePrivateMarketsParams = {
+currency?: string;
+};
+
+export type GetClientPerformanceParams = {
+currency?: string;
+};
+
+export type GetClientIpsParams = {
+currency?: string;
+};
+
+export type GetClientHoldingsBookParams = {
+currency?: string;
+};
+
 export type GetHoldingHistoryParams = {
 isin?: string;
 name?: string;
@@ -13408,8 +14587,17 @@ name?: string;
 positionId?: string;
 };
 
+export type GetClientWorkspaceFixedIncomeParams = {
+currency?: string;
+};
+
 export type GetClientEquityParams = {
 view?: string;
+currency?: string;
+};
+
+export type GetClientWorkspaceCollectiblesParams = {
+currency?: string;
 };
 
 export type ListMyNotificationsParams = {
@@ -26680,157 +27868,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getScheduleReportMutationOptions(options), queryClient);
     }
 
-export const getWithdrawOwnedAssetChangeUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/owned-asset-changes/${id}/withdraw`
-}
-
-export const withdrawOwnedAssetChange = async (id: string, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
-
-  return http<OwnedAssetChangeRow>(getWithdrawOwnedAssetChangeUrl(id),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getWithdrawOwnedAssetChangeMutationKey = () => ['withdrawOwnedAssetChange'] as const;
-
-export const getWithdrawOwnedAssetChangeMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext> => {
-
-const mutationKey = getWithdrawOwnedAssetChangeMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, WithdrawOwnedAssetChangeMutationVariables> = (props) => {
-          const {id} = props ?? {};
-
-          return  withdrawOwnedAssetChange(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type WithdrawOwnedAssetChangeMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>>
-
-    export type WithdrawOwnedAssetChangeMutationError = unknown
-    export type WithdrawOwnedAssetChangeMutationVariables = {id: string}
-
-    export const useWithdrawOwnedAssetChange = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOwnedAssetChange>>, TError,WithdrawOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof withdrawOwnedAssetChange>>,
-        TError,
-        WithdrawOwnedAssetChangeMutationVariables,
-        TContext
-      > => {
-      return useMutation(getWithdrawOwnedAssetChangeMutationOptions(options), queryClient);
-    }
-
-export const getAnswerOwnedAssetChangeUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/owned-asset-changes/${id}/answer`
-}
-
-export const answerOwnedAssetChange = async (id: string,
-    ownedAssetAnswer: OwnedAssetAnswer, options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeRow> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<OwnedAssetChangeRow>(getAnswerOwnedAssetChangeUrl(id),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(ownedAssetAnswer)
-  }
-);}
-
-
-
-
-
-export const getAnswerOwnedAssetChangeMutationKey = () => ['answerOwnedAssetChange'] as const;
-
-export const getAnswerOwnedAssetChangeMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext> => {
-
-const mutationKey = getAnswerOwnedAssetChangeMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerOwnedAssetChange>>, AnswerOwnedAssetChangeMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  answerOwnedAssetChange(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AnswerOwnedAssetChangeMutationResult = NonNullable<Awaited<ReturnType<typeof answerOwnedAssetChange>>>
-    export type AnswerOwnedAssetChangeMutationBody = OwnedAssetAnswer
-    export type AnswerOwnedAssetChangeMutationError = unknown
-    export type AnswerOwnedAssetChangeMutationVariables = {id: string;data: OwnedAssetAnswer}
-
-    export const useAnswerOwnedAssetChange = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerOwnedAssetChange>>, TError,AnswerOwnedAssetChangeMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof answerOwnedAssetChange>>,
-        TError,
-        AnswerOwnedAssetChangeMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAnswerOwnedAssetChangeMutationOptions(options), queryClient);
-    }
-
 export const getListOwnedAssetCategoriesUrl = () => {
 
 
@@ -30906,171 +31943,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getAddOnboardingPartyMutationOptions(options), queryClient);
-    }
-
-export const getAnswerNewHoldingUrl = (id: string,) => {
-
-
-
-
-  return `/api/backoffice/new-holdings/${id}/answer`
-}
-
-export const answerNewHolding = async (id: string,
-    newHoldingAnswer: NewHoldingAnswer, options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<NewHoldingQueue>(getAnswerNewHoldingUrl(id),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(newHoldingAnswer)
-  }
-);}
-
-
-
-
-
-export const getAnswerNewHoldingMutationKey = () => ['answerNewHolding'] as const;
-
-export const getAnswerNewHoldingMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext> => {
-
-const mutationKey = getAnswerNewHoldingMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerNewHolding>>, AnswerNewHoldingMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  answerNewHolding(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AnswerNewHoldingMutationResult = NonNullable<Awaited<ReturnType<typeof answerNewHolding>>>
-    export type AnswerNewHoldingMutationBody = NewHoldingAnswer
-    export type AnswerNewHoldingMutationError = unknown
-    export type AnswerNewHoldingMutationVariables = {id: string;data: NewHoldingAnswer}
-
-    export const useAnswerNewHolding = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHolding>>, TError,AnswerNewHoldingMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof answerNewHolding>>,
-        TError,
-        AnswerNewHoldingMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAnswerNewHoldingMutationOptions(options), queryClient);
-    }
-
-export const getAnswerNewHoldingsUrl = () => {
-
-
-
-
-  return `/api/backoffice/new-holdings/answer`
-}
-
-export const answerNewHoldings = async (newHoldingsAnswer: NewHoldingsAnswer, options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<NewHoldingQueue>(getAnswerNewHoldingsUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(newHoldingsAnswer)
-  }
-);}
-
-
-
-
-
-export const getAnswerNewHoldingsMutationKey = () => ['answerNewHoldings'] as const;
-
-export const getAnswerNewHoldingsMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext> => {
-
-const mutationKey = getAnswerNewHoldingsMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof answerNewHoldings>>, AnswerNewHoldingsMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  answerNewHoldings(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AnswerNewHoldingsMutationResult = NonNullable<Awaited<ReturnType<typeof answerNewHoldings>>>
-    export type AnswerNewHoldingsMutationBody = NewHoldingsAnswer
-    export type AnswerNewHoldingsMutationError = unknown
-    export type AnswerNewHoldingsMutationVariables = {data: NewHoldingsAnswer}
-
-    export const useAnswerNewHoldings = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof answerNewHoldings>>, TError,AnswerNewHoldingsMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof answerNewHoldings>>,
-        TError,
-        AnswerNewHoldingsMutationVariables,
-        TContext
-      > => {
-      return useMutation(getAnswerNewHoldingsMutationOptions(options), queryClient);
     }
 
 export const getSignMineUrl = (kind: 'CONFLICT_OF_INTEREST' | 'AML_PROCEDURES_CERTIFICATION' | 'AUTHORISED_INDIVIDUALS' | 'COMPLIANCE_MANUAL_CERTIFICATION' | 'OUTSIDE_INTERESTS' | 'DFSA_CONDUCT_PRINCIPLES' | 'DATA_CONSENT' | 'FIT_AND_PROPER' | 'PERSONAL_ACCOUNT_DEALING',) => {
@@ -42527,6 +43399,108 @@ export function useClientSessionHistory<TData = Awaited<ReturnType<typeof client
 
 
 
+export const getSearchEverythingUrl = (params: SearchEverythingParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/search?${stringifiedParams}` : `/api/backoffice/search`
+}
+
+export const searchEverything = async (params: SearchEverythingParams, options?: Parameters<typeof http>[1]): Promise<GlobalSearchResult> => {
+
+  return http<GlobalSearchResult>(getSearchEverythingUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchEverythingQueryKey = (params?: SearchEverythingParams,) => {
+    return [
+    `/api/backoffice/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchEverythingQueryOptions = <TData = Awaited<ReturnType<typeof searchEverything>>, TError = unknown>(params: SearchEverythingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchEverythingQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchEverything>>> = ({ signal }) => searchEverything(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SearchEverythingQueryResult = NonNullable<Awaited<ReturnType<typeof searchEverything>>>
+export type SearchEverythingQueryError = unknown
+
+
+export function useSearchEverything<TData = Awaited<ReturnType<typeof searchEverything>>, TError = unknown>(
+ params: SearchEverythingParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchEverything>>,
+          TError,
+          Awaited<ReturnType<typeof searchEverything>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchEverything<TData = Awaited<ReturnType<typeof searchEverything>>, TError = unknown>(
+ params: SearchEverythingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchEverything>>,
+          TError,
+          Awaited<ReturnType<typeof searchEverything>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchEverything<TData = Awaited<ReturnType<typeof searchEverything>>, TError = unknown>(
+ params: SearchEverythingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSearchEverything<TData = Awaited<ReturnType<typeof searchEverything>>, TError = unknown>(
+ params: SearchEverythingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchEverything>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSearchEverythingQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getRejectedRecordsUrl = (params?: RejectedRecordsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -44546,204 +45520,6 @@ export function useGetModelPerformance<TData = Awaited<ReturnType<typeof getMode
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetModelPerformanceQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListOwnedAssetChangesUrl = () => {
-
-
-
-
-  return `/api/backoffice/portfolios/owned-asset-changes`
-}
-
-export const listOwnedAssetChanges = async ( options?: Parameters<typeof http>[1]): Promise<OwnedAssetChangeQueue> => {
-
-  return http<OwnedAssetChangeQueue>(getListOwnedAssetChangesUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListOwnedAssetChangesQueryKey = () => {
-    return [
-    `/api/backoffice/portfolios/owned-asset-changes`
-    ] as const;
-    }
-
-
-export const getListOwnedAssetChangesQueryOptions = <TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListOwnedAssetChangesQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOwnedAssetChanges>>> = ({ signal }) => listOwnedAssetChanges({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListOwnedAssetChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listOwnedAssetChanges>>>
-export type ListOwnedAssetChangesQueryError = unknown
-
-
-export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listOwnedAssetChanges>>,
-          TError,
-          Awaited<ReturnType<typeof listOwnedAssetChanges>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listOwnedAssetChanges>>,
-          TError,
-          Awaited<ReturnType<typeof listOwnedAssetChanges>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListOwnedAssetChanges<TData = Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOwnedAssetChanges>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListOwnedAssetChangesQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getReadOwnedAssetChangeFileUrl = (id: string,
-    fileId: string,) => {
-
-
-
-
-  return `/api/backoffice/portfolios/owned-asset-changes/${id}/files/${fileId}`
-}
-
-export const readOwnedAssetChangeFile = async (id: string,
-    fileId: string, options?: Parameters<typeof http>[1]): Promise<string> => {
-
-  return http<string>(getReadOwnedAssetChangeFileUrl(id,fileId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getReadOwnedAssetChangeFileQueryKey = (id: string,
-    fileId: string,) => {
-    return [
-    `/api/backoffice/portfolios/owned-asset-changes/${id}/files/${fileId}`
-    ] as const;
-    }
-
-
-export const getReadOwnedAssetChangeFileQueryOptions = <TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(id: string,
-    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getReadOwnedAssetChangeFileQueryKey(id,fileId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>> = ({ signal }) => readOwnedAssetChangeFile(id,fileId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ReadOwnedAssetChangeFileQueryResult = NonNullable<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>>
-export type ReadOwnedAssetChangeFileQueryError = unknown
-
-
-export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
- id: string,
-    fileId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>,
-          TError,
-          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
- id: string,
-    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>,
-          TError,
-          Awaited<ReturnType<typeof readOwnedAssetChangeFile>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
- id: string,
-    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useReadOwnedAssetChangeFile<TData = Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError = unknown>(
- id: string,
-    fileId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof readOwnedAssetChangeFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getReadOwnedAssetChangeFileQueryOptions(id,fileId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -48020,101 +48796,6 @@ export function useListDeliveries<TData = Awaited<ReturnType<typeof listDeliveri
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListDeliveriesQueryOptions(params,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListNewHoldingsUrl = () => {
-
-
-
-
-  return `/api/backoffice/new-holdings`
-}
-
-export const listNewHoldings = async ( options?: Parameters<typeof http>[1]): Promise<NewHoldingQueue> => {
-
-  return http<NewHoldingQueue>(getListNewHoldingsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListNewHoldingsQueryKey = () => {
-    return [
-    `/api/backoffice/new-holdings`
-    ] as const;
-    }
-
-
-export const getListNewHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListNewHoldingsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNewHoldings>>> = ({ signal }) => listNewHoldings({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListNewHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof listNewHoldings>>>
-export type ListNewHoldingsQueryError = unknown
-
-
-export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listNewHoldings>>,
-          TError,
-          Awaited<ReturnType<typeof listNewHoldings>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listNewHoldings>>,
-          TError,
-          Awaited<ReturnType<typeof listNewHoldings>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListNewHoldings<TData = Awaited<ReturnType<typeof listNewHoldings>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNewHoldings>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListNewHoldingsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -53907,17 +54588,26 @@ export function useListWorkspaceClients<TData = Awaited<ReturnType<typeof listWo
 
 
 
-export const getGetClientWorkspaceUrl = (customerId: string,) => {
+export const getGetClientWorkspaceUrl = (customerId: string,
+    params?: GetClientWorkspaceParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}`
 }
 
-export const getClientWorkspace = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientWorkspace> => {
+export const getClientWorkspace = async (customerId: string,
+    params?: GetClientWorkspaceParams, options?: Parameters<typeof http>[1]): Promise<ClientWorkspace> => {
 
-  return http<ClientWorkspace>(getGetClientWorkspaceUrl(customerId),
+  return http<ClientWorkspace>(getGetClientWorkspaceUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -53930,23 +54620,25 @@ export const getClientWorkspace = async (customerId: string, options?: Parameter
 
 
 
-export const getGetClientWorkspaceQueryKey = (customerId: string,) => {
+export const getGetClientWorkspaceQueryKey = (customerId: string,
+    params?: GetClientWorkspaceParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}`
+    `/api/backoffice/client-workspace/${customerId}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientWorkspaceQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientWorkspaceQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspace>>> = ({ signal }) => getClientWorkspace(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspace>>> = ({ signal }) => getClientWorkspace(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -53960,7 +54652,8 @@ export type GetClientWorkspaceQueryError = unknown
 
 
 export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientWorkspaceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspace>>,
           TError,
@@ -53970,7 +54663,8 @@ export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClien
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientWorkspaceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspace>>,
           TError,
@@ -53980,16 +54674,18 @@ export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClien
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClientWorkspace>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspace>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientWorkspaceQueryOptions(customerId,options)
+  const queryOptions = getGetClientWorkspaceQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54002,17 +54698,26 @@ export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClien
 
 
 
-export const getGetClientStructureUrl = (customerId: string,) => {
+export const getGetClientStructureUrl = (customerId: string,
+    params?: GetClientStructureParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/structure`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/structure?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/structure`
 }
 
-export const getClientStructure = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientStructure> => {
+export const getClientStructure = async (customerId: string,
+    params?: GetClientStructureParams, options?: Parameters<typeof http>[1]): Promise<ClientStructure> => {
 
-  return http<ClientStructure>(getGetClientStructureUrl(customerId),
+  return http<ClientStructure>(getGetClientStructureUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54025,23 +54730,25 @@ export const getClientStructure = async (customerId: string, options?: Parameter
 
 
 
-export const getGetClientStructureQueryKey = (customerId: string,) => {
+export const getGetClientStructureQueryKey = (customerId: string,
+    params?: GetClientStructureParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/structure`
+    `/api/backoffice/client-workspace/${customerId}/structure`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientStructureQueryOptions = <TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientStructureQueryOptions = <TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(customerId: string,
+    params?: GetClientStructureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientStructureQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientStructureQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientStructure>>> = ({ signal }) => getClientStructure(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientStructure>>> = ({ signal }) => getClientStructure(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54055,7 +54762,8 @@ export type GetClientStructureQueryError = unknown
 
 
 export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientStructureParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientStructure>>,
           TError,
@@ -54065,7 +54773,8 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientStructureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientStructure>>,
           TError,
@@ -54075,16 +54784,18 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientStructureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClientStructure>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientStructureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientStructure>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientStructureQueryOptions(customerId,options)
+  const queryOptions = getGetClientStructureQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54097,17 +54808,26 @@ export function useGetClientStructure<TData = Awaited<ReturnType<typeof getClien
 
 
 
-export const getGetClientRiskUrl = (customerId: string,) => {
+export const getGetClientRiskUrl = (customerId: string,
+    params?: GetClientRiskParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/risk`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/risk?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/risk`
 }
 
-export const getClientRisk = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientRisk> => {
+export const getClientRisk = async (customerId: string,
+    params?: GetClientRiskParams, options?: Parameters<typeof http>[1]): Promise<ClientRisk> => {
 
-  return http<ClientRisk>(getGetClientRiskUrl(customerId),
+  return http<ClientRisk>(getGetClientRiskUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54120,23 +54840,25 @@ export const getClientRisk = async (customerId: string, options?: Parameters<typ
 
 
 
-export const getGetClientRiskQueryKey = (customerId: string,) => {
+export const getGetClientRiskQueryKey = (customerId: string,
+    params?: GetClientRiskParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/risk`
+    `/api/backoffice/client-workspace/${customerId}/risk`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientRiskQueryOptions = <TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientRiskQueryOptions = <TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(customerId: string,
+    params?: GetClientRiskParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientRiskQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientRiskQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientRisk>>> = ({ signal }) => getClientRisk(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientRisk>>> = ({ signal }) => getClientRisk(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54150,7 +54872,8 @@ export type GetClientRiskQueryError = unknown
 
 
 export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientRiskParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientRisk>>,
           TError,
@@ -54160,7 +54883,8 @@ export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientRiskParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientRisk>>,
           TError,
@@ -54170,16 +54894,18 @@ export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientRiskParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientRisk<TData = Awaited<ReturnType<typeof getClientRisk>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientRiskParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientRisk>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientRiskQueryOptions(customerId,options)
+  const queryOptions = getGetClientRiskQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54287,17 +55013,26 @@ export function useReconcileClientHoldings<TData = Awaited<ReturnType<typeof rec
 
 
 
-export const getGetClientWorkspacePrivateMarketsUrl = (customerId: string,) => {
+export const getGetClientWorkspacePrivateMarketsUrl = (customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/private-markets`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/private-markets?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/private-markets`
 }
 
-export const getClientWorkspacePrivateMarkets = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientPrivateMarkets> => {
+export const getClientWorkspacePrivateMarkets = async (customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams, options?: Parameters<typeof http>[1]): Promise<ClientPrivateMarkets> => {
 
-  return http<ClientPrivateMarkets>(getGetClientWorkspacePrivateMarketsUrl(customerId),
+  return http<ClientPrivateMarkets>(getGetClientWorkspacePrivateMarketsUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54310,23 +55045,25 @@ export const getClientWorkspacePrivateMarkets = async (customerId: string, optio
 
 
 
-export const getGetClientWorkspacePrivateMarketsQueryKey = (customerId: string,) => {
+export const getGetClientWorkspacePrivateMarketsQueryKey = (customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/private-markets`
+    `/api/backoffice/client-workspace/${customerId}/private-markets`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientWorkspacePrivateMarketsQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientWorkspacePrivateMarketsQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspacePrivateMarketsQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspacePrivateMarketsQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>> = ({ signal }) => getClientWorkspacePrivateMarkets(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>> = ({ signal }) => getClientWorkspacePrivateMarkets(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54340,7 +55077,8 @@ export type GetClientWorkspacePrivateMarketsQueryError = unknown
 
 
 export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientWorkspacePrivateMarketsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>,
           TError,
@@ -54350,7 +55088,8 @@ export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<t
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>,
           TError,
@@ -54360,16 +55099,18 @@ export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<t
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspacePrivateMarketsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspacePrivateMarkets>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientWorkspacePrivateMarketsQueryOptions(customerId,options)
+  const queryOptions = getGetClientWorkspacePrivateMarketsQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54382,17 +55123,26 @@ export function useGetClientWorkspacePrivateMarkets<TData = Awaited<ReturnType<t
 
 
 
-export const getGetClientPerformanceUrl = (customerId: string,) => {
+export const getGetClientPerformanceUrl = (customerId: string,
+    params?: GetClientPerformanceParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/performance`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/performance?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/performance`
 }
 
-export const getClientPerformance = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientPerformance> => {
+export const getClientPerformance = async (customerId: string,
+    params?: GetClientPerformanceParams, options?: Parameters<typeof http>[1]): Promise<ClientPerformance> => {
 
-  return http<ClientPerformance>(getGetClientPerformanceUrl(customerId),
+  return http<ClientPerformance>(getGetClientPerformanceUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54405,23 +55155,25 @@ export const getClientPerformance = async (customerId: string, options?: Paramet
 
 
 
-export const getGetClientPerformanceQueryKey = (customerId: string,) => {
+export const getGetClientPerformanceQueryKey = (customerId: string,
+    params?: GetClientPerformanceParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/performance`
+    `/api/backoffice/client-workspace/${customerId}/performance`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(customerId: string,
+    params?: GetClientPerformanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientPerformanceQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientPerformanceQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientPerformance>>> = ({ signal }) => getClientPerformance(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientPerformance>>> = ({ signal }) => getClientPerformance(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54435,7 +55187,8 @@ export type GetClientPerformanceQueryError = unknown
 
 
 export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientPerformanceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientPerformance>>,
           TError,
@@ -54445,7 +55198,8 @@ export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getCli
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientPerformanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientPerformance>>,
           TError,
@@ -54455,16 +55209,18 @@ export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getCli
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientPerformanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getClientPerformance>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientPerformanceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientPerformance>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientPerformanceQueryOptions(customerId,options)
+  const queryOptions = getGetClientPerformanceQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54477,17 +55233,26 @@ export function useGetClientPerformance<TData = Awaited<ReturnType<typeof getCli
 
 
 
-export const getGetClientIpsUrl = (customerId: string,) => {
+export const getGetClientIpsUrl = (customerId: string,
+    params?: GetClientIpsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/ips`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/ips?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/ips`
 }
 
-export const getClientIps = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientIps> => {
+export const getClientIps = async (customerId: string,
+    params?: GetClientIpsParams, options?: Parameters<typeof http>[1]): Promise<ClientIps> => {
 
-  return http<ClientIps>(getGetClientIpsUrl(customerId),
+  return http<ClientIps>(getGetClientIpsUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54500,23 +55265,25 @@ export const getClientIps = async (customerId: string, options?: Parameters<type
 
 
 
-export const getGetClientIpsQueryKey = (customerId: string,) => {
+export const getGetClientIpsQueryKey = (customerId: string,
+    params?: GetClientIpsParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/ips`
+    `/api/backoffice/client-workspace/${customerId}/ips`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientIpsQueryOptions = <TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientIpsQueryOptions = <TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(customerId: string,
+    params?: GetClientIpsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientIpsQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientIpsQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientIps>>> = ({ signal }) => getClientIps(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientIps>>> = ({ signal }) => getClientIps(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54530,7 +55297,8 @@ export type GetClientIpsQueryError = unknown
 
 
 export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientIpsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientIps>>,
           TError,
@@ -54540,7 +55308,8 @@ export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientIpsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientIps>>,
           TError,
@@ -54550,16 +55319,18 @@ export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientIpsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientIpsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientIps>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientIpsQueryOptions(customerId,options)
+  const queryOptions = getGetClientIpsQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54572,17 +55343,26 @@ export function useGetClientIps<TData = Awaited<ReturnType<typeof getClientIps>>
 
 
 
-export const getGetClientHoldingsBookUrl = (customerId: string,) => {
+export const getGetClientHoldingsBookUrl = (customerId: string,
+    params?: GetClientHoldingsBookParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/holdings`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/holdings?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/holdings`
 }
 
-export const getClientHoldingsBook = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientHoldingsBook> => {
+export const getClientHoldingsBook = async (customerId: string,
+    params?: GetClientHoldingsBookParams, options?: Parameters<typeof http>[1]): Promise<ClientHoldingsBook> => {
 
-  return http<ClientHoldingsBook>(getGetClientHoldingsBookUrl(customerId),
+  return http<ClientHoldingsBook>(getGetClientHoldingsBookUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54595,23 +55375,25 @@ export const getClientHoldingsBook = async (customerId: string, options?: Parame
 
 
 
-export const getGetClientHoldingsBookQueryKey = (customerId: string,) => {
+export const getGetClientHoldingsBookQueryKey = (customerId: string,
+    params?: GetClientHoldingsBookParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/holdings`
+    `/api/backoffice/client-workspace/${customerId}/holdings`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientHoldingsBookQueryOptions = <TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientHoldingsBookQueryOptions = <TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(customerId: string,
+    params?: GetClientHoldingsBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientHoldingsBookQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientHoldingsBookQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientHoldingsBook>>> = ({ signal }) => getClientHoldingsBook(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientHoldingsBook>>> = ({ signal }) => getClientHoldingsBook(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54625,7 +55407,8 @@ export type GetClientHoldingsBookQueryError = unknown
 
 
 export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientHoldingsBookParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientHoldingsBook>>,
           TError,
@@ -54635,7 +55418,8 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientHoldingsBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientHoldingsBook>>,
           TError,
@@ -54645,16 +55429,18 @@ export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getCl
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientHoldingsBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientHoldingsBook<TData = Awaited<ReturnType<typeof getClientHoldingsBook>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientHoldingsBookParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientHoldingsBook>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientHoldingsBookQueryOptions(customerId,options)
+  const queryOptions = getGetClientHoldingsBookQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -54887,17 +55673,26 @@ export function useExportHoldingHistory<TData = Awaited<ReturnType<typeof export
 
 
 
-export const getGetClientWorkspaceFixedIncomeUrl = (customerId: string,) => {
+export const getGetClientWorkspaceFixedIncomeUrl = (customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/fixed-income`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/fixed-income?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/fixed-income`
 }
 
-export const getClientWorkspaceFixedIncome = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientFixedIncome> => {
+export const getClientWorkspaceFixedIncome = async (customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams, options?: Parameters<typeof http>[1]): Promise<ClientFixedIncome> => {
 
-  return http<ClientFixedIncome>(getGetClientWorkspaceFixedIncomeUrl(customerId),
+  return http<ClientFixedIncome>(getGetClientWorkspaceFixedIncomeUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -54910,23 +55705,25 @@ export const getClientWorkspaceFixedIncome = async (customerId: string, options?
 
 
 
-export const getGetClientWorkspaceFixedIncomeQueryKey = (customerId: string,) => {
+export const getGetClientWorkspaceFixedIncomeQueryKey = (customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/fixed-income`
+    `/api/backoffice/client-workspace/${customerId}/fixed-income`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientWorkspaceFixedIncomeQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientWorkspaceFixedIncomeQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceFixedIncomeQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceFixedIncomeQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>> = ({ signal }) => getClientWorkspaceFixedIncome(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>> = ({ signal }) => getClientWorkspaceFixedIncome(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -54940,7 +55737,8 @@ export type GetClientWorkspaceFixedIncomeQueryError = unknown
 
 
 export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientWorkspaceFixedIncomeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>,
           TError,
@@ -54950,7 +55748,8 @@ export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<type
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>,
           TError,
@@ -54960,16 +55759,18 @@ export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<type
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientWorkspaceFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientWorkspaceFixedIncomeQueryOptions(customerId,options)
+  const queryOptions = getGetClientWorkspaceFixedIncomeQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -55092,17 +55893,26 @@ export function useGetClientEquity<TData = Awaited<ReturnType<typeof getClientEq
 
 
 
-export const getGetClientWorkspaceCollectiblesUrl = (customerId: string,) => {
+export const getGetClientWorkspaceCollectiblesUrl = (customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/backoffice/client-workspace/${customerId}/collectibles`
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/collectibles?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/collectibles`
 }
 
-export const getClientWorkspaceCollectibles = async (customerId: string, options?: Parameters<typeof http>[1]): Promise<ClientCollectibles> => {
+export const getClientWorkspaceCollectibles = async (customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams, options?: Parameters<typeof http>[1]): Promise<ClientCollectibles> => {
 
-  return http<ClientCollectibles>(getGetClientWorkspaceCollectiblesUrl(customerId),
+  return http<ClientCollectibles>(getGetClientWorkspaceCollectiblesUrl(customerId,params),
   {
     ...options,
     method: 'GET'
@@ -55115,23 +55925,25 @@ export const getClientWorkspaceCollectibles = async (customerId: string, options
 
 
 
-export const getGetClientWorkspaceCollectiblesQueryKey = (customerId: string,) => {
+export const getGetClientWorkspaceCollectiblesQueryKey = (customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams,) => {
     return [
-    `/api/backoffice/client-workspace/${customerId}/collectibles`
+    `/api/backoffice/client-workspace/${customerId}/collectibles`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetClientWorkspaceCollectiblesQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+export const getGetClientWorkspaceCollectiblesQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceCollectiblesQueryKey(customerId);
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceCollectiblesQueryKey(customerId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>> = ({ signal }) => getClientWorkspaceCollectibles(customerId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>> = ({ signal }) => getClientWorkspaceCollectibles(customerId,params, { signal, ...requestOptions });
 
 
 
@@ -55145,7 +55957,8 @@ export type GetClientWorkspaceCollectiblesQueryError = unknown
 
 
 export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
- customerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
+ customerId: string,
+    params: undefined |  GetClientWorkspaceCollectiblesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>,
           TError,
@@ -55155,7 +55968,8 @@ export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typ
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
+ customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>,
           TError,
@@ -55165,16 +55979,18 @@ export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typ
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetClientWorkspaceCollectibles<TData = Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError = unknown>(
- customerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ customerId: string,
+    params?: GetClientWorkspaceCollectiblesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceCollectibles>>, TError, TData>>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetClientWorkspaceCollectiblesQueryOptions(customerId,options)
+  const queryOptions = getGetClientWorkspaceCollectiblesQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -55460,6 +56276,101 @@ export function useGetRecentClientWorkspaces<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetRecentClientWorkspacesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListShownCurrenciesUrl = () => {
+
+
+
+
+  return `/api/backoffice/client-workspace/currencies`
+}
+
+export const listShownCurrencies = async ( options?: Parameters<typeof http>[1]): Promise<string[]> => {
+
+  return http<string[]>(getListShownCurrenciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListShownCurrenciesQueryKey = () => {
+    return [
+    `/api/backoffice/client-workspace/currencies`
+    ] as const;
+    }
+
+
+export const getListShownCurrenciesQueryOptions = <TData = Awaited<ReturnType<typeof listShownCurrencies>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListShownCurrenciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listShownCurrencies>>> = ({ signal }) => listShownCurrencies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListShownCurrenciesQueryResult = NonNullable<Awaited<ReturnType<typeof listShownCurrencies>>>
+export type ListShownCurrenciesQueryError = unknown
+
+
+export function useListShownCurrencies<TData = Awaited<ReturnType<typeof listShownCurrencies>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listShownCurrencies>>,
+          TError,
+          Awaited<ReturnType<typeof listShownCurrencies>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListShownCurrencies<TData = Awaited<ReturnType<typeof listShownCurrencies>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listShownCurrencies>>,
+          TError,
+          Awaited<ReturnType<typeof listShownCurrencies>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListShownCurrencies<TData = Awaited<ReturnType<typeof listShownCurrencies>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListShownCurrencies<TData = Awaited<ReturnType<typeof listShownCurrencies>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShownCurrencies>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListShownCurrenciesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

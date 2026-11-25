@@ -23,6 +23,7 @@ import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/
 import type { Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Performance & Attribution, laid out the way the firm's own design draws it. Every figure is worked out on
@@ -32,8 +33,8 @@ import type { FigureDetail } from "./figure-panel";
  */
 export function ClientPerformancePage() {
   const { customerId = "" } = useParams();
-  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId);
-  const data = performance.data;
+  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(performance.data);
   const view = useViewLayout("workspace.performance", CARDS, DEFAULT_CARDS);
 
   if (performance.isError) return <Alert tone="danger">{performance.error.message}</Alert>;

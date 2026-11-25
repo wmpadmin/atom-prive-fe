@@ -197,6 +197,12 @@ export const RAISES_CLIENT_REQUESTS: Authority[] = ["APPROVE_PORTFOLIO_CHANGES:O
  */
 export const ANSWERS_CLIENT_REQUESTS: Authority[] = ["APPROVE_CLIENT_REQUESTS:CHANGE"];
 
+/**
+ * Whoever adds and changes what a client owns outside the portfolio (25 Nov 2026, the user's rule): the client's
+ * relationship manager alone, saved at once. The portfolio manager reads it; the client does not add to it.
+ */
+export const KEEPS_OWNED_ASSETS: Authority[] = ["APPROVE_PORTFOLIO_CHANGES:OWN_CLIENTS"];
+
 /** Everybody the client-request queue is for: the desk that writes them and the desk that answers them. */
 export const READS_CLIENT_REQUESTS: Authority[] = [...ANSWERS_CLIENT_REQUESTS, ...RAISES_CLIENT_REQUESTS];
 

@@ -22,6 +22,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Entity & Ownership Structure, laid out the way the firm's own design draws it: the entities their wealth
@@ -34,8 +35,8 @@ import type { FigureDetail } from "./figure-panel";
  */
 export function ClientStructurePage() {
   const { customerId = "" } = useParams();
-  const structure = useGetClientStructure<ClientStructure, ApiError>(customerId);
-  const data = structure.data;
+  const structure = useGetClientStructure<ClientStructure, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(structure.data);
   const view = useViewLayout("workspace.structure", CARDS, DEFAULT_CARDS);
 
   if (structure.isError) return <Alert tone="danger">{structure.error.message}</Alert>;

@@ -1,9 +1,10 @@
 import type { ProspectQueue, ProspectReviewRow } from "@atomprive/api-client/backoffice";
-import { Avatar, Badge, SelectInput, TextInput, cn } from "@atomprive/ui";
+import { Avatar, Badge, Button, SelectInput, TextInput, cn } from "@atomprive/ui";
 import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router";
+import { useStaffUser } from "../../auth/session";
 import { ColumnPicker } from "../../components/column-picker";
 import { ViewTabs } from "../../components/view-tabs";
 import { useColumnDrag } from "../../lib/column-drag";
@@ -13,6 +14,7 @@ import { defaultPageSize } from "../../lib/page-sizes";
 import { PagedFooter } from "../../lib/paged-rows";
 import { useTableView } from "../../lib/table-view";
 import { reviewStateLabels, reviewStateTones } from "./kyc-labels";
+import { ProspectDecisionPanel } from "./prospect-decision-panel";
 
 const STANDINGS = [
   { id: "", label: "Every prospect" },
@@ -163,9 +165,16 @@ function who(row: ProspectReviewRow) {
  * counts, search and a filter, the prospects Compliance approved (waiting on the agreement), those with a paper turned
  * down, then the prospects in review with the same columns, views and column picker. A row opens the prospect's
  * Documents tab, where each paper is decided.
+ *
+ * Above them (24 Nov 2026), the prospects ready for Compliance's final decision: Review and decide opens a side panel
+ * with their papers, the wealth sheet and Approve everything, since Compliance do not see the prospect's own tabs.
  */
 export function ProspectsReviewTab({ data, failed }: { data?: ProspectQueue; failed?: string }) {
   const navigate = useNavigate();
+  const user = useStaffUser();
+  // Compliance do not see a prospect's Agreement tab (24 Nov 2026), so for them the approved box only says what is next.
+  const compliance = user.activeRole === "COMPLIANCE";
+  const [deciding, setDeciding] = useState<ProspectReviewRow | null>(null);
   const [typed, setTyped] = useState("");
   const [standing, setStanding] = useState("");
   const [page, setPage] = useState(0);
@@ -183,9 +192,11 @@ export function ProspectsReviewTab({ data, failed }: { data?: ProspectQueue; fai
       : standing === "REJECTED" ? row.papers.some((paper) => paper.reviewState === "REJECTED")
       : row.caseState === "APPROVED")));
   const approved = matches.filter((row) => row.caseState === "APPROVED");
+  // Every paper approved and the wealth sent (24 Nov 2026): the server says so, by the rule Approve everything checks.
+  const ready = matches.filter((row) => row.readyToDecide);
   const turnedDown = matches.filter((row) => row.caseState !== "APPROVED"
     && row.papers.some((paper) => paper.reviewState === "REJECTED"));
-  const inReview = matches.filter((row) => row.caseState !== "APPROVED");
+  const inReview = matches.filter((row) => row.caseState !== "APPROVED" && !row.readyToDecide);
   const rows = inReview.slice(page * size, page * size + size);
 
   return (
@@ -212,6 +223,34 @@ export function ProspectsReviewTab({ data, failed }: { data?: ProspectQueue; fai
         </SelectInput>
       </div>
 
+      {ready.length > 0 && (
+        <section className="rounded-2xl border-2 border-primary-300 bg-white" aria-labelledby="ready-to-decide">
+          <div className="px-5 pt-5">
+            <h2 id="ready-to-decide" className="text-base font-bold">Ready for your decision</h2>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              Every paper approved. Check the wealth sheet, then approve everything, ask for documents or reject.
+            </p>
+          </div>
+          <ul className="mt-3 divide-y divide-line">
+            {ready.map((row) => (
+              <li key={row.prospectId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={row.fullName} />
+                  <div className="min-w-0">
+                    <span className="block font-semibold">{row.fullName}</span>
+                    <span className="block text-xs text-ink-muted">
+                      {row.reference} · {row.papersIn} of {row.papersRequired} papers approved
+                      {row.wealthWaiting ? " · wealth sheet waiting" : ""}
+                    </span>
+                  </div>
+                </div>
+                <Button size="sm" onClick={() => setDeciding(row)}>Review and decide</Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {approved.length > 0 && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50/60">
           <div className="px-5 pt-5">
@@ -232,9 +271,13 @@ export function ProspectsReviewTab({ data, failed }: { data?: ProspectQueue; fai
                     <span className="block text-xs text-ink-muted">{row.reference} · {who(row)}</span>
                   </div>
                 </div>
-                <Link to={`/prospective-clients/${row.prospectId}?tab=agreement`} className="text-sm font-semibold text-primary-700 hover:underline">
-                  Open the agreement
-                </Link>
+                {compliance ? (
+                  <span className="text-sm text-ink-soft">Waiting on the Admin's signature</span>
+                ) : (
+                  <Link to={`/prospective-clients/${row.prospectId}?tab=agreement`} className="text-sm font-semibold text-primary-700 hover:underline">
+                    Open the agreement
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
@@ -365,6 +408,8 @@ export function ProspectsReviewTab({ data, failed }: { data?: ProspectQueue; fai
             paged={{ page, size, total: inReview.length, onPage: setPage, onSize: (next) => { setSize(next); setPage(0); } }} />
         )}
       </section>
+
+      {deciding && <ProspectDecisionPanel row={deciding} onClose={() => setDeciding(null)} />}
     </div>
   );
 }

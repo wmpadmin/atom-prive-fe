@@ -4,7 +4,9 @@ import { cn } from "@atomprive/ui";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { formatDate } from "../lib/labels";
+import { ColumnPicker } from "./column-picker";
 import { FileViewToggle, type FileView } from "./converted-usd";
+import { useInShownCurrency, useShownCurrency } from "./shown-currency";
 
 const NOT_STATED = "Not stated in the file";
 
@@ -12,6 +14,19 @@ const NOT_STATED = "Not stated in the file";
 const NOT_AN_IDENTIFIER = /^(\d+|[A-Za-z][A-Za-z\s/&.-]*)$/;
 
 type Group = { key: string; name: string; level: number; lines: ClientBankLine[]; children: Group[] };
+
+/** The columns a reader can take off (25 Nov 2026); the name stays, as it says what each row is. */
+type Column = "bank" | "isin" | "ccy" | "holding" | "price" | "value" | "share";
+const COLUMNS: { id: Column; label: string }[] = [
+  { id: "bank", label: "Bank" },
+  { id: "isin", label: "ISIN" },
+  { id: "ccy", label: "CCY" },
+  { id: "holding", label: "Holding" },
+  { id: "price", label: "Last price" },
+  { id: "value", label: "Market value" },
+  { id: "share", label: "%" },
+];
+const EVERY_COLUMN: ReadonlySet<string> = new Set(COLUMNS.map((one) => one.id));
 
 function money(value: number) {
   return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -39,7 +54,11 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
   const [chosen, setChosen] = useState<Set<string> | null>(null);
   const [view, setView] = useState<FileView>("converted");
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const data = query.data;
+  const [shown, setShown] = useState<ReadonlySet<string>>(EVERY_COLUMN);
+  const on = (column: Column) => shown.has(column);
+  // Its dollar figures in the currency picked at the top of the client's screens (25 Nov 2026).
+  const data = useInShownCurrency(query.data);
+  const { code } = useShownCurrency();
 
   const banks = useMemo(() => data?.banks ?? [], [data]);
   const picked = useMemo(() => chosen ?? new Set(banks.map((one) => one.key)), [chosen, banks]);
@@ -107,7 +126,7 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
     return (
       <>
         {money(line.marketValueUsd)}
-        {line.asSentCurrency && line.asSentCurrency !== "USD" && line.asSent != null && (
+        {line.asSentCurrency && line.asSentCurrency !== code && line.asSent != null && (
           <span className="block text-2xs text-ink-muted">{line.asSentCurrency} {money(line.asSent)}</span>
         )}
       </>
@@ -141,13 +160,13 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
               {group.name}
             </button>
           </th>
-          <td className="px-3 py-2.5 font-normal whitespace-nowrap">{shared(group.lines, (one) => one.bank)}</td>
-          <td className="px-3 py-2.5 font-normal">{shared(group.lines, () => "")}</td>
-          <td className="px-3 py-2.5 font-normal">{shared(group.lines, (one) => one.currency)}</td>
-          <td className="px-3 py-2.5" />
-          <td className="px-3 py-2.5" />
-          <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{groupValue(group.lines)}</td>
-          <td className="py-2.5 pr-5 pl-3 text-right tabular-nums">{share(group.lines)}</td>
+          {on("bank") && <td className="px-3 py-2.5 font-normal whitespace-nowrap">{shared(group.lines, (one) => one.bank)}</td>}
+          {on("isin") && <td className="px-3 py-2.5 font-normal">{shared(group.lines, () => "")}</td>}
+          {on("ccy") && <td className="px-3 py-2.5 font-normal">{shared(group.lines, (one) => one.currency)}</td>}
+          {on("holding") && <td className="px-3 py-2.5" />}
+          {on("price") && <td className="px-3 py-2.5" />}
+          {on("value") && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{groupValue(group.lines)}</td>}
+          {on("share") && <td className="py-2.5 pr-5 pl-3 text-right tabular-nums">{share(group.lines)}</td>}
         </tr>
       );
       if (!isOpen) return [row];
@@ -157,13 +176,13 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
           <th scope="row" className="py-2 pr-3 text-left font-normal" style={{ paddingLeft: `${1.25 + (group.level + 1) * 1.5 + 1.375}rem` }}>
             {line.name}
           </th>
-          <td className="px-3 py-2 whitespace-nowrap">{line.bank}</td>
-          <td className="px-3 py-2">{isin(line.isin)}</td>
-          <td className="px-3 py-2">{line.currency ?? ""}</td>
-          <td className="px-3 py-2 text-right tabular-nums">{plain(line.holding)}</td>
-          <td className="px-3 py-2 text-right tabular-nums">{plain(line.lastPrice)}</td>
-          <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{value(line)}</td>
-          <td className="py-2 pr-5 pl-3 text-right tabular-nums">{line.marketValueUsd == null || total === 0 ? "" : `${((line.marketValueUsd / total) * 100).toFixed(2)}%`}</td>
+          {on("bank") && <td className="px-3 py-2 whitespace-nowrap">{line.bank}</td>}
+          {on("isin") && <td className="px-3 py-2">{isin(line.isin)}</td>}
+          {on("ccy") && <td className="px-3 py-2">{line.currency ?? ""}</td>}
+          {on("holding") && <td className="px-3 py-2 text-right tabular-nums">{plain(line.holding)}</td>}
+          {on("price") && <td className="px-3 py-2 text-right tabular-nums">{plain(line.lastPrice)}</td>}
+          {on("value") && <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{value(line)}</td>}
+          {on("share") && <td className="py-2 pr-5 pl-3 text-right tabular-nums">{line.marketValueUsd == null || total === 0 ? "" : `${((line.marketValueUsd / total) * 100).toFixed(2)}%`}</td>}
         </tr>
       ))];
     });
@@ -181,7 +200,10 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
             {data.ratesOn ? ` · fed banks converted at the FX rates of ${formatDate(data.ratesOn)}` : ""}
           </p>
         </div>
-        <FileViewToggle value={view} onChange={setView} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ColumnPicker columns={COLUMNS} shown={shown} onChange={setShown} onReset={shown.size < EVERY_COLUMN.size ? () => setShown(EVERY_COLUMN) : undefined} />
+          <FileViewToggle value={view} onChange={setView} />
+        </div>
       </div>
 
       <div className="rounded-xl border border-line p-3">
@@ -206,7 +228,7 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
                   <span className="truncate">{bank.name}</span>
                 </span>
                 <span className="mt-0.5 block text-xs text-ink-muted">
-                  USD {short(bank.totalUsd)} · {bank.source === "FEED" ? "bank feed" : "Excel"}
+                  {code} {short(bank.totalUsd)} · {bank.source === "FEED" ? "bank feed" : "Excel"}
                   {bank.asOf ? ` · ${formatDate(bank.asOf)}` : ""}
                 </span>
               </button>
@@ -215,13 +237,13 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
         </div>
         <p className="mt-2 text-xs text-ink-muted">
           Showing <span className="font-semibold text-ink">{chosenNames.length} of {banks.length} banks</span>
-          {chosenNames.length > 0 && <> · USD {money(total)}</>}
+          {chosenNames.length > 0 && <> · {code} {money(total)}</>}
         </p>
       </div>
 
       {missing.map((bank) => (
         <p key={bank.key} className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {bank.name}: {bank.noRate.join(", ")} {bank.noRate.length === 1 ? "has" : "have"} no FX rate, so those lines are in no USD total.
+          {bank.name}: {bank.noRate.join(", ")} {bank.noRate.length === 1 ? "has" : "have"} no FX rate, so those lines are in no {code} total.
         </p>
       ))}
 
@@ -233,21 +255,22 @@ export function ClientBankHoldings({ customerId }: { customerId: string }) {
             <thead>
               <tr className="border-y border-line bg-canvas text-left text-2xs font-semibold tracking-wider whitespace-nowrap text-ink-muted uppercase">
                 <th scope="col" className="min-w-72 py-3 pr-3 pl-5">Name</th>
-                <th scope="col" className="px-3 py-3">Bank</th>
-                <th scope="col" className="px-3 py-3">ISIN</th>
-                <th scope="col" className="px-3 py-3">CCY</th>
-                <th scope="col" className="px-3 py-3 text-right">Holding</th>
-                <th scope="col" className="px-3 py-3 text-right">Last price</th>
-                <th scope="col" className="px-3 py-3 text-right">{view === "converted" ? "Market value USD" : "Value as sent"}</th>
-                <th scope="col" className="py-3 pr-5 pl-3 text-right">%</th>
+                {on("bank") && <th scope="col" className="px-3 py-3">Bank</th>}
+                {on("isin") && <th scope="col" className="px-3 py-3">ISIN</th>}
+                {on("ccy") && <th scope="col" className="px-3 py-3">CCY</th>}
+                {on("holding") && <th scope="col" className="px-3 py-3 text-right">Holding</th>}
+                {on("price") && <th scope="col" className="px-3 py-3 text-right">Last price</th>}
+                {on("value") && <th scope="col" className="px-3 py-3 text-right">{view === "converted" ? `Market value ${code}` : "Value as sent"}</th>}
+                {on("share") && <th scope="col" className="py-3 pr-5 pl-3 text-right">%</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">{rows(tree)}</tbody>
             <tfoot>
               <tr className="border-t-2 border-line font-bold">
-                <th scope="row" className="py-3 pr-3 pl-5 text-left" colSpan={6}>Total · {chosenNames.join(" + ")}</th>
-                <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{groupValue(lines)}</td>
-                <td className="py-3 pr-5 pl-3 text-right tabular-nums">100.00%</td>
+                <th scope="row" className="py-3 pr-3 pl-5 text-left"
+                  colSpan={1 + (["bank", "isin", "ccy", "holding", "price"] as Column[]).filter(on).length}>Total · {chosenNames.join(" + ")}</th>
+                {on("value") && <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{groupValue(lines)}</td>}
+                {on("share") && <td className="py-3 pr-5 pl-3 text-right tabular-nums">100.00%</td>}
               </tr>
             </tfoot>
           </table>

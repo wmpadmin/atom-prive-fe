@@ -70,7 +70,9 @@ export function ProspectAgreement({ prospectId, entity = false }: { prospectId: 
         {view.mayAdminSign && <AdminSign prospectId={prospectId} />}
         {client && (
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800">
-            Signed by both: they are a client now. <Link to="/clients" className="font-semibold underline">Open All clients</Link>
+            {/* Only the Admin signs for now (24 Nov 2026): "both" is said only once the client has signed too. */}
+            {view.clientSignedAt ? "Signed by both" : "Signed by the Admin"}: they are a client now.{" "}
+            <Link to="/clients" className="font-semibold underline">Open All clients</Link>
           </p>
         )}
       </aside>
