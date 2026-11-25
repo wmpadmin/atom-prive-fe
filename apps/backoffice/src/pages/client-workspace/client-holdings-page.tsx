@@ -15,7 +15,6 @@ import { ChevronDown, ChevronRight, Columns3, PanelRightOpen } from "lucide-reac
 import { Fragment, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { TableColumns } from "../../components/table-columns";
 import { Link, useParams } from "react-router";
-import { HoldingsTree } from "../../components/holdings-tree";
 import { FileViewToggle, MissingRates, type FileView } from "../../components/converted-usd";
 import { formatDate } from "../../lib/labels";
 import { HoldingsCheckBody } from "../bank-syncs/holdings-check-client-page";
@@ -29,6 +28,7 @@ import type { Figures } from "../layout/own-cards";
 import { useDrill, type DrillBy } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
 import { ClientBankHoldings } from "../../components/client-bank-holdings";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Consolidated Holdings, laid out the way the firm's own design draws it: what the lines are worth, cost and
@@ -41,9 +41,9 @@ import { ClientBankHoldings } from "../../components/client-bank-holdings";
  */
 export function ClientHoldingsPage() {
   const { customerId = "" } = useParams();
-  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId);
+  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, useCurrencyParam());
   const check = useReconcileClientHoldings<ClientHoldingsCheck, ApiError>(customerId, { query: { retry: false } });
-  const data = book.data;
+  const data = useInShownCurrency(book.data);
   const view = useViewLayout("workspace.holdings", CARDS, DEFAULT_CARDS);
   // The line picked on the Positions tab, whose tax lots their own card shows; and the tab open on the lines card.
   const [tab, setTab] = useState<Tab>("positions");
@@ -82,8 +82,9 @@ export function ClientHoldingsPage() {
         custodian: <CustodianCard data={inUsd} chart={cardChart(view, "custodian")} />,
         currency: <CurrencyCard data={inUsd} chart={cardChart(view, "currency")} />,
         pnl: <PnlCard data={inUsd} chart={cardChart(view, "pnl")} />,
-        tree: <TreeCard data={data} customerId={customerId} />,
-        lines: <Tabs data={data} reconciliation={reconciliation} tab={tab} onTab={setTab} picked={picked} onPick={(one) => setPickedId(one.id)} />,
+        // Only a line somebody clicked is marked on the table; the Tax Lots card opens on the first until then.
+        lines: <Tabs data={data} reconciliation={reconciliation} tab={tab} onTab={setTab}
+          picked={data.positions.find((one) => one.id === pickedId) ?? null} onPick={(one) => setPickedId(one.id)} />,
         lots: <LotsCard data={data} picked={tab === "positions" ? picked : null} />,
         recent: <RecentCard data={data} onFullLedger={fullLedger} />,
       }} />
@@ -98,7 +99,8 @@ export function ClientHoldingsPage() {
   );
 }
 
-type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "tree" | "lines" | "lots" | "recent";
+// Holdings by class was taken off (25 Nov 2026): Holdings by bank, under the cards, shows the lines by class.
+type HoldingsCard = "kpis" | "custodian" | "currency" | "pnl" | "lines" | "lots" | "recent";
 
 /** The screen's cards, in the firm's order: every card on by default. */
 const CARDS: Record<HoldingsCard, LayoutMeta> = {
@@ -106,7 +108,6 @@ const CARDS: Record<HoldingsCard, LayoutMeta> = {
   custodian: { title: "By Custodian", group: "Breakdowns", charts: ["horizontal-bar", "donut", "mindmap", "table"] },
   currency: { title: "By Currency", group: "Breakdowns", charts: ["stacked-bar", "donut", "horizontal-bar", "mindmap", "table"] },
   pnl: { title: "Unrealised P&L by Asset Class", group: "Breakdowns", charts: ["horizontal-bar", "bar", "waterfall", "table"] },
-  tree: { title: "Holdings by class", group: "Lines", wide: true },
   lines: { title: "Positions, lots, transactions & reconciliation", group: "Lines", wide: true },
   lots: { title: "Tax Lots of the selected line", group: "Lines", wide: true },
   recent: { title: "Recent Transactions", group: "Lines", wide: true },
@@ -258,45 +259,6 @@ function gainOf(one: HoldingsPosition, conv: HoldingsConverted) {
 /** A line the screen cannot convert: FX rates holds no rate for its currency. */
 function NoRate() {
   return <span className="inline-block rounded-sm border border-dashed border-amber-300 px-1 text-3xs font-medium whitespace-nowrap text-amber-700">no FX rate</span>;
-}
-
-/** Holdings by class, as a tree; a bank-file client's either in dollars or as the bank's files state them. */
-function TreeCard({ data, customerId }: { data: ClientHoldingsBook; customerId: string }) {
-  const [fileView, setFileView] = useState<FileView>("converted");
-  const converted = !!data.converted && fileView === "converted";
-  const usd = data.converted?.file.currency ?? "USD";
-  const drill = useDrill();
-  return (
-    <Card title="Holdings by class" lead="Click a row to open it · double-click a holding for its history"
-      action={data.bankFile && <FileViewToggle value={fileView} onChange={setFileView} />}>
-      <HoldingsTree note={!data.bankFile ? undefined : converted ? `Each line in ${usd} at the latest FX rates; a line with no rate is left out`
-        : "Each line as the bank's files state it, in its own currency"}
-        onGroup={!data.bankFile && drill ? (levels, first) => {
-          const name = levels[levels.length - 1] ?? "";
-          if (levels.length === 1) drill({ by: "class", key: data.positions.find((one) => one.id === first.key)?.assetClass ?? "", name });
-          else drill({ by: "subClass", key: name, name });
-        } : undefined}
-        lines={data.positions.flatMap((one) => {
-          const inUsd = converted ? usdOf(one.value, one.currency, data.converted) : null;
-          if (converted && inUsd == null) return [];
-          return [{
-            key: one.id, customerId, name: one.name, isin: one.identifier, positionId: data.bankFile ? null : one.id,
-            levels: [one.assetClassName || one.assetClass, one.subClass].filter((level): level is string => Boolean(level)),
-            units: one.quantity,
-            amounts: [converted ? { currency: usd, value: inUsd! } : { currency: one.currency ?? data.currency, value: one.value }],
-            // A holding opens its breakdown from its own button, so the row's double-click still opens its history.
-            trailing: !data.bankFile && drill ? (
-              <button type="button" title="Open its breakdown"
-                onClick={(event) => { event.stopPropagation(); drill({ by: "position", key: one.id, name: one.name }); }}
-                onDoubleClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}
-                className="inline-flex items-center gap-1 text-2xs font-semibold text-primary-700 hover:underline">
-                <PanelRightOpen className="size-3" aria-hidden="true" /> Breakdown
-              </button>
-            ) : undefined,
-          }];
-        })} />
-    </Card>
-  );
 }
 
 function CustodianCard({ data, chart }: { data: ClientHoldingsBook; chart: CardChart }) {
@@ -698,7 +660,7 @@ function Positions({ data, onPick, picked }: { data: ClientHoldingsBook; onPick:
                       <td className="py-2 pr-3 pl-8 font-medium">
                         {file ? one.name : (
                           <button type="button" className="text-left hover:text-primary-700 hover:underline" title="Open its breakdown"
-                            onClick={(event) => { event.stopPropagation(); drill?.({ by: "position", key: one.id, name: one.name }); }}>
+                            onClick={(event) => { event.stopPropagation(); onPick(one); drill?.({ by: "position", key: one.id, name: one.name }); }}>
                             {one.name}
                           </button>
                         )}

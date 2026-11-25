@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useStaffUser } from "../auth/session";
 import { formatDate } from "../lib/labels";
 import { hasAnyAuthority } from "../lib/permissions";
+import { useShownCurrency } from "./shown-currency";
 
 /** Who may type in a missing rate: Admin, and the portfolio desk. A relationship manager may not. */
 const ADDS_MISSING_RATES = ["MANAGE_CONFIGURATION:CHANGE", "APPROVE_PORTFOLIO_CHANGES:CHANGE"] as const;
@@ -21,8 +22,8 @@ export function ConvertedNote({ converted }: { converted: WorkspaceConverted }) 
       <p className="text-3xs text-ink-muted italic">
         The bank's figures converted to {converted.currency}
         {converted.ratesOn ? ` at the FX rates of ${formatDate(converted.ratesOn)}` : ""}, from FX rates
-        {converted.currencies.length > 0 && ` · ${converted.currencies.filter((one) => one.currency !== "USD")
-          .map((one) => `${one.currency} ${one.perUsd.toLocaleString("en-US", { maximumFractionDigits: 4 })}`).join(" · ")} per USD`}.
+        {converted.currencies.length > 0 && ` · ${converted.currencies.filter((one) => one.currency !== converted.currency)
+          .map((one) => `${one.currency} ${one.perUsd.toLocaleString("en-US", { maximumFractionDigits: 4 })}`).join(" · ")} per ${converted.currency}`}.
       </p>
       <MissingRates converted={converted} />
     </div>
@@ -94,11 +95,15 @@ function AddRateDialog({ code, onClose }: { code: string; onClose: () => void })
 /** How a bank-file client's table is read: the bank's own figures as sent, or converted to dollars. */
 export type FileView = "converted" | "bank";
 
-/** The two readings of a bank-file client's table, converted first. */
+/**
+ * The two readings of a bank-file client's table, converted first: converted into the currency picked at the top of
+ * the client's screens (25 Nov 2026), US dollars until another is.
+ */
 export function FileViewToggle({ value, onChange }: { value: FileView; onChange: (value: FileView) => void }) {
+  const { code } = useShownCurrency();
   return (
     <div role="group" aria-label="How the figures are shown" className="flex rounded-lg border border-line p-0.5 text-xs">
-      {([["converted", "Converted · USD"], ["bank", "Bank view"]] as const).map(([id, label]) => (
+      {([["converted", `Converted · ${code}`], ["bank", "Bank view"]] as const).map(([id, label]) => (
         <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)}
           className={value === id ? "rounded-md bg-primary-50 px-2.5 py-1 font-semibold text-primary-700" : "rounded-md px-2.5 py-1 font-medium text-ink-soft hover:text-ink"}>
           {label}

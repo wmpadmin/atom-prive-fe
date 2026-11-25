@@ -325,7 +325,7 @@ function MetDialog({ detail, onClose }: { detail: ProspectDetail; onClose: () =>
       return;
     }
     try {
-      const next = await markProspectMet(row.id, { happenedOn: on, mode, place: place.trim() || null, attendees: attendees.trim() || null, discussion, submit: true });
+      const next = await markProspectMet(row.id, { happenedOn: on, mode, place: place.trim() || null, attendees: attendees.trim() || null, discussion });
       queryClient.setQueryData(getGetProspectQueryKey(row.id), next);
       void queryClient.invalidateQueries();
       onClose();

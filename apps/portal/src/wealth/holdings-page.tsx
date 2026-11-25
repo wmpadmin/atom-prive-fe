@@ -1,10 +1,9 @@
 import { ApiError, httpFile } from "@atomprive/api-client";
 import { getExportHoldingsUrl, useHoldings, type HoldingRow, type PortalHoldings } from "@atomprive/api-client/portal";
 import { Button, Pagination, SelectInput } from "@atomprive/ui";
-import { Building2, ChevronDown, Download, HandCoins, LineChart, Plus, Search, X, type LucideIcon } from "lucide-react";
+import { Building2, ChevronDown, Download, HandCoins, LineChart, Search, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
-import { AddAssetDialog, MyAssetRequests } from "./add-asset";
 import { PanelEdge } from "./panel-edge";
 import { RestatedNote } from "./restated-note";
 import { shownHoldings, type Shown } from "./shown";
@@ -245,7 +244,6 @@ export function HoldingsPage() {
   const [open, setOpen] = useState<HoldingRow | null>(null);
   const [exporting, setExporting] = useState(false);
   const [problem, setProblem] = useState<string>();
-  const [adding, setAdding] = useState(false);
 
   const change = (key: string, value: string) => {
     setPage(0);
@@ -298,13 +296,8 @@ export function HoldingsPage() {
           <p className="mt-1 text-sm text-ink-muted">View your investments and asset holdings.</p>
           <RestatedNote heldIn={holdings.data?.heldIn} shownIn={holdings.data?.currency} />
         </div>
-        <Button variant="secondary" onClick={() => setAdding(true)}>
-          <Plus aria-hidden="true" />
-          Add an asset
-        </Button>
+        {/* No "Add an asset" (25 Nov 2026): what a client owns outside the portfolio is kept by their relationship manager. */}
       </div>
-      {adding && <AddAssetDialog currency={holdings.data?.currency ?? ""} onClose={() => setAdding(false)} />}
-      <MyAssetRequests currency={holdings.data?.currency ?? ""} />
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <div className="mb-4 flex flex-wrap items-center gap-3">

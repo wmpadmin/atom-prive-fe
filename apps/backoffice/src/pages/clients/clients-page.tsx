@@ -13,7 +13,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Briefcase, UserRoundCog } from "lucide-react";
+import { ArrowRight, Briefcase, UserRoundCog } from "lucide-react";
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { BackToOverview } from "../../components/back-to-overview";
@@ -138,10 +138,25 @@ function movableFor({ mine, newestProposal }: {
       // did not fix it — a number sitting next to the word forms is a number about forms.
       //
       // The count is kept where it can be labelled: the case screen this cell links through to.
+      //
+      // A client whose onboarding details are not submitted yet reads "Ready to onboard", as a link that looks
+      // like one (24 Nov 2026): they reach All clients from Prospective Clients with only the basics, and the
+      // RM fills the rest from here. The first step's name in plain ink was not found by anybody looking for it.
       cell: (customer) =>
-        customer.onboarding ? (
+        customer.onboarding && !customer.onboarding.submitted ? (
           <Link
             to={`/onboarding/${customer.onboarding.caseId}`}
+            // The row opens the client's file; without this the row's click won and the link never opened.
+            onClick={(event) => event.stopPropagation()}
+            className="inline-flex items-center gap-1 font-medium text-primary-700 hover:underline"
+          >
+            Ready to onboard
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        ) : customer.onboarding ? (
+          <Link
+            to={`/onboarding/${customer.onboarding.caseId}`}
+            onClick={(event) => event.stopPropagation()}
             className="font-medium text-ink hover:text-primary-700 hover:underline"
           >
             {customer.onboarding.stage}

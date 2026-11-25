@@ -191,8 +191,9 @@ export function PortfolioManagerDashboard() {
   };
 
   const render: Record<CardId, ReactNode> = {
+    // View all opens the Book overview (25 Nov 2026), or the Client directory for whoever can't open it.
     overview: (
-      <Panel icon={Layers} title="AUM & portfolio overview" to={goTo("/client-directory")}>
+      <Panel icon={Layers} title="AUM & portfolio overview" to={goTo("/book-overview", "/client-directory")}>
         {data ? (
           <div className="space-y-4">
             {data.byAssetClass.length === 0 ? (

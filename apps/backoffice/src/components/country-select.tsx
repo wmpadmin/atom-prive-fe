@@ -9,6 +9,8 @@ interface CountrySelectProps {
   onChange: (code: string) => void;
   onBlur?: () => void;
   placeholder?: string;
+  /** A line the form prints but an answer above has not opened yet (24 Nov 2026). */
+  disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
 }

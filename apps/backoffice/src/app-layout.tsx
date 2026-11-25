@@ -5,12 +5,10 @@ import {
   useGetRecentClientWorkspaces,
   useListClientRequests,
   useListModelChanges,
-  useListNewHoldings,
   useListProposalsAwaitingMyAnswer,
   useListAllocationChanges,
   useListRestores,
   type ModelChangePage,
-  type NewHoldingQueue,
   type MovePlanQueue,
   type ProposalPage,
   type AllocationChangeQueue,
@@ -31,6 +29,7 @@ import { ThemeToggle } from "./components/theme-toggle";
 import { TopSearch } from "./components/top-search";
 import { NotificationBell } from "./components/notification-bell";
 import { WorkspaceStrip, WorkspaceSwitch } from "./components/workspace-switch";
+import { ClientCurrencySwitch, ShownCurrencyProvider } from "./components/shown-currency";
 import { AssistantButton } from "./components/portfolio-assistant";
 import {
   Check,
@@ -220,9 +219,6 @@ function useWaitingOn(to: string) {
     { query: { enabled: answersProposals, refetchOnWindowFocus: true } });
   const modelChanges = useListModelChanges<ModelChangePage, ApiError>({ status: "PENDING", page: 0, size: 1 },
     { query: { enabled: queue, refetchOnWindowFocus: true } });
-  const newHoldings = useListNewHoldings<NewHoldingQueue, ApiError>({
-    query: { enabled: movesMoney, refetchOnWindowFocus: true },
-  });
   if (!queue) {
     return 0;
   }
@@ -234,8 +230,7 @@ function useWaitingOn(to: string) {
     + (proposals.data?.totalItems ?? 0)
     // Waiting on this reader, not visible to them: a bell that counts somebody else's work sends
     // people to a queue with nothing in it for them.
-    + (modelChanges.data?.waitingOnYou ?? 0)
-    + (newHoldings.data?.waiting ?? 0);
+    + (modelChanges.data?.waitingOnYou ?? 0);
 }
 
 /** Yours rather than a desk's: owed once by the person, so only in the workspace they call home. */
@@ -1003,7 +998,8 @@ export function AppLayout() {
   const searching = !rail && menuQuery.trim() !== "";
 
   return (
-    <>
+    // Each client's chosen currency, for the picker in the top bar and the screens under it (25 Nov 2026).
+    <ShownCurrencyProvider>
     {view && <SupportViewBanner view={view} onEnd={() => void signOut()} />}
     <div className="flex min-h-screen bg-canvas font-sans text-ink">
       {/* Folded to a rail of icons rather than put away, so every screen is still one press from anywhere. The
@@ -1086,9 +1082,11 @@ export function AppLayout() {
           <div className="flex min-w-0 items-center gap-4">
             <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
             <WorkspaceSwitch />
+            {/* Only on a client's portfolio screens, for that client: the currency his converted figures are in. */}
+            <ClientCurrencySwitch />
           </div>
           <div className="flex min-w-0 items-center gap-3">
-            <TopSearch />
+            <TopSearch screens={searchable([...list, ...footer], workspace ? { id: workspace.id } : null)} />
             <div className="flex items-center gap-1">
               <AssistantButton />
               <ThemeToggle />
@@ -1106,7 +1104,7 @@ export function AppLayout() {
         </main>
       </div>
     </div>
-    </>
+    </ShownCurrencyProvider>
   );
 }
 

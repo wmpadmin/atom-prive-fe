@@ -103,8 +103,15 @@ export function DecideDocument({ prospectId, documentId, fileName }: { prospectI
 
 type Ask = { customerId: string; paperName: string; instructions: string; dueOn: string };
 
-/** Compliance's decision on the whole: approve (on to the agreement), ask for documents and send it back, or reject. */
-export function ComplianceDecision({ prospectId, holders }: { prospectId: string; holders: { id: string; name: string }[] }) {
+/**
+ * Compliance's decision on the whole: approve (on to the agreement), ask for documents and send it back, or reject.
+ * `onDecided` lets the KYC review queue's side panel (24 Nov 2026) read its list again and shut once it is decided.
+ */
+export function ComplianceDecision({ prospectId, holders, onDecided }: {
+  prospectId: string;
+  holders: { id: string; name: string }[];
+  onDecided?: () => void;
+}) {
   const after = useAfterCompliance(prospectId);
   const [reason, setReason] = useState<ApprovalDecisionRequestReason & string>("DOCUMENT_UNCLEAR_OR_EXPIRED");
   const [note, setNote] = useState("");
@@ -121,6 +128,7 @@ export function ComplianceDecision({ prospectId, holders }: { prospectId: string
           customerId: one.customerId, paperName: one.paperName, instructions: one.instructions || null, dueOn: one.dueOn || null,
         })) : null,
       }));
+      onDecided?.();
     } catch (caught) {
       const said = toFormErrors(caught);
       setErrors({ ...said.fields, ...(said.form ? { form: said.form } : {}) });

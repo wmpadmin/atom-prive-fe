@@ -9,6 +9,8 @@ export interface Suggestion {
   group: string;
   content: ReactNode;
   onChoose: () => void;
+  /** A row that changes the list rather than leaving it, such as a group opening: choosing it keeps the list open. */
+  keepOpen?: boolean;
 }
 
 interface SuggestionSearchProps {
@@ -38,9 +40,12 @@ export function SuggestionSearch({ box, id, label, placeholder, value, onChange,
   const rows = suggestions.length > 0 && showAllLabel ? [...suggestions, { key: "all", group: "", content: null, onChoose: () => onSearch(value) }] : suggestions;
 
   function choose(index: number) {
-    box.setOpen(false);
-    box.setActive(-1);
-    rows[index]?.onChoose();
+    const row = rows[index];
+    if (!row?.keepOpen) {
+      box.setOpen(false);
+      box.setActive(-1);
+    }
+    row?.onChoose();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -108,7 +113,7 @@ export function SuggestionSearch({ box, id, label, placeholder, value, onChange,
               {loading ? "Searching…" : noMatches}
             </p>
           )}
-          <ul id={listboxId} role="listbox" aria-label="Suggestions" className={cn(rows.length > 0 && "py-1.5")}>
+          <ul id={listboxId} role="listbox" aria-label="Suggestions" className={cn("max-h-[70vh] overflow-y-auto", rows.length > 0 && "py-1.5")}>
             {rows.map((row, index) => {
               const isLast = row.key === "all";
               const heading = !isLast && (index === 0 || rows[index - 1]?.group !== row.group) ? row.group : undefined;

@@ -24,6 +24,7 @@ import { CaseSignOff, SignOffNotice } from "./case-sign-off";
 import { caseSubtitle, listHref } from "./case-labels";
 import { CaseStatusBadge, ProgressMeter } from "./case-parts";
 import { OnboardingWizard } from "./onboarding-wizard";
+import { ClientsPage } from "../clients/clients-page";
 
 /** /onboarding/new starts a case; /onboarding/:caseId continues a draft, or shows a submitted case. */
 export function OnboardingCasePage() {
@@ -66,10 +67,11 @@ export function OnboardingCasePage() {
   // The list's search and page, remembered when the case was opened, so going back returns to them.
   const list = (location.state as { list?: string } | null)?.list;
   // The same case is read from two screens, and only one of them is everybody's: Compliance work the KYC
-  // review queue and have no Client onboarding to go back to. The link says where it goes.
+  // review queue and have no Client onboarding to go back to. The link says where it goes: everyone else goes back to
+  // All clients, where the case is opened from (24 Nov 2026).
   const fromKyc = location.pathname.startsWith("/kyc");
   const backTo = fromKyc ? "/kyc" : listHref();
-  const backLabel = fromKyc ? "KYC review queue" : "Client onboarding";
+  const backLabel = fromKyc ? "KYC review queue" : "All clients";
 
   function handleSaved(result: CaseDetail, submitted: boolean) {
     const id = result.summary.id;
@@ -86,8 +88,12 @@ export function OnboardingCasePage() {
     return <Navigate to="/prospective-clients" replace />;
   }
   if (editing) {
+    // A pop-up over All clients (24 Nov 2026), where "Ready to onboard" opens it and the cross goes back to.
     return (
-      <OnboardingWizard caseId={detail?.summary.id ?? null} initial={initial} managers={choosable} listHref={backTo} onSaved={handleSaved} />
+      <>
+        {!fromKyc && <ClientsPage />}
+        <OnboardingWizard caseId={detail?.summary.id ?? null} initial={initial} managers={choosable} listHref={backTo} onSaved={handleSaved} />
+      </>
     );
   }
   if (!detail) {

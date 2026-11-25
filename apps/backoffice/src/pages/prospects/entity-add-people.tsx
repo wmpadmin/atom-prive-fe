@@ -7,13 +7,19 @@ import { MobileNumberInput } from "../../components/mobile-number-input";
 import { toFormErrors } from "../../lib/api-errors";
 import type { PartiesApi } from "./entity-parties";
 
-type RoleKey = "director" | "owner" | "ubo";
+type RoleKey = "director" | "owner" | "ubo" | "trust";
 
 const ROLE_LIST: { key: RoleKey; label: string; one: string }[] = [
   { key: "director", label: "Director", one: "director" },
   { key: "owner", label: "Owners", one: "owner" },
   { key: "ubo", label: "UBO", one: "UBO" },
+  // A trust that owns part of the entity (25 Nov 2026): its name and its share, nothing else. Its trustees, settlor and
+  // beneficiaries are people, added under Owners or UBO.
+  { key: "trust", label: "Trust", one: "trust" },
 ];
+
+/** The roles a person holds; a trust is not one of them. */
+type PersonRole = Exclude<RoleKey, "trust">;
 
 type Person = {
   key: string; name: string; email: string; phone: string; method: string; details: Record<string, string>;
@@ -27,7 +33,7 @@ let made = 0;
 const blankPerson = (): Person => ({ key: `p-${++made}`, name: "", email: "", phone: "", method: "", details: {}, share: "", signatory: false });
 
 /** The details Entity details asked for sets for a role, and for a signatory where the person is one. */
-function detailsFor(role: RoleKey, signatory: boolean, all: DetailRow[]) {
+function detailsFor(role: PersonRole, signatory: boolean, all: DetailRow[]) {
   return all.filter((one) => !one.retired && ((role === "director" ? one.forDirector : one.forOwner) || (signatory && one.forSignatory)));
 }
 
@@ -38,7 +44,7 @@ function detailsFor(role: RoleKey, signatory: boolean, all: DetailRow[]) {
  */
 export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view: PartiesView; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const [roles, setRoles] = useState<Record<RoleKey, Person[] | null>>({ director: null, owner: null, ubo: null });
+  const [roles, setRoles] = useState<Record<RoleKey, Person[] | null>>({ director: null, owner: null, ubo: null, trust: null });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -50,10 +56,22 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
   const add = (role: RoleKey) => setRoles((was) => ({ ...was, [role]: [...(was[role] ?? []), blankPerson()] }));
   const drop = (role: RoleKey, key: string) => setRoles((was) => ({ ...was, [role]: (was[role] ?? []).filter((one) => one.key !== key) }));
 
-  // Everyone named, one entry per name: the same name under two roles is one person with both roles.
+  // Everyone named, one entry per name: the same name under two roles is one person with both roles. A trust is its own.
   const merged = () => {
     const byName = new Map<string, { body: PartyRequest; label: string }>();
+    for (const one of roles.trust ?? []) {
+      const name = one.name.trim();
+      if (!name) continue;
+      byName.set(`trust:${name.toLowerCase().replace(/\s+/g, " ")}`, {
+        label: name,
+        body: {
+          kind: "TRUST", fullName: name, director: false, owner: true, ubo: false, signatory: false, ownedThrough: null,
+          sharePercent: one.share.trim() ? Number(one.share) : null, email: null, phone: null, contactMethodId: null, details: {},
+        },
+      });
+    }
     for (const { key: role } of ROLE_LIST) {
+      if (role === "trust") continue;
       for (const one of roles[role] ?? []) {
         const name = one.name.trim();
         if (!name) continue;
@@ -84,7 +102,15 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
     setProblem(undefined);
     const wrong: Record<string, string> = {};
     if (!ROLE_LIST.some(({ key }) => roles[key])) wrong.roles = "Tick at least one role.";
+    // A trust gives its name and the share it owns, as the server asks.
+    for (const one of roles.trust ?? []) {
+      const share = Number(one.share);
+      if (!one.name.trim()) wrong[`${one.key}.name`] = "Enter the trust's name.";
+      if (!one.share.trim()) wrong[`${one.key}.share`] = "Enter the share this trust owns.";
+      else if (!(share > 0 && share <= 100)) wrong[`${one.key}.share`] = "Between 0 and 100.";
+    }
     for (const { key: role } of ROLE_LIST) {
+      if (role === "trust") continue;
       for (const one of roles[role] ?? []) {
         if (!one.name.trim()) wrong[`${one.key}.name`] = "Enter their name.";
         if (!one.email.trim()) wrong[`${one.key}.email`] = "Enter their email.";
@@ -123,14 +149,14 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
   }
 
   return (
-    <Dialog open size="lg" onClose={onClose} title="Add stakeholder" description="Directors, owners and UBOs, with their details. Tick Authorised signatory on whoever may sign.">
+    <Dialog open size="lg" onClose={onClose} title="Add stakeholder" description="Directors, owners, UBOs and trusts, with their details. Tick Authorised signatory on whoever may sign.">
       <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
         {problem && <Alert tone="danger">{problem}</Alert>}
         <fieldset>
           <legend className="mb-2 text-2xs font-semibold tracking-wider text-ink-muted uppercase">
             Roles <span aria-hidden="true" className="text-red-600">*</span>
           </legend>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-4">
             {ROLE_LIST.map(({ key, label }) => (
               <label key={key} className={cn("flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
                 roles[key] ? "border-primary-600 bg-primary-50 text-primary-700" : "border-line hover:border-primary-300")}>
@@ -147,6 +173,30 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
             <section key={role} className="space-y-3 border-t border-line pt-4">
               <h3 className="text-sm font-bold">{label}</h3>
               {(roles[role] ?? []).map((person, i) => {
+                if (role === "trust") {
+                  return (
+                    <div key={person.key} className="space-y-3 rounded-xl border border-line p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-ink-muted">Trust {i + 1}</p>
+                        {(roles.trust ?? []).length > 1 && (
+                          <button type="button" aria-label={`Remove trust ${i + 1}`} onClick={() => drop(role, person.key)}
+                            className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"><X aria-hidden="true" className="size-4" /></button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field id={`${person.key}-name`} label="Name of the trust" required error={errors[`${person.key}.name`]}>
+                          <TextInput id={`${person.key}-name`} value={person.name} maxLength={300}
+                            onChange={(event) => change(role, person.key, { name: event.target.value })} />
+                        </Field>
+                        <Field id={`${person.key}-share`} label="Owns (% of the entity)" required error={errors[`${person.key}.share`]}>
+                          <TextInput id={`${person.key}-share`} inputMode="decimal" value={person.share} placeholder="70"
+                            onChange={(event) => change(role, person.key, { share: event.target.value.replace(/[^0-9.]/g, "") })} />
+                        </Field>
+                      </div>
+                      <p className="text-xs text-ink-muted">Its trustees, settlor and beneficiaries are added as people, under Owners or UBO.</p>
+                    </div>
+                  );
+                }
                 const asked = detailsFor(role, person.signatory, view.settings.details);
                 return (
                 <div key={person.key} className="space-y-3 rounded-xl border border-line p-3">
@@ -210,7 +260,7 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
             </section>
           );
         })}
-        {people.length > 0 && ROLE_LIST.filter(({ key }) => roles[key]).length > 1 && (
+        {people.length > 0 && ROLE_LIST.filter(({ key }) => key !== "trust" && roles[key]).length > 1 && (
           <p className="text-xs text-ink-muted">The same name under two roles is saved as one person with both roles.</p>
         )}
       </div>

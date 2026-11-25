@@ -17,18 +17,18 @@ import {
 import { SignaturePad } from "@atomprive/forms/signature-pad";
 import { Alert, Button, Dialog, Field, SelectInput, TextArea, TextInput, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useStaffUser } from "../../auth/session";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDate, formatDateTime } from "../../lib/labels";
-import { Signature, SigningAs } from "../../components/signature";
+import { SignedLine, SigningAs } from "../../components/signature";
 
 /**
  * Call notes (22 Nov 2026): every time the relationship manager reaches a prospect or a client, in any way, a note of
- * it. Since 23 Nov 2026 the RM signs it first, then Operations review it or send it back to change and sign again.
- * Sign-off is per note, and a reviewed note is final. Kept on a prospect's page and on a client's file; a prospect's
- * notes are read on the client they became as well.
+ * it. Since 25 Nov 2026 they are one history, oldest first, each new note added at the end: signed as it is added by
+ * whoever writes it, RM or Operations, with the role they wrote it in, and never changed after. Notes from before that
+ * still waiting on a signature or a review finish as they started. Kept on a prospect's page and on a client's file; a
+ * prospect's notes are read on the client they became as well.
  */
 
 export const MODES: Record<CallNoteRequestMode, string> = {
@@ -62,7 +62,9 @@ export function CallNotes(props: Subject & { mayWrite: boolean }) {
   const notes = prospectId ? onProspect : onClient;
   const key = prospectId ? getListProspectCallNotesQueryKey(prospectId) : getListClientCallNotesQueryKey(customerId ?? "");
   const queryClient = useQueryClient();
-  const [writing, setWriting] = useState<CallNoteRow | "new" | null>(null);
+  // A note from before 25 Nov 2026 being changed, and the new note's form, fresh again after each one is added.
+  const [writing, setWriting] = useState<CallNoteRow | null>(null);
+  const [adding, setAdding] = useState(0);
   const [vetting, setVetting] = useState<CallNoteRow | null>(null);
   const [signing, setSigning] = useState<CallNoteRow | null>(null);
   const [problem, setProblem] = useState<string>();
@@ -77,69 +79,73 @@ export function CallNotes(props: Subject & { mayWrite: boolean }) {
     }
   };
 
+  const rows = notes.data ?? [];
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="max-w-2xl text-sm text-ink-muted">
-          A note each time someone from the firm reaches them, signed by whoever writes it.
-        </p>
-        {mayWrite && writing !== "new" && (
-          <Button onClick={() => setWriting("new")}>
-            <Plus aria-hidden="true" />
-            New call note
-          </Button>
-        )}
-      </div>
+      <p className="max-w-3xl text-sm text-ink-muted">
+        Every contact with them, oldest first. Each note is signed by whoever adds it, with their role, and is never changed after: a correction is a new note.
+      </p>
       {problem && <Alert tone="danger">{problem}</Alert>}
-      {writing === "new" && (
-        <NoteForm subject={props} onDone={() => { setWriting(null); refresh(); }} onCancel={() => setWriting(null)} />
-      )}
-
       {notes.isError && <p className="text-sm text-red-700">The call notes couldn't be loaded.</p>}
-      {notes.data && notes.data.length === 0 && writing !== "new" && (
+      {notes.data && rows.length === 0 && (
         <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-ink-muted">No call notes yet.</p>
       )}
-      <ul className="space-y-3">
-        {(notes.data ?? []).map((one) => (
-          <li key={one.id} className="rounded-xl border border-line p-4 text-sm">
-            {writing !== "new" && writing?.id === one.id ? (
-              <NoteForm subject={props} editing={one} onDone={() => { setWriting(null); refresh(); }} onCancel={() => setWriting(null)} />
-            ) : (
-              <>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ink">
-                      {formatDate(one.happenedOn)} · {MODES[one.mode as CallNoteRequestMode] ?? one.mode}{one.place ? ` · ${one.place}` : ""}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      By {one.writtenBy}{one.attendees ? ` · with ${one.attendees}` : ""}
-                      {one.subjectKind === "PROSPECT" && customerId ? " · from when they were a prospect" : ""}
-                    </p>
-                  </div>
-                  <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", NOTE_STATUS[one.status]?.tone)}>
-                    {NOTE_STATUS[one.status]?.label ?? one.status}
-                  </span>
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-ink-soft">{one.discussion}</p>
-                {one.status === "SIGNED" ? (
-                  <div className="mt-3"><Signature name={one.signature ?? one.writtenBy} at={one.signedAt} /></div>
-                ) : <SignOffTrail one={one} />}
-                {(one.mayEdit || one.mayVet || one.maySign) && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {one.mayEdit && <Button size="sm" variant="secondary" onClick={() => setWriting(one)}>Edit</Button>}
-                    {one.mayEdit && (one.status === "DRAFT" || one.status === "RETURNED") && one.writtenById === user.id && (
-                      // Signed by whoever wrote it, their name as their signature (23 Nov 2026).
-                      <Button size="sm" onClick={() => void act(() => submitCallNote(one.id))}>Sign and save</Button>
+      {rows.length > 0 && (
+        // One history: a line down the side, a dot for each note, blue for an RM's and teal for Operations'.
+        <ol className="relative space-y-3 pl-7 before:absolute before:top-4 before:bottom-4 before:left-[9px] before:w-0.5 before:bg-line">
+          {rows.map((one) => (
+            <li key={one.id} className="relative rounded-xl border border-line bg-white p-4 text-sm">
+              <span aria-hidden="true" className={cn("absolute top-5 -left-[25px] size-3 rounded-full border-[3px] bg-white",
+                one.signedAs === "OPERATIONS" ? "border-teal-600" : "border-primary-600")} />
+              {writing?.id === one.id ? (
+                <NoteForm subject={props} editing={one} onDone={() => { setWriting(null); refresh(); }} onCancel={() => setWriting(null)} />
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">
+                        {formatDate(one.happenedOn)} · {MODES[one.mode as CallNoteRequestMode] ?? one.mode}{one.place ? ` · ${one.place}` : ""}
+                      </p>
+                      {(one.attendees || (one.subjectKind === "PROSPECT" && customerId)) && (
+                        <p className="text-xs text-ink-muted">
+                          {one.attendees ? `With ${one.attendees}` : ""}
+                          {one.attendees && one.subjectKind === "PROSPECT" && customerId ? " · " : ""}
+                          {one.subjectKind === "PROSPECT" && customerId ? "From when they were a prospect" : ""}
+                        </p>
+                      )}
+                    </div>
+                    {/* Only a note from before 25 Nov 2026 can be anything but signed. */}
+                    {one.status !== "SIGNED" && (
+                      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", NOTE_STATUS[one.status]?.tone)}>
+                        {NOTE_STATUS[one.status]?.label ?? one.status}
+                      </span>
                     )}
-                    {one.mayVet && <Button size="sm" onClick={() => setVetting(one)}>Review or send back</Button>}
-                    {one.maySign && <Button size="sm" onClick={() => setSigning(one)}>Sign and send to Operations</Button>}
                   </div>
-                )}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+                  <p className="mt-2 whitespace-pre-wrap text-ink-soft">{one.discussion}</p>
+                  {one.status === "SIGNED" ? (
+                    <div className="mt-3 border-t border-dashed border-line pt-2.5">
+                      <SignedLine name={one.signature ?? one.writtenBy} role={one.signedAs} at={one.signedAt} />
+                    </div>
+                  ) : <SignOffTrail one={one} />}
+                  {(one.mayEdit || one.mayVet || one.maySign) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {one.mayEdit && <Button size="sm" variant="secondary" onClick={() => setWriting(one)}>Edit</Button>}
+                      {one.mayEdit && (one.status === "DRAFT" || one.status === "RETURNED") && one.writtenById === user.id && (
+                        // Signed by whoever wrote it, their name as their signature (23 Nov 2026).
+                        <Button size="sm" onClick={() => void act(() => submitCallNote(one.id))}>Sign and save</Button>
+                      )}
+                      {one.mayVet && <Button size="sm" onClick={() => setVetting(one)}>Review or send back</Button>}
+                      {one.maySign && <Button size="sm" onClick={() => setSigning(one)}>Sign and send to Operations</Button>}
+                    </div>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {/* The next note, added at the end of the history. */}
+      {mayWrite && <NoteForm key={adding} subject={props} onDone={() => { setAdding((n) => n + 1); refresh(); }} />}
       {vetting && <VetDialog one={vetting} onClose={() => setVetting(null)} onDone={() => { setVetting(null); refresh(); }} />}
       {signing && <SignDialog one={signing} onClose={() => setSigning(null)} onDone={() => { setSigning(null); refresh(); }} />}
     </section>
@@ -186,11 +192,12 @@ export function SignOffTrail({ one }: { one: CallNoteRow }) {
   );
 }
 
+/** A new note, signed as it is added (25 Nov 2026); or a note from before that, still a draft or sent back, changed. */
 function NoteForm({ subject, editing, onDone, onCancel }: {
   subject: Subject;
   editing?: CallNoteRow;
   onDone: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }) {
   const [on, setOn] = useState(editing?.happenedOn ?? today());
   const [mode, setMode] = useState<CallNoteRequestMode>((editing?.mode as CallNoteRequestMode) ?? "IN_PERSON");
@@ -202,10 +209,10 @@ function NoteForm({ subject, editing, onDone, onCancel }: {
   const [saving, setSaving] = useState(false);
 
   const me = useStaffUser();
-  async function save(submit: boolean) {
+  async function save() {
     setErrors({});
     setProblem(undefined);
-    const body: CallNoteRequest = { happenedOn: on, mode, place: place.trim() || null, attendees: attendees.trim() || null, discussion, submit };
+    const body: CallNoteRequest = { happenedOn: on, mode, place: place.trim() || null, attendees: attendees.trim() || null, discussion };
     setSaving(true);
     try {
       if (editing) await changeCallNote(editing.id, body);
@@ -223,12 +230,12 @@ function NoteForm({ subject, editing, onDone, onCancel }: {
 
   return (
     <div className="space-y-4 rounded-xl border border-primary-200 bg-primary-50/30 p-4">
-      <p className="text-sm font-semibold">{editing ? "Change the call note" : "New call note"}</p>
+      <p className="text-sm font-semibold">{editing ? "Change the call note" : "Add a note"}</p>
       {editing?.status === "RETURNED" && editing.vettingComment && (
         <Alert tone="warning">Operations sent it back: {editing.vettingComment}</Alert>
       )}
       {problem && <Alert tone="danger">{problem}</Alert>}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Field id="note-date" label="Date" required error={errors.happenedOn}>
           <TextInput id="note-date" type="date" value={on} max={today()} onChange={(event) => setOn(event.target.value)} />
         </Field>
@@ -248,10 +255,17 @@ function NoteForm({ subject, editing, onDone, onCancel }: {
         <TextArea id="note-discussion" rows={4} value={discussion} maxLength={8000} onChange={(event) => setDiscussion(event.target.value)} />
       </Field>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <span className="mr-auto"><SigningAs name={me.fullName} /></span>
-        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button variant="secondary" onClick={() => void save(false)} disabled={saving}>Save as draft</Button>
-        <Button onClick={() => void save(true)} disabled={saving}>{saving ? "Signing…" : "Sign and save"}</Button>
+        {editing ? (
+          <>
+            <Button variant="ghost" className="mr-auto" onClick={onCancel} disabled={saving}>Cancel</Button>
+            <Button onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          </>
+        ) : (
+          <>
+            <span className="mr-auto"><SigningAs name={me.fullName} role={me.activeRole} /></span>
+            <Button onClick={() => void save()} disabled={saving}>{saving ? "Signing…" : "Sign and add"}</Button>
+          </>
+        )}
       </div>
     </div>
   );

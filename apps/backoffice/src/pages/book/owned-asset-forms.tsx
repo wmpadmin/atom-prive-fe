@@ -148,12 +148,11 @@ function OwnersField({ people, owners, tried, onChange }: { people: Person[]; ow
 }
 
 /** A new item. Once the client has a portfolio it goes to their relationship manager first. */
-export function AddItemDialog({ open, customerId, currency, people, asksFirst, onClose, onDone }: {
+export function AddItemDialog({ open, customerId, currency, people, onClose, onDone }: {
   open: boolean;
   customerId: string;
   currency: string;
   people: Person[];
-  asksFirst: boolean;
   onClose: () => void;
   onDone: Done;
 }) {
@@ -198,9 +197,7 @@ export function AddItemDialog({ open, customerId, currency, people, asksFirst, o
   };
 
   return (
-    <Dialog open={open} size="lg" title="Add an item"
-      description={asksFirst ? "Goes to the client's relationship manager to approve before it is on the list." : undefined}
-      onClose={onClose}>
+    <Dialog open={open} size="lg" title="Add an item" description="Saved at once." onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <CategoryField id="owned-category" value={categoryId} tried={tried} onChange={setCategoryId} />
         <Field id="owned-name" label="Name" required error={tried && !name.trim() ? "Enter a name." : undefined}>
@@ -241,23 +238,20 @@ export function AddItemDialog({ open, customerId, currency, people, asksFirst, o
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button disabled={busy} onClick={() => void save()}>
-          {busy ? "Saving…" : asksFirst ? "Send for approval" : "Add item"}
+          {busy ? "Saving…" : "Add item"}
         </Button>
       </div>
     </Dialog>
   );
 }
 
-/**
- * What an item is, saved at once; its cost and owners, where they change, go to the relationship manager.
- */
-export function EditItemDialog({ open, customerId, currency, people, item, asksFirst, onClose, onDone }: {
+/** What an item is, its cost and its owners, saved at once by the client's relationship manager (25 Nov 2026). */
+export function EditItemDialog({ open, customerId, currency, people, item, onClose, onDone }: {
   open: boolean;
   customerId: string;
   currency: string;
   people: Person[];
   item: OwnedAssetRow;
-  asksFirst: boolean;
   onClose: () => void;
   onDone: Done;
 }) {
@@ -298,9 +292,7 @@ export function EditItemDialog({ open, customerId, currency, people, item, asksF
   };
 
   return (
-    <Dialog open={open} size="lg" title={`Edit ${item.name}`}
-      description={asksFirst ? "Name, category, description, date bought, location and insurance save at once. A new cost or split between owners goes to the relationship manager." : undefined}
-      onClose={onClose}>
+    <Dialog open={open} size="lg" title={`Edit ${item.name}`} description="Saved at once." onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <CategoryField id="edit-category" value={categoryId} tried={tried} onChange={setCategoryId} />
         <Field id="edit-name" label="Name" required error={tried && !name.trim() ? "Enter a name." : undefined}>
@@ -318,7 +310,7 @@ export function EditItemDialog({ open, customerId, currency, people, item, asksF
         <Field id="edit-insured" label={`Insured for (${currency})`}>
           <TextInput id="edit-insured" inputMode="decimal" value={insured} onChange={(event) => setInsured(asFigure(event.target.value))} />
         </Field>
-        <Field id="edit-cost" label={`Cost (${currency})`} hint={asksFirst ? "A change goes to the relationship manager." : undefined}>
+        <Field id="edit-cost" label={`Cost (${currency})`}>
           <TextInput id="edit-cost" inputMode="decimal" value={cost} onChange={(event) => setCost(asFigure(event.target.value))} />
         </Field>
         <div className="sm:col-span-2">
@@ -335,12 +327,11 @@ export function EditItemDialog({ open, customerId, currency, people, item, asksF
 }
 
 /** A new valuation. Who valued it is optional. */
-export function ValuationDialog({ open, customerId, currency, item, asksFirst, onClose, onDone }: {
+export function ValuationDialog({ open, customerId, currency, item, onClose, onDone }: {
   open: boolean;
   customerId: string;
   currency: string;
   item: OwnedAssetRow;
-  asksFirst: boolean;
   onClose: () => void;
   onDone: Done;
 }) {
@@ -368,9 +359,7 @@ export function ValuationDialog({ open, customerId, currency, item, asksFirst, o
     }
   };
   return (
-    <Dialog open={open} title={`New valuation of ${item.name}`}
-      description={asksFirst ? "Goes to the client's relationship manager to approve. Until then the item stays at its current value." : undefined}
-      onClose={onClose}>
+    <Dialog open={open} title={`New valuation of ${item.name}`} description="Saved at once." onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="value-on" label="Valued on" required error={tried && !valuedOn ? "Choose the date it was valued." : undefined}>
           <DateInput id="value-on" name="valuedOn" aria-invalid={tried && !valuedOn} min={EARLIEST} value={valuedOn ?? undefined} max={new Date()} onChange={(day) => setValuedOn(day ?? null)} />
@@ -386,7 +375,7 @@ export function ValuationDialog({ open, customerId, currency, item, asksFirst, o
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button disabled={busy} onClick={() => void save()}>
-          {busy ? "Saving…" : asksFirst ? "Send for approval" : "Save valuation"}
+          {busy ? "Saving…" : "Save valuation"}
         </Button>
       </div>
     </Dialog>

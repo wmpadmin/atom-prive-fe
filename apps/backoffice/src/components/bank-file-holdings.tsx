@@ -3,6 +3,7 @@ import { useGetClientHoldingsBook, type ClientHoldingsBook } from "@atomprive/ap
 import { useState } from "react";
 import { formatDate } from "../lib/labels";
 import { FileViewToggle, inUsd, MissingRates, type FileView } from "./converted-usd";
+import { useInShownCurrency } from "./shown-currency";
 
 function exact(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -17,9 +18,9 @@ function plain(amount: number | null | undefined) {
  * bank sent them, each in its own currency. Draws nothing for anybody else, whose holdings are the firm's own.
  */
 export function BankFileHoldings({ customerId }: { customerId: string }) {
-  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, { query: { staleTime: 60_000 } });
+  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, undefined, { query: { staleTime: 60_000 } });
   const [view, setView] = useState<FileView>("converted");
-  const data = book.data;
+  const data = useInShownCurrency(book.data);
   if (!data?.bankFile) return null;
   const conv = view === "converted" ? data.converted?.file ?? null : null;
   const rows = data.positions;

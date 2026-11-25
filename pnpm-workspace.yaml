@@ -2,5 +2,7 @@ packages:
   - apps/*
   - packages/*
 allowBuilds:
+  # Comes with jspdf (the onboarding PDF download); its install script only prints a message, so it isn't run.
+  core-js: false
   # Installs esbuild's native binary (used when Orval loads its TypeScript config).
   esbuild: true

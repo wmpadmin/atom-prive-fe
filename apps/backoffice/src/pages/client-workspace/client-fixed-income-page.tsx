@@ -27,6 +27,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Fixed Income Analytics, laid out section by section as the firm's 10 Nov design draws it. Every figure —
@@ -58,8 +59,8 @@ const DEFAULT_CARDS = Object.keys(CARDS) as FixedIncomeCard[];
 
 export function ClientFixedIncomePage() {
   const { customerId = "" } = useParams();
-  const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId);
-  const data = fi.data;
+  const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(fi.data);
   const view = useViewLayout("workspace.fixed-income", CARDS, DEFAULT_CARDS);
 
   if (fi.isError) return <Alert tone="danger">{fi.error.message}</Alert>;

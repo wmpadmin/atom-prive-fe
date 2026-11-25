@@ -17,6 +17,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Risk & Exposure, laid out section by section as the firm's 10 Nov design draws it. Every figure is worked
@@ -47,8 +48,8 @@ const DEFAULT_CARDS = Object.keys(CARDS) as RiskCard[];
 
 export function ClientRiskPage() {
   const { customerId = "" } = useParams();
-  const risk = useGetClientRisk<ClientRisk, ApiError>(customerId);
-  const data = risk.data;
+  const risk = useGetClientRisk<ClientRisk, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(risk.data);
   const view = useViewLayout("workspace.risk", CARDS, DEFAULT_CARDS);
 
   if (risk.isError) return <Alert tone="danger">{risk.error.message}</Alert>;

@@ -28,6 +28,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 // Names that would land on one another are left to the tooltip.
 echarts.use([ScatterChart, LabelLayout]);
@@ -63,8 +64,8 @@ const DEFAULT_CARDS = Object.keys(CARDS) as EquityCard[];
 export function ClientEquityPage() {
   const { customerId = "" } = useParams();
   const [view, setView] = useState<"LOOK_THROUGH" | "DIRECT">("LOOK_THROUGH");
-  const equity = useGetClientEquity<ClientEquity, ApiError>(customerId, { view }, { query: { placeholderData: keepPreviousData } });
-  const data = equity.data;
+  const equity = useGetClientEquity<ClientEquity, ApiError>(customerId, { view, ...useCurrencyParam() }, { query: { placeholderData: keepPreviousData } });
+  const data = useInShownCurrency(equity.data);
   const layout = useViewLayout("workspace.equity", CARDS, DEFAULT_CARDS);
 
   if (equity.isError) return <Alert tone="danger">{equity.error.message}</Alert>;

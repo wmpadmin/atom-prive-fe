@@ -6,9 +6,7 @@ import {
   getListOwnedAssetsQueryKey,
   getReadOwnedAssetFileUrl,
   useListOwnedAssets,
-  withdrawOwnedAssetChange,
   type ClientOwnedAssets,
-  type OwnedAssetChangeRow,
   type OwnedAssetFileRow,
   type OwnedAssetRow,
 } from "@atomprive/api-client/backoffice";
@@ -16,8 +14,10 @@ import { Alert, Button, Dialog, cn } from "@atomprive/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, ImagePlus, Paperclip, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useStaffUser } from "../../auth/session";
 import { useBookPanel } from "../../components/book-panel";
 import { formatDate } from "../../lib/labels";
+import { hasAnyAuthority, KEEPS_OWNED_ASSETS } from "../../lib/permissions";
 import type { FigureDetail } from "../client-workspace/figure-panel";
 import { opens } from "../portfolios/figure-opens";
 import { openApiFile } from "../../lib/download";
@@ -28,23 +28,13 @@ import { column as col, row as exportRow, useExportSheet } from "./overview-expo
 import { AddItemDialog, EditItemDialog, ValuationDialog, type Person } from "./owned-asset-forms";
 import type { PanelContext } from "./overview-panels";
 
-/** A change asked for, in words. */
-function saying(change: OwnedAssetChangeRow, currency: string) {
-  switch (change.kind) {
-    case "ADD": return `Add ${change.assetName}${change.item ? ` at ${money(change.item.value)} ${currency}` : ""}`;
-    case "VALUE": return `Value ${change.assetName} at ${change.valuation ? money(change.valuation.value) : ""} ${currency}${change.valuation ? ` (${formatDate(change.valuation.valuedOn)})` : ""}`;
-    case "EDIT": return `Change the cost or owners of ${change.assetName}`;
-    default: return `Take ${change.assetName} off the list`;
-  }
-}
-
 /**
  * What the client owns outside the managed portfolio: what it cost, what it is worth, how that has moved, and
  * whose it is.
  *
  * <p>Figures are kept in the portfolio's own currency and shown in the page's, at each day's rate — today's for
- * what things are worth now, a valuation's own day for the history. A change to a figure goes to the client's
- * relationship manager once the client has a portfolio; what an item is saves at once.
+ * what things are worth now, a valuation's own day for the history. Only the client's relationship manager adds
+ * and changes them, each change saved at once (25 Nov 2026); everybody else reads them.
  */
 export function OwnedAssetsTab({ context, people }: { context: PanelContext; people: Person[] }) {
   const { customerId, sources } = context;
@@ -54,8 +44,9 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
   const panel = useBookPanel();
+  // The client's relationship manager keeps the list; the page is theirs only for their own clients.
+  const keeps = hasAnyAuthority(useStaffUser(), ...KEEPS_OWNED_ASSETS);
 
   const data = listed.data;
   const shown = overview.currency;
@@ -66,10 +57,8 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
   const on = (amount: number, day: string) => amount * (overview.rates.length ? rateOn(overview.rates, day) : 1);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListOwnedAssetsQueryKey(customerId) });
-  const done = async (asked: OwnedAssetChangeRow | null) => {
-    setNotice(asked === null ? "Saved." : asked.status === "PENDING"
-      ? "Sent to the client's relationship manager to approve. It shows below until they answer."
-      : "Saved.");
+  const done = async () => {
+    setNotice("Saved.");
     await refresh();
   };
 
@@ -95,7 +84,6 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
   if (listed.isError) return <Alert tone="danger">{listed.error.message}</Alert>;
   if (!data) return <p className="py-10 text-center text-sm text-ink-muted">Reading what the client owns…</p>;
   const opened = items.find((one) => one.id === openId) ?? null;
-  const waitingOn = (assetId: string) => data.waiting.find((one) => one.assetId === assetId);
   // Gain counts only the items with a cost on file: one without a cost has not gained its whole value.
   const costed = items.filter((one) => one.cost !== null);
   const gain = costed.length ? costed.reduce((sum, one) => sum + one.value, 0) - data.cost : null;
@@ -155,37 +143,16 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
       )}
 
       {notice && <Alert tone="success">{notice}</Alert>}
-      {failed && <Alert tone="danger">{failed}</Alert>}
-
-      {data.waiting.length > 0 && (
-        <section aria-label="Waiting on the relationship manager" className="rounded-2xl border border-access-view/30 bg-access-view-soft px-5 py-3">
-          <h2 className="text-sm font-bold">Waiting on the relationship manager</h2>
-          <ul className="mt-2 space-y-1.5">
-            {data.waiting.map((one) => (
-              <li key={one.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span className="flex-1">{saying(one, base)}</span>
-                <span className="text-xs text-ink-muted">Asked by {one.raisedBy} · {formatDate(one.raisedAt.slice(0, 10))}</span>
-                {one.canWithdraw && (
-                  <button type="button" className="text-xs font-semibold text-primary-700 hover:underline"
-                    onClick={async () => {
-                      try { await withdrawOwnedAssetChange(one.id); await refresh(); } catch (caught) { setFailed(caught instanceof ApiError ? caught.message : "It could not be taken back."); }
-                    }}>
-                    Take back
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section aria-label="Items" className="min-w-0 rounded-2xl border border-line bg-white px-4 py-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-base font-bold">Items</h2>
-            <Button size="sm" onClick={() => { setNotice(null); setAdding(true); }}>
-              <Plus aria-hidden="true" className="size-4" /> Add item
-            </Button>
+            {keeps && (
+              <Button size="sm" onClick={() => { setNotice(null); setAdding(true); }}>
+                <Plus aria-hidden="true" className="size-4" /> Add item
+              </Button>
+            )}
           </div>
           {items.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink-muted">Nothing owned outside the portfolio is on file yet.</p>
@@ -211,7 +178,6 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
                         <th scope="row" className="px-3 py-2.5 text-left font-semibold">
                           <button type="button" className="text-left hover:underline" onClick={(event) => { event.stopPropagation(); setOpenId(one.id); }}>{one.name}</button>
                           {one.description && <span className="block text-xs font-normal text-ink-muted">{one.description}</span>}
-                          {waitingOn(one.id) && <span className="mt-0.5 inline-block rounded bg-access-view-soft px-1.5 py-0.5 text-3xs font-semibold text-access-view-ink">Change waiting</span>}
                         </th>
                         <td className="px-3 py-2.5"><span className="rounded-md bg-canvas px-2 py-0.5 text-xs font-semibold text-ink-soft">{one.category ?? "No category"}</span></td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{one.cost === null ? <span className="text-ink-muted/70">—</span> : money(now(one.cost))}</td>
@@ -238,24 +204,24 @@ export function OwnedAssetsTab({ context, people }: { context: PanelContext; peo
       </div>
       <p className="text-xs text-ink-muted">
         Figures are kept in {base}{shown !== base ? ` and shown in ${shown} at each day's rate` : ""}. These count in the client&apos;s net worth on
-        every tab. {data.asksFirst ? "A new item, a new valuation, a new cost or split between owners, and taking an item off go to the client's relationship manager to approve." : "The client is still being set up, so changes save at once."}
+        every tab. Only the client&apos;s relationship manager adds or changes them, and each change saves at once.
       </p>
 
       {adding && (
-        <AddItemDialog open customerId={customerId} currency={base} people={people} asksFirst={data.asksFirst}
-          onClose={() => setAdding(false)} onDone={(asked) => { setAdding(false); void done(asked); }} />
+        <AddItemDialog open customerId={customerId} currency={base} people={people}
+          onClose={() => setAdding(false)} onDone={() => { setAdding(false); void done(); }} />
       )}
       {opened && (
         <ItemPanel key={opened.id} customerId={customerId} item={opened} base={base} shown={shown} now={now} on={on}
-          people={people} asksFirst={data.asksFirst} waiting={waitingOn(opened.id)} onClose={() => setOpenId(null)}
-          onDone={async (asked) => { await done(asked); }} onRemoved={async (asked) => { setOpenId(null); await done(asked); }} />
+          people={people} keeps={keeps} onClose={() => setOpenId(null)}
+          onDone={done} onRemoved={async () => { setOpenId(null); await done(); }} />
       )}
     </div>
   );
 }
 
 /** One item: what it is, its value over time, and its photos and papers. */
-function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, waiting, onClose, onDone, onRemoved }: {
+function ItemPanel({ customerId, item, base, shown, now, on, people, keeps, onClose, onDone, onRemoved }: {
   customerId: string;
   item: OwnedAssetRow;
   base: string;
@@ -263,11 +229,11 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
   now: (amount: number) => number;
   on: (amount: number, day: string) => number;
   people: Person[];
-  asksFirst: boolean;
-  waiting: OwnedAssetChangeRow | undefined;
+  /** Whether the reader is the one who keeps the list: the client's relationship manager. */
+  keeps: boolean;
   onClose: () => void;
-  onDone: (asked: OwnedAssetChangeRow | null) => Promise<void>;
-  onRemoved: (asked: OwnedAssetChangeRow | null) => Promise<void>;
+  onDone: () => Promise<void>;
+  onRemoved: () => Promise<void>;
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -302,14 +268,15 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
   return (
     <Dialog open size="xl" title={item.name} description={item.category ?? "No category"} onClose={onClose}>
       <div className="space-y-5">
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}><Pencil aria-hidden="true" className="size-4" /> Edit</Button>
-          <Button size="sm" disabled={Boolean(waiting)} onClick={() => setValuing(true)}>New valuation</Button>
-          <Button size="sm" variant="secondary" disabled={Boolean(waiting)} onClick={() => setRemoving(true)}>
-            <Trash2 aria-hidden="true" className="size-4" /> Take off the list
-          </Button>
-        </div>
-        {waiting && <Alert tone="warning">A change is waiting on the relationship manager: {saying(waiting, base)}. Another change waits until it is answered.</Alert>}
+        {keeps && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditing(true)}><Pencil aria-hidden="true" className="size-4" /> Edit</Button>
+            <Button size="sm" onClick={() => setValuing(true)}>New valuation</Button>
+            <Button size="sm" variant="secondary" onClick={() => setRemoving(true)}>
+              <Trash2 aria-hidden="true" className="size-4" /> Take off the list
+            </Button>
+          </div>
+        )}
         {error && <Alert tone="danger">{error}</Alert>}
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
@@ -349,14 +316,16 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
         <section aria-label="Photos">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-bold">Photos</h3>
-            <button type="button" disabled={busy} onClick={() => photoInput.current?.click()} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">
-              <ImagePlus aria-hidden="true" className="size-4" /> Add photos
-            </button>
+            {keeps && (
+              <button type="button" disabled={busy} onClick={() => photoInput.current?.click()} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">
+                <ImagePlus aria-hidden="true" className="size-4" /> Add photos
+              </button>
+            )}
             <input ref={photoInput} type="file" accept="image/*" multiple hidden onChange={(event) => { void upload("PHOTO", event.target.files); event.target.value = ""; }} />
           </div>
           {photos.length === 0 ? <p className="text-sm text-ink-muted">No photos yet.</p> : (
             <div className="flex flex-wrap gap-2">
-              {photos.map((one) => <Photo key={one.id} customerId={customerId} assetId={item.id} file={one} onRemove={() => void remove(one)} />)}
+              {photos.map((one) => <Photo key={one.id} customerId={customerId} assetId={item.id} file={one} onRemove={keeps ? () => void remove(one) : undefined} />)}
             </div>
           )}
         </section>
@@ -364,9 +333,11 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
         <section aria-label="Documents">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-bold">Documents</h3>
-            <button type="button" disabled={busy} onClick={() => docInput.current?.click()} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">
-              <Paperclip aria-hidden="true" className="size-4" /> Add documents
-            </button>
+            {keeps && (
+              <button type="button" disabled={busy} onClick={() => docInput.current?.click()} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">
+                <Paperclip aria-hidden="true" className="size-4" /> Add documents
+              </button>
+            )}
             <input ref={docInput} type="file" multiple hidden onChange={(event) => { void upload("DOCUMENT", event.target.files); event.target.value = ""; }} />
           </div>
           {documents.length === 0 ? <p className="text-sm text-ink-muted">No documents yet.</p> : (
@@ -377,9 +348,11 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
                   <button type="button" className="flex-1 truncate text-left text-primary-700 hover:underline"
                     onClick={() => void openApiFile(getReadOwnedAssetFileUrl(customerId, item.id, one.id), one.fileName)}>{one.fileName}</button>
                   <span className="text-xs text-ink-muted">{formatDate(one.uploadedAt.slice(0, 10))}</span>
-                  <button type="button" aria-label={`Take ${one.fileName} off`} onClick={() => void remove(one)} className="text-ink-muted hover:text-danger">
-                    <X aria-hidden="true" className="size-4" />
-                  </button>
+                  {keeps && (
+                    <button type="button" aria-label={`Take ${one.fileName} off`} onClick={() => void remove(one)} className="text-ink-muted hover:text-danger">
+                      <X aria-hidden="true" className="size-4" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -388,24 +361,24 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
       </div>
 
       {editing && (
-        <EditItemDialog open customerId={customerId} currency={base} people={people} item={item} asksFirst={asksFirst}
-          onClose={() => setEditing(false)} onDone={(asked) => { setEditing(false); void onDone(asked); }} />
+        <EditItemDialog open customerId={customerId} currency={base} people={people} item={item}
+          onClose={() => setEditing(false)} onDone={() => { setEditing(false); void onDone(); }} />
       )}
       {valuing && (
-        <ValuationDialog open customerId={customerId} currency={base} item={item} asksFirst={asksFirst}
-          onClose={() => setValuing(false)} onDone={(asked) => { setValuing(false); void onDone(asked); }} />
+        <ValuationDialog open customerId={customerId} currency={base} item={item}
+          onClose={() => setValuing(false)} onDone={() => { setValuing(false); void onDone(); }} />
       )}
       <Dialog open={removing} title={`Take ${item.name} off the list?`}
-        description={asksFirst ? "This goes to the client's relationship manager to approve. Until then it stays on the list." : "It comes off the list, with its valuations, photos and documents."}
+        description="It comes off the list, with its valuations, photos and documents."
         onClose={() => setRemoving(false)}>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setRemoving(false)}>Cancel</Button>
           <Button variant="danger" disabled={busy} onClick={async () => {
             setBusy(true);
-            try { const asked = await askToRemoveOwnedAsset(customerId, item.id); setRemoving(false); await onRemoved(asked); }
+            try { await askToRemoveOwnedAsset(customerId, item.id); setRemoving(false); await onRemoved(); }
             catch (caught) { setError(caught instanceof ApiError ? caught.message : "It could not be taken off."); setRemoving(false); }
             finally { setBusy(false); }
-          }}>{asksFirst ? "Send for approval" : "Take it off"}</Button>
+          }}>Take it off</Button>
         </div>
       </Dialog>
     </Dialog>
@@ -413,7 +386,7 @@ function ItemPanel({ customerId, item, base, shown, now, on, people, asksFirst, 
 }
 
 /** A photo, fetched with the session's token, as a thumbnail that opens full size. */
-function Photo({ customerId, assetId, file, onRemove }: { customerId: string; assetId: string; file: OwnedAssetFileRow; onRemove: () => void }) {
+function Photo({ customerId, assetId, file, onRemove }: { customerId: string; assetId: string; file: OwnedAssetFileRow; onRemove?: () => void }) {
   const [src, setSrc] = useState<string | null>(null);
   const url = getReadOwnedAssetFileUrl(customerId, assetId, file.id);
   useEffect(() => {
@@ -434,10 +407,12 @@ function Photo({ customerId, assetId, file, onRemove }: { customerId: string; as
       <button type="button" className="size-full" aria-label={`Open ${file.fileName}`} onClick={() => void openApiFile(url, file.fileName)}>
         {src ? <img src={src} alt={file.fileName} className="size-full object-cover" /> : <span className="text-xs text-ink-muted">…</span>}
       </button>
-      <button type="button" aria-label={`Take ${file.fileName} off`} onClick={onRemove}
-        className="absolute top-1 right-1 hidden rounded-md bg-white/90 p-0.5 text-ink-muted group-hover:block hover:text-danger">
-        <X aria-hidden="true" className="size-3.5" />
-      </button>
+      {onRemove && (
+        <button type="button" aria-label={`Take ${file.fileName} off`} onClick={onRemove}
+          className="absolute top-1 right-1 hidden rounded-md bg-white/90 p-0.5 text-ink-muted group-hover:block hover:text-danger">
+          <X aria-hidden="true" className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }

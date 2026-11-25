@@ -38,6 +38,7 @@ import { HoldingTrail } from "../../components/holding-trail";
 import { FileViewToggle, inUsd, type FileView } from "../../components/converted-usd";
 import { Chart, ink } from "../book/overview-charts";
 import { FigureBody, type FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * What a click on a PPM screen opens: one slice of the client's holdings — an asset class, a sub-class, a currency,
@@ -325,10 +326,12 @@ function DrillBody({ customerId, trail, wide, onDeeper, onClose }: {
 }) {
   const target = trail[trail.length - 1]!;
   const onHoldings = useLocation().pathname.endsWith("/holdings");
-  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId);
-  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId);
-  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId, { query: { enabled: target.by === "class" && trail.length === 1 } });
-  const ips = useGetClientIps<ClientIps, ApiError>(customerId, { query: { enabled: target.by === "class" && trail.length === 1 } });
+  const book = useGetClientHoldingsBook<ClientHoldingsBook, ApiError>(customerId, useCurrencyParam());
+  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId, useCurrencyParam());
+  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId, useCurrencyParam(), { query: { enabled: target.by === "class" && trail.length === 1 } });
+  const ips = useGetClientIps<ClientIps, ApiError>(customerId, useCurrencyParam(), { query: { enabled: target.by === "class" && trail.length === 1 } });
+  // A bank-file client's lines, converted in the currency chosen at the top of his screens.
+  const shownBook = useInShownCurrency(book.data);
 
   if (book.isError) return <p className="text-sm text-red-600">{book.error.message}</p>;
   if (!book.data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
@@ -338,7 +341,7 @@ function DrillBody({ customerId, trail, wide, onDeeper, onClose }: {
   // structure, a sector of the equity sleeve) is how the panel got here, not a filter on the lines.
   const narrowing = trail.filter((step) => BOOK_FIELDS.has(step.by));
   const positions = book.data.positions.filter((one) => narrowing.every((step) => matches(step, one))).sort((a, b) => b.value - a.value);
-  if (book.data.bankFile) return <FileDrill book={book.data} target={target} />;
+  if (book.data.bankFile && shownBook) return <FileDrill book={shownBook} target={target} />;
   if (positions.length === 0) return <p className="py-12 text-center text-sm text-ink-muted">No holdings in this slice.</p>;
 
   const value = positions.reduce((sum, one) => sum + one.value, 0);
@@ -421,9 +424,9 @@ function EquityBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const equity = useGetClientEquity<ClientEquity, ApiError>(customerId, { view: "LOOK_THROUGH" });
+  const equity = useGetClientEquity<ClientEquity, ApiError>(customerId, { view: "LOOK_THROUGH", ...useCurrencyParam() });
+  const data = useInShownCurrency(equity.data);
   if (equity.isError) return <p className="text-sm text-red-600">{equity.error.message}</p>;
-  const data = equity.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const currency = data.currency;
   const sleeve = data.strip.value ?? 0;
@@ -516,9 +519,9 @@ function BondBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId);
+  const fi = useGetClientWorkspaceFixedIncome<ClientFixedIncome, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(fi.data);
   if (fi.isError) return <p className="text-sm text-red-600">{fi.error.message}</p>;
-  const data = fi.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const currency = data.currency;
   const sleeve = data.sleeve ?? 0;
@@ -663,9 +666,9 @@ function FundBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const pm = useGetClientWorkspacePrivateMarkets<ClientPrivateMarkets, ApiError>(customerId);
+  const pm = useGetClientWorkspacePrivateMarkets<ClientPrivateMarkets, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(pm.data);
   if (pm.isError) return <p className="text-sm text-red-600">{pm.error.message}</p>;
-  const data = pm.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const currency = data.currency;
   const funds = data.funds.filter((one) => !one.total && (
@@ -783,7 +786,7 @@ function FlowBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId);
+  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId, useCurrencyParam());
   const months = workspace.data?.cashFlowMonths;
   const option = useMemo(() => {
     if (!months || target.by !== "flowType") return null;
@@ -807,8 +810,8 @@ function FlowBody({ customerId, target, wide, onDeeper }: {
     };
   }, [months, target, workspace.data]);
 
+  const data = useInShownCurrency(workspace.data);
   if (workspace.isError) return <p className="text-sm text-red-600">{workspace.error.message}</p>;
-  const data = workspace.data;
   if (!data || !months) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const currency = data.currency;
   const flows = data.cashFlows.filter((one) => target.by === "month" ? one.on.slice(0, 7) === target.key.slice(0, 7) : one.title === target.key);
@@ -912,8 +915,8 @@ function PeriodBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId);
-  const data = performance.data;
+  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(performance.data);
   const isYear = target.key.length === 4;
   const year = target.key.slice(0, 4);
   const months = useMemo(() => (data?.monthly ?? []).filter((one) => one.month.startsWith(year)), [data, year]);
@@ -1050,10 +1053,10 @@ function EffectBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId);
+  const performance = useGetClientPerformance<ClientPerformance, ApiError>(customerId, useCurrencyParam());
   const [chosen, setChosen] = useState<string | null>(null);
+  const data = useInShownCurrency(performance.data);
   if (performance.isError) return <p className="text-sm text-red-600">{performance.error.message}</p>;
-  const data = performance.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const periods = data.attribution?.periods ?? [];
   if (periods.length === 0) return <p className="py-12 text-center text-sm text-ink-muted">No attribution measured yet.</p>;
@@ -1155,9 +1158,9 @@ function CollectibleBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const co = useGetClientWorkspaceCollectibles<ClientCollectibles, ApiError>(customerId);
+  const co = useGetClientWorkspaceCollectibles<ClientCollectibles, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(co.data);
   if (co.isError) return <p className="text-sm text-red-600">{co.error.message}</p>;
-  const data = co.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the breakdown…</p>;
   const currency = data.currency;
 
@@ -1311,9 +1314,9 @@ function DeviationHistory({ series }: { series: IpsDeviationSeries }) {
 
 /** One rule of the client's investment policy: where it stands today and every exception logged against it. */
 function RuleBody({ customerId, target, wide }: { customerId: string; target: DrillTarget; wide: boolean }) {
-  const ips = useGetClientIps<ClientIps, ApiError>(customerId);
+  const ips = useGetClientIps<ClientIps, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(ips.data);
   if (ips.isError) return <p className="text-sm text-red-600">{ips.error.message}</p>;
-  const data = ips.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the rule…</p>;
   const check = [...data.checks, ...data.gauges].find((one) => one.key === target.key || one.label === target.name);
   const log = data.log.filter((one) => one.rule === target.name || one.rule === check?.label);
@@ -1374,9 +1377,9 @@ function EntityBody({ customerId, target, wide, onDeeper }: {
   wide: boolean;
   onDeeper: (target: DrillTarget) => void;
 }) {
-  const structure = useGetClientStructure<ClientStructure, ApiError>(customerId);
+  const structure = useGetClientStructure<ClientStructure, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(structure.data);
   if (structure.isError) return <p className="text-sm text-red-600">{structure.error.message}</p>;
-  const data = structure.data;
   if (!data) return <p className="py-16 text-center text-sm text-ink-muted">Opening the entity…</p>;
   const currency = data.currency;
 

@@ -27,6 +27,7 @@ import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/
 import type { Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
  * A client's Overview, laid out the way the firm's own design draws it: what they are worth, the facts of their
@@ -60,8 +61,8 @@ const DEFAULT_CARDS = Object.keys(CARDS) as OverviewCard[];
 
 export function ClientOverviewPage() {
   const { customerId = "" } = useParams();
-  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId);
-  const data = workspace.data;
+  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId, useCurrencyParam());
+  const data = useInShownCurrency(workspace.data);
   const view = useViewLayout("workspace.overview", CARDS, DEFAULT_CARDS);
 
   if (workspace.isError) return <Alert tone="danger">{workspace.error.message}</Alert>;
