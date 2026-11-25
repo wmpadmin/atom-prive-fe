@@ -34,7 +34,7 @@ export function StepRail({ steps, currentId, onSelect, hints, intro, note, foote
   // numbering those would read as parts the paper does not have.
   const lettered = steps.some((step) => PART.test(step.group.trim()) || OWN_MARK.test(step.group.trim()));
   return (
-    <nav aria-label="Sections of this form" className="rounded-2xl border border-line bg-white p-4 lg:sticky lg:top-6">
+    <nav aria-label="Sections of this form" className="rounded-2xl border border-line bg-white p-4 lg:sticky lg:top-52">
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">On this page</p>
       <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
         {intro ?? "One form, one submission. Go to any part — nothing is locked."}

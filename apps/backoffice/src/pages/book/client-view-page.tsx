@@ -253,7 +253,7 @@ export function ClientViewPage() {
         <ChevronLeft aria-hidden="true" className="size-4" /> Client Directory
       </Link>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{client?.fullName ?? "…"}</h1>
         <DateRange from={from} to={to} max={today}
           onChange={(nextFrom, nextTo) => {
@@ -332,7 +332,7 @@ export function ClientViewPage() {
             </Popover>
           </div>
         )}
-      </div>
+      </header>
 
       <div className="flex items-end gap-1 overflow-x-auto border-b border-line">
         <div role="tablist" aria-label="Views" className="flex gap-1">

@@ -75,7 +75,7 @@ export function ClientMovesPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <header>
         <Link
           to={`/portfolio-clients/${customerId}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
@@ -102,7 +102,7 @@ export function ClientMovesPage() {
           Every move of money between what this client holds. What the client asked for moved as it was
           written down; anything still waiting below was raised before that was so, and is answered here.
         </p>
-      </div>
+      </header>
 
       {/* The same bar the queue this screen is reached from carries. One click apart and drawn two ways,
           the pair read as two different products — and a heading written out by hand here is one more copy

@@ -18,13 +18,13 @@ export function BankCredentialsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <header>
         <h1 className="text-[1.625rem] font-bold text-balance">Bank credentials</h1>
         <p className="mt-1 text-sm text-ink-muted">
           Where each bank is and who the platform signs in as. Banks whose files are uploaded by hand need none, so
           they aren&apos;t listed.
         </p>
-      </div>
+      </header>
 
       {banks.isError && <Alert tone="danger">{banks.error.message}</Alert>}
 

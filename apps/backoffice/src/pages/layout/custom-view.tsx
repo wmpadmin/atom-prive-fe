@@ -300,7 +300,7 @@ export function CustomizeBar<Id extends string>({ view, screen }: { view: ViewLa
     return <p className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">Your layout could not be saved: {view.error}</p>;
   }
   return (
-    <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 shadow-sm">
+    <div className="sticky top-20 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 shadow-sm">
       <div className="min-w-0">
         <p className="text-sm font-bold">Customizing your view · {screen}</p>
         <p className="text-xs text-ink-soft">Drag cards to move them, ⚙ to change one, ✕ to hide, Choose cards to pick them. Saved to your account, so it follows you to any device.</p>

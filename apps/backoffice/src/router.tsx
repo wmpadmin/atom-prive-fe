@@ -87,6 +87,9 @@ import { ClientEquityPage } from "./pages/client-workspace/client-equity-page";
 import { ClientFixedIncomePage } from "./pages/client-workspace/client-fixed-income-page";
 import { ClientPrivateMarketsPage } from "./pages/client-workspace/client-private-markets-page";
 import { ClientCollectiblesPage } from "./pages/client-workspace/client-collectibles-page";
+import { ClientStructuredEquityPage } from "./pages/client-workspace/client-structured-equity-page";
+import { ClientStructuredFixedIncomePage } from "./pages/client-workspace/client-structured-fixed-income-page";
+import { ClientStructuredAlternativePage } from "./pages/client-workspace/client-structured-alternative-page";
 import { PortfolioReportsPage } from "./pages/portfolios/reports-page";
 import { PortfolioSettingsPage } from "./pages/portfolios/portfolio-settings-page";
 import { ModelPerformancePage } from "./pages/portfolios/model-performance-page";
@@ -462,6 +465,9 @@ export const router = createBrowserRouter([
                   { path: "fixed-income", element: <ClientFixedIncomePage /> },
                   { path: "private-markets", element: <ClientPrivateMarketsPage /> },
                   { path: "collectibles", element: <ClientCollectiblesPage /> },
+                  { path: "structured-equity", element: <ClientStructuredEquityPage /> },
+                  { path: "structured-fixed-income", element: <ClientStructuredFixedIncomePage /> },
+                  { path: "structured-alternative", element: <ClientStructuredAlternativePage /> },
                 ],
               },
               // The Client list was removed on 20 Nov 2026; its address lands on the Client Directory instead.

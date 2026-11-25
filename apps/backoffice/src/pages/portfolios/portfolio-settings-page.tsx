@@ -158,7 +158,7 @@ export function PortfolioSettingsPage() {
 
   return (
     <div ref={page} className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Portfolio settings</h1>
           <p className="mt-1 text-sm text-ink-muted">Configure portfolio rules, asset classes, alerts, reporting and access.</p>
@@ -184,7 +184,7 @@ export function PortfolioSettingsPage() {
             </>
           )}
         </div>
-      </div>
+      </header>
 
       <div role="tablist" aria-label="Portfolio settings" className="flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((one) => {

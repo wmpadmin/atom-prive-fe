@@ -47,12 +47,12 @@ export function SignInAsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <header>
         <h1 className="text-[1.625rem] font-bold text-balance">Sign in as</h1>
         <p className="mt-1 text-sm text-ink-muted">
           See the portal as a client, or the back office as a member of staff, to reproduce a problem. Read-only, for 30 minutes, and recorded with your reason.
         </p>
-      </div>
+      </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="rounded-2xl border border-line bg-white p-5">
