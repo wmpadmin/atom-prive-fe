@@ -131,7 +131,7 @@ export function ScoredStep({
             onChange={(picked) => change({ answers: { ...value.answers, [question.id]: picked } })} />
         ))}
       </div>
-      <aside className="rounded-2xl border border-line bg-white p-4 xl:sticky xl:top-4">
+      <aside className="rounded-2xl border border-line bg-white p-4 xl:sticky xl:top-52">
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{part === "ability" ? "Risk Ability" : "Risk Tolerance"} so far</p>
         <p className="mt-1 text-3xl font-bold tabular-nums">
           {total} <span className="text-sm font-semibold text-ink-muted">of {part === "ability" ? 50 : 25}</span>

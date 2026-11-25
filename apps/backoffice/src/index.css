@@ -12,11 +12,42 @@
 @layer base {
   html {
     font-size: clamp(12px, calc(100vw / 120), 16px);
+    /* The top bar (5rem, app-layout.tsx) and the screen's heading under it stay at the top of the window, so a jump
+       to a part of a screen stops below both rather than behind them. */
+    scroll-padding-top: 14rem;
   }
 
   body {
     font-size: var(--text-base);
   }
+}
+
+/*
+ * Every screen's heading stays at the top while the screen scrolls under it, just below the top bar (25 Nov 2026):
+ * the screen's own header with its title — breadcrumb, title, the line under it and its buttons — or the title alone
+ * where a screen has no header. A screen is the page directly inside <main> (or, for a screen with no wrapper of its
+ * own, <main> itself), so one rule holds for all of them.
+ *
+ * Unlayered, so it outranks a header's own "relative": a sticky element positions its absolute children just the
+ * same. Its background reaches across <main>'s side padding and a little above and below, so nothing shows through
+ * beside it or in the gap under the top bar.
+ */
+main > div > header:has(h1),
+main > header:has(h1),
+main > div > h1 {
+  position: sticky;
+  top: 5.75rem;
+  z-index: 20;
+}
+
+main > div > header:has(h1)::before,
+main > header:has(h1)::before,
+main > div > h1::before {
+  content: "";
+  position: absolute;
+  inset: -0.75rem -2rem;
+  z-index: -1;
+  background-color: var(--color-canvas);
 }
 
 /* Scaled down that far, small text would be hard to read, so it stops shrinking at these sizes. */

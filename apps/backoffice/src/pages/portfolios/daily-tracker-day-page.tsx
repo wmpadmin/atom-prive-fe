@@ -64,7 +64,7 @@ export function DailyTrackerChangePage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <header>
         <Link
           to={`/portfolio-clients/${customerId}/days/${on}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline-offset-2 hover:underline"
@@ -82,7 +82,7 @@ export function DailyTrackerChangePage() {
           The numbering runs through everything ever written down for this client, not through this
           day: {whereItSits(day, reading)}.
         </p>
-      </div>
+      </header>
 
       {history.isPending ? (
         <section className="rounded-2xl border border-line bg-white px-6 py-10">

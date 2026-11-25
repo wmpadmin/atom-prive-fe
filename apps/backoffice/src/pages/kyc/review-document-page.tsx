@@ -150,7 +150,7 @@ export function ReviewDocumentPage() {
         {/* Both panels in one column of the grid. Left as two children they were two grid cells, and the
             second landed under the document rather than beside it — out of sight past twenty-eight pages
             of PDF. The column sticks as a whole, so it stays put while the paper is read. */}
-        <div className="space-y-5 lg:sticky lg:top-5">
+        <div className="space-y-5 lg:sticky lg:top-52">
           {decides && paper.reviewState === "AWAITING_REVIEW" ? (
           <section className="space-y-4 rounded-2xl border border-line bg-white px-5 py-5">
             <div>

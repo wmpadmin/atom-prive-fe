@@ -233,7 +233,7 @@ export function ProductKnowledgeStep({
         </p>
       )}
 
-      <div className="sticky top-0 z-10 hidden gap-3 rounded-lg bg-canvas/95 px-3.5 py-2 backdrop-blur lg:grid lg:grid-cols-[minmax(16rem,1fr)_10rem_15rem]">
+      <div className="sticky top-48 z-10 hidden gap-3 rounded-lg bg-canvas/95 px-3.5 py-2 backdrop-blur lg:grid lg:grid-cols-[minmax(16rem,1fr)_10rem_15rem]">
         <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Investment products</span>
         <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{experienceHeading}</span>
         <span className="text-2xs font-semibold tracking-wider whitespace-pre-line text-ink-muted uppercase">

@@ -1,4 +1,4 @@
-import { ChartNoAxesCombined, Gauge, Gem, Landmark, Layers, LayoutDashboard, List, Network, ShieldCheck, TrendingUp, type LucideIcon } from "lucide-react";
+import { ChartLine, ChartNoAxesCombined, ListFilter, Star, Gauge, Gem, Landmark, Layers, LayoutDashboard, List, Network, ShieldCheck, TrendingUp, type LucideIcon } from "lucide-react";
 
 /**
  * The screens of a client's workspace, in the order its side menu lists them.
@@ -22,6 +22,9 @@ export const WORKSPACE_SCREENS: WorkspaceScreen[] = [
   { id: "fixed-income", label: "Fixed Income Analytics", path: "fixed-income", icon: Landmark, group: "Asset class analytics" },
   { id: "private-markets", label: "Private Markets", path: "private-markets", icon: Layers, group: "Asset class analytics" },
   { id: "collectibles", label: "Collectibles & Real Assets", path: "collectibles", icon: Gem, group: "Asset class analytics" },
+  { id: "structured-equity", label: "Equity Structured", path: "structured-equity", icon: ChartLine, group: "Structured products" },
+  { id: "structured-fixed-income", label: "Fixed Income Structured", path: "structured-fixed-income", icon: ListFilter, group: "Structured products" },
+  { id: "structured-alternative", label: "Alternative Structured", path: "structured-alternative", icon: Star, group: "Structured products" },
 ];
 
 /** Where one client's workspace opens. */

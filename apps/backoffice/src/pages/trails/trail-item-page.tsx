@@ -127,12 +127,12 @@ function OneMovePlan({ customerId, itemId }: { customerId: string; itemId: strin
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
+      <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-[1.625rem] font-bold">
           {asking ? "Money moved as the client asked" : "Bulk rebalance"}
         </h1>
         <Badge tone={tone(plan.status)}>{plan.statusSaid}</Badge>
-      </div>
+      </header>
 
       <section className="rounded-2xl border border-line bg-white px-5 py-5">
         <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

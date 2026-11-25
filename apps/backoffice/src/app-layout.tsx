@@ -988,6 +988,13 @@ export function AppLayout() {
     };
   }, [openClient]);
 
+  // Every screen opens at its top. The page scrolls as a whole, so moving to another screen kept the scroll of the one
+  // left and the new screen opened part-way down (25 Nov 2026). A change of search alone — a queue or a filter picked
+  // on the same screen — leaves the scroll where it is.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
+
   const view = currentSupportView();
   const found = useMemo(() => {
     const query = menuQuery.trim();
@@ -1078,7 +1085,10 @@ export function AppLayout() {
           Left to overflow, it widened the whole document, and a sideways scroll of the page slid the sidebar half
           out of view — role headings read "DMIN" and the footer was cut off. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
-        <header className="flex h-20 items-center justify-between gap-4 px-8">
+        {/* Held at the top of the window while the screen scrolls under it (25 Nov 2026): the desk, the workspace,
+            the currency, search and the icons stay in reach. Anything else that sticks to the window sits below its
+            5rem; a side panel or a full-screen dialog still opens over it. */}
+        <header className="sticky top-0 z-30 flex h-20 items-center justify-between gap-4 bg-canvas px-8">
           <div className="flex min-w-0 items-center gap-4">
             <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
             <WorkspaceSwitch />

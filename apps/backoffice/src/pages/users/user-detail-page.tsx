@@ -104,7 +104,7 @@ export function UserDetailPage() {
 
       {notice && <Alert tone={notice.tone}>{notice.message}</Alert>}
 
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white px-6 py-5">
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white px-6 py-5">
         <div className="flex min-w-0 items-center gap-4">
           <StaffAvatar name={user.fullName} photo={user.photo} className="size-16 rounded-2xl text-xl" />
           <div className="min-w-0">
@@ -136,7 +136,7 @@ export function UserDetailPage() {
             Edit
           </Button>
         </div>
-      </section>
+      </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Assigned clients">

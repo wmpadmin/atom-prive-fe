@@ -11659,6 +11659,363 @@ export interface ClientWorkspace {
   totalWorth: BookAumPoint[];
 }
 
+export interface SpKpi {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: number | null;
+  unit: string;
+  /** @nullable */
+  on: string | null;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  amount: number | null;
+  /** @nullable */
+  tag: string | null;
+  /** @nullable */
+  tagTone: string | null;
+  notes: string[];
+}
+
+export interface SpEvent {
+  on: string;
+  noteId: string;
+  kind: string;
+  title: string;
+  detail: string;
+  /** @nullable */
+  amount: number | null;
+  status: string;
+  statusTone: string;
+}
+
+export interface SpFiNote {
+  id: string;
+  structure: string;
+  /** @nullable */
+  line: string | null;
+  label: string;
+  category: string;
+  categoryLabel: string;
+  reference: string;
+  issuer: string;
+  notional: number;
+  bidPercent: number;
+  mtm: number;
+  /** @nullable */
+  couponPercent: number | null;
+  /** @nullable */
+  terms: string | null;
+  issuedOn: string;
+  maturesOn: string;
+  /** @nullable */
+  keyTrigger: string | null;
+  status: string;
+  statusTone: string;
+  /** @nullable */
+  duration: number | null;
+  /** @nullable */
+  callProbability: number | null;
+  events: SpEvent[];
+}
+
+export interface SpTotal {
+  notes: number;
+  issuers: number;
+  notional: number;
+  mtm: number;
+  /** @nullable */
+  averageCoupon: number | null;
+}
+
+export interface SpScenarioRow {
+  noteId: string;
+  label: string;
+  amounts: number[];
+}
+
+export interface SpScenarioSet {
+  key: string;
+  label: string;
+  lead: string;
+  moves: string[];
+  rows: SpScenarioRow[];
+  book: number[];
+}
+
+export interface SpIssuer {
+  issuer: string;
+  /** @nullable */
+  rating: string | null;
+  /** @nullable */
+  cdsBp: number | null;
+  notes: number;
+  mtm: number;
+  share: number;
+  /** @nullable */
+  withinLimit: boolean | null;
+}
+
+export interface SpFileLine {
+  bank: string;
+  name: string;
+  /** @nullable */
+  isin: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  holding: number | null;
+  /** @nullable */
+  costPrice: number | null;
+  /** @nullable */
+  lastPrice: number | null;
+  /** @nullable */
+  maturity: string | null;
+  /** @nullable */
+  marketValueUsd: number | null;
+  /** @nullable */
+  pnlUsd: number | null;
+  /** @nullable */
+  pnlPercent: number | null;
+  /** @nullable */
+  productType: string | null;
+  /** @nullable */
+  subAssetClass: string | null;
+  /** @nullable */
+  issuer: string | null;
+  /** @nullable */
+  geography: string | null;
+}
+
+export interface ClientStructuredFixedIncome {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  source: string;
+  kpis: SpKpi[];
+  notes: SpFiNote[];
+  total: SpTotal | null;
+  scenarios: SpScenarioSet[];
+  /** @nullable */
+  scenarioNote: string | null;
+  calendar: SpEvent[];
+  issuers: SpIssuer[];
+  /** @nullable */
+  issuerLimit: number | null;
+  /** @nullable */
+  issuerLimitPercent: number | null;
+  fileLines: SpFileLine[];
+  /** @nullable */
+  note: string | null;
+}
+
+export interface SpEquityNote {
+  id: string;
+  structure: string;
+  /** @nullable */
+  line: string | null;
+  shortName: string;
+  label: string;
+  category: string;
+  categoryLabel: string;
+  underlying: string;
+  issuer: string;
+  /** @nullable */
+  region: string | null;
+  notional: number;
+  bidPercent: number;
+  mtm: number;
+  /** @nullable */
+  couponPercent: number | null;
+  /** @nullable */
+  payoff: string | null;
+  /** @nullable */
+  barrier: string | null;
+  /** @nullable */
+  worst: string | null;
+  /** @nullable */
+  level: number | null;
+  /** @nullable */
+  toBarrier: number | null;
+  toKnockOut: boolean;
+  nextEvent: string;
+  nextEventOn: string;
+  status: string;
+  statusTone: string;
+  capitalProtected: boolean;
+  issuedOn: string;
+  maturesOn: string;
+  events: SpEvent[];
+}
+
+export interface SpPoint {
+  x: number;
+  y: number;
+}
+
+export interface SpMarker {
+  kind: string;
+  label: string;
+  at: number;
+}
+
+export interface SpPayoff {
+  noteId: string;
+  tab: string;
+  title: string;
+  notional: number;
+  worst: string;
+  redemption: SpPoint[];
+  markers: SpMarker[];
+  note: string;
+}
+
+export interface SpBarrier {
+  noteId: string;
+  label: string;
+  worst: string;
+  level: number;
+  barrier: number;
+  knockOut: boolean;
+  distance: number;
+}
+
+export interface SpShare {
+  key: string;
+  label: string;
+  value: number;
+  percent: number;
+  notes: number;
+}
+
+export interface ClientStructuredEquity {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  source: string;
+  kpis: SpKpi[];
+  /** @nullable */
+  alert: string | null;
+  notes: SpEquityNote[];
+  total: SpTotal | null;
+  payoffs: SpPayoff[];
+  barriers: SpBarrier[];
+  scenarios: SpScenarioSet[];
+  /** @nullable */
+  scenarioNote: string | null;
+  byFamily: SpShare[];
+  byRegion: SpShare[];
+  calendar: SpEvent[];
+  issuers: SpIssuer[];
+  /** @nullable */
+  issuerLimit: number | null;
+  /** @nullable */
+  issuerLimitPercent: number | null;
+  fileLines: SpFileLine[];
+  /** @nullable */
+  note: string | null;
+}
+
+export interface SpAltNote {
+  id: string;
+  structure: string;
+  /** @nullable */
+  line: string | null;
+  label: string;
+  category: string;
+  type: string;
+  underlying: string;
+  issuer: string;
+  notional: number;
+  bidPercent: number;
+  mtm: number;
+  /** @nullable */
+  payoff: string | null;
+  /** @nullable */
+  level: string | null;
+  /** @nullable */
+  exposure: string | null;
+  issuedOn: string;
+  maturesOn: string;
+  events: SpEvent[];
+}
+
+export interface SpAltScenario {
+  key: string;
+  name: string;
+  shock: string;
+  impact: number;
+  percentOfBook: number;
+  mostAffected: string;
+  whatHappens: string;
+  combined: boolean;
+  noteIds: string[];
+}
+
+export interface SpLiquidity {
+  noteId: string;
+  label: string;
+  pricingSource: string;
+  frequency: string;
+  lastPriced: string;
+  /** @nullable */
+  bidOffer: number | null;
+  /** @nullable */
+  exitCost: number | null;
+  /** @nullable */
+  exitText: string | null;
+  settlement: string;
+  valuation: string;
+  valuationTone: string;
+}
+
+export interface SpFxTrigger {
+  noteId: string;
+  label: string;
+  pair: string;
+  spot: number;
+  lower: number;
+  /** @nullable */
+  upper: number | null;
+  cushion: number;
+  tone: string;
+  decimals: number;
+}
+
+export interface ClientStructuredAlternative {
+  customerId: string;
+  name: string;
+  currency: string;
+  asOf: string;
+  bankFile: boolean;
+  source: string;
+  kpis: SpKpi[];
+  /** @nullable */
+  alert: string | null;
+  notes: SpAltNote[];
+  total: SpTotal | null;
+  exposure: SpShare[];
+  /** @nullable */
+  exposureNote: string | null;
+  scenarios: SpAltScenario[];
+  liquidity: SpLiquidity[];
+  fxTriggers: SpFxTrigger[];
+  calendar: SpEvent[];
+  issuers: SpIssuer[];
+  /** @nullable */
+  issuerLimit: number | null;
+  /** @nullable */
+  issuerLimitPercent: number | null;
+  fileLines: SpFileLine[];
+  /** @nullable */
+  note: string | null;
+}
+
 export interface StructureCount {
   name: string;
   count: number;
@@ -14548,6 +14905,18 @@ template?: string;
 };
 
 export type GetClientWorkspaceParams = {
+currency?: string;
+};
+
+export type GetClientWorkspaceStructuredFixedIncomeParams = {
+currency?: string;
+};
+
+export type GetClientWorkspaceStructuredEquityParams = {
+currency?: string;
+};
+
+export type GetClientWorkspaceStructuredAlternativeParams = {
 currency?: string;
 };
 
@@ -54686,6 +55055,336 @@ export function useGetClientWorkspace<TData = Awaited<ReturnType<typeof getClien
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetClientWorkspaceQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceStructuredFixedIncomeUrl = (customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/structured/fixed-income?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/structured/fixed-income`
+}
+
+export const getClientWorkspaceStructuredFixedIncome = async (customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams, options?: Parameters<typeof http>[1]): Promise<ClientStructuredFixedIncome> => {
+
+  return http<ClientStructuredFixedIncome>(getGetClientWorkspaceStructuredFixedIncomeUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceStructuredFixedIncomeQueryKey = (customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/structured/fixed-income`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceStructuredFixedIncomeQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceStructuredFixedIncomeQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>> = ({ signal }) => getClientWorkspaceStructuredFixedIncome(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceStructuredFixedIncomeQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>>
+export type GetClientWorkspaceStructuredFixedIncomeQueryError = unknown
+
+
+export function useGetClientWorkspaceStructuredFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetClientWorkspaceStructuredFixedIncomeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspaceStructuredFixedIncome<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredFixedIncomeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredFixedIncome>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceStructuredFixedIncomeQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceStructuredEquityUrl = (customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/structured/equity?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/structured/equity`
+}
+
+export const getClientWorkspaceStructuredEquity = async (customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams, options?: Parameters<typeof http>[1]): Promise<ClientStructuredEquity> => {
+
+  return http<ClientStructuredEquity>(getGetClientWorkspaceStructuredEquityUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceStructuredEquityQueryKey = (customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/structured/equity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceStructuredEquityQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceStructuredEquityQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>> = ({ signal }) => getClientWorkspaceStructuredEquity(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceStructuredEquityQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>>
+export type GetClientWorkspaceStructuredEquityQueryError = unknown
+
+
+export function useGetClientWorkspaceStructuredEquity<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetClientWorkspaceStructuredEquityParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredEquity<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredEquity<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspaceStructuredEquity<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredEquityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredEquity>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceStructuredEquityQueryOptions(customerId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientWorkspaceStructuredAlternativeUrl = (customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/client-workspace/${customerId}/structured/alternative?${stringifiedParams}` : `/api/backoffice/client-workspace/${customerId}/structured/alternative`
+}
+
+export const getClientWorkspaceStructuredAlternative = async (customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams, options?: Parameters<typeof http>[1]): Promise<ClientStructuredAlternative> => {
+
+  return http<ClientStructuredAlternative>(getGetClientWorkspaceStructuredAlternativeUrl(customerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientWorkspaceStructuredAlternativeQueryKey = (customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams,) => {
+    return [
+    `/api/backoffice/client-workspace/${customerId}/structured/alternative`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientWorkspaceStructuredAlternativeQueryOptions = <TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError = unknown>(customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientWorkspaceStructuredAlternativeQueryKey(customerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>> = ({ signal }) => getClientWorkspaceStructuredAlternative(customerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClientWorkspaceStructuredAlternativeQueryResult = NonNullable<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>>
+export type GetClientWorkspaceStructuredAlternativeQueryError = unknown
+
+
+export function useGetClientWorkspaceStructuredAlternative<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError = unknown>(
+ customerId: string,
+    params: undefined |  GetClientWorkspaceStructuredAlternativeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredAlternative<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>,
+          TError,
+          Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClientWorkspaceStructuredAlternative<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetClientWorkspaceStructuredAlternative<TData = Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError = unknown>(
+ customerId: string,
+    params?: GetClientWorkspaceStructuredAlternativeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClientWorkspaceStructuredAlternative>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClientWorkspaceStructuredAlternativeQueryOptions(customerId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
