@@ -17,7 +17,11 @@ const usd = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 });
 
 type Key = "fromYear" | "toYear" | "employmentDetails" | "country" | "turnover" | "marginPercent" | "salary"
   | "increasePercent" | "expensePercent" | "equity" | "realEstate";
-type Row = { id: string | null; key: string; values: Record<Key, string>; errors: Record<string, string>; saving: boolean };
+type Row = {
+  id: string | null; key: string; values: Record<Key, string>; errors: Record<string, string>; saving: boolean;
+  /** What the server last had for the row (sent, or read): a cell typed into since is kept when its copy comes back. */
+  sent: Record<Key, string> | null;
+};
 
 const MONEY: Key[] = ["turnover", "salary", "equity", "realEstate"];
 const PERCENT: Key[] = ["marginPercent", "increasePercent", "expensePercent"];
@@ -28,20 +32,18 @@ function money(value: number) {
 
 function rowOf(period: WealthPeriod): Row {
   const pct = (value: number) => (value === 0 ? "" : String(value));
-  return {
-    id: period.id, key: period.id, errors: {}, saving: false,
-    values: {
-      fromYear: String(period.fromYear), toYear: String(period.toYear), employmentDetails: period.employmentDetails ?? "",
-      country: period.country ?? "", turnover: money(period.turnover), marginPercent: pct(period.marginPercent),
-      salary: money(period.salary), increasePercent: pct(period.increasePercent), expensePercent: pct(period.expensePercent),
-      equity: money(period.equity), realEstate: money(period.realEstate),
-    },
+  const values = {
+    fromYear: String(period.fromYear), toYear: String(period.toYear), employmentDetails: period.employmentDetails ?? "",
+    country: period.country ?? "", turnover: money(period.turnover), marginPercent: pct(period.marginPercent),
+    salary: money(period.salary), increasePercent: pct(period.increasePercent), expensePercent: pct(period.expensePercent),
+    equity: money(period.equity), realEstate: money(period.realEstate),
   };
+  return { id: period.id, key: period.id, errors: {}, saving: false, values, sent: values };
 }
 
 let fresh = 0;
 const blank = (): Row => ({
-  id: null, key: `new-${++fresh}`, errors: {}, saving: false,
+  id: null, key: `new-${++fresh}`, errors: {}, saving: false, sent: null,
   values: { fromYear: "", toYear: "", employmentDetails: "", country: "", turnover: "", marginPercent: "", salary: "",
     increasePercent: "", expensePercent: "", equity: "", realEstate: "" },
 });
@@ -62,11 +64,33 @@ export function WealthGrid({ prospectId, holder, editable, onSaved, register }: 
   register?: SaveRegister;
 }) {
   const [rows, setRows] = useState<Row[]>(() => holder.periods.map(rowOf));
-  // What the server holds comes back after every save: kept rows refreshed, rows still being typed kept as they are.
+  // What the server holds comes back after every save. Each row keeps its place (a new row stays where it was typed,
+  // in year order once the page is opened again: the user's choice, 25 Nov 2026), and a cell typed into while a save
+  // was on its way stays as typed rather than being put back to what the server had.
   useEffect(() => {
-    setRows((was) => [...holder.periods.map(rowOf), ...was.filter((one) => one.id === null)]);
+    setRows((was) => {
+      const fromServer = new Map(holder.periods.map((period) => [period.id, period]));
+      const kept = was.flatMap((one): Row[] => {
+        if (one.id === null) return [one];
+        const period = fromServer.get(one.id);
+        if (!period) return [];
+        fromServer.delete(one.id);
+        const server = rowOf(period).values;
+        const values = { ...server };
+        for (const field of Object.keys(values) as Key[]) {
+          if (one.sent && one.values[field] !== one.sent[field]) values[field] = one.values[field];
+        }
+        return [{ ...one, values, sent: server }];
+      });
+      return [...kept, ...[...fromServer.values()].map(rowOf)];
+    });
   }, [holder.periods]);
   const periodOf = (row: Row) => holder.periods.find((one) => one.id === row.id);
+  // What the server last sent, for saves that finish after the screen has moved on.
+  const latest = useRef(holder);
+  useEffect(() => {
+    latest.current = holder;
+  }, [holder]);
   const t = holder.totals;
 
   const change = (key: string, field: Key, value: string) =>
@@ -83,10 +107,22 @@ export function WealthGrid({ prospectId, holder, editable, onSaved, register }: 
   };
   useEffect(() => register?.(() => saveAll.current()), [register]);
 
-  async function commit(row: Row, asked = false): Promise<boolean> {
+  // A row's saves go one after another (25 Nov 2026). Each cell left used to send its own save at once, so a new row
+  // was added again for every cell left before the first add came back: five cells, five copies of the row. Now a
+  // new row is added once, and what is typed in it after that changes the row it became.
+  const queue = useRef(new Map<string, Promise<boolean>>());
+  const created = useRef(new Map<string, string>());
+  function commit(row: Row, asked = false): Promise<boolean> {
+    const next = (queue.current.get(row.key) ?? Promise.resolve(true)).catch(() => false).then(() => send(row, asked));
+    queue.current.set(row.key, next);
+    return next;
+  }
+
+  async function send(row: Row, asked: boolean): Promise<boolean> {
+    const id = row.id ?? created.current.get(row.key) ?? null;
     const v = row.values;
     const num = (field: Key) => (v[field].trim() === "" ? null : Number(v[field].replace(/[,%\s]/g, "")));
-    if (row.id === null && (!v.fromYear.trim() || !v.toYear.trim() || (!v.salary.trim() && !v.turnover.trim()))) {
+    if (id === null && (!v.fromYear.trim() || !v.toYear.trim() || (!v.salary.trim() && !v.turnover.trim()))) {
       const typed = Object.values(v).some((one) => one.trim() !== "");
       if (asked && typed) {
         setRows((was) => was.map((one) => (one.key === row.key
@@ -95,7 +131,7 @@ export function WealthGrid({ prospectId, holder, editable, onSaved, register }: 
       }
       return true;
     }
-    const saved = periodOf(row);
+    const saved = id === null ? undefined : latest.current.periods.find((one) => one.id === id);
     if (saved && JSON.stringify(rowOf(saved).values) === JSON.stringify(v)) return true;
     const body = {
       holderId: holder.holderId, fromYear: num("fromYear"), toYear: num("toYear"),
@@ -105,8 +141,22 @@ export function WealthGrid({ prospectId, holder, editable, onSaved, register }: 
     };
     setRows((was) => was.map((one) => (one.key === row.key ? { ...one, saving: true } : one)));
     try {
-      const next = row.id ? await changeWealthPeriod(prospectId, row.id, body) : await addWealthPeriod(prospectId, body);
-      if (row.id === null) setRows((was) => was.filter((one) => one.key !== row.key));
+      let next: WealthView;
+      if (id !== null) {
+        next = await changeWealthPeriod(prospectId, id, body);
+      } else {
+        const known = new Set(latest.current.periods.map((one) => one.id));
+        const claimed = new Set(created.current.values());
+        next = await addWealthPeriod(prospectId, body);
+        const mine = next.holders.find((one) => one.holderId === holder.holderId)?.periods.find((one) =>
+          !known.has(one.id) && !claimed.has(one.id) && one.fromYear === body.fromYear && one.toYear === body.toYear);
+        if (mine) created.current.set(row.key, mine.id);
+      }
+      const now = id ?? created.current.get(row.key) ?? null;
+      setRows((was) => (now === null
+        // Not found in what came back: shown as the server has it rather than risk adding it twice.
+        ? was.filter((one) => one.key !== row.key)
+        : was.map((one) => (one.key === row.key ? { ...one, id: now, saving: false, errors: {}, sent: v } : one))));
       onSaved(next);
       return true;
     } catch (caught) {
@@ -118,12 +168,15 @@ export function WealthGrid({ prospectId, holder, editable, onSaved, register }: 
   }
 
   async function remove(row: Row) {
-    if (row.id === null) {
+    // A save on its way finishes first, so a row being added is removed once it has been.
+    await queue.current.get(row.key);
+    const id = row.id ?? created.current.get(row.key) ?? null;
+    if (id === null) {
       setRows((was) => was.filter((one) => one.key !== row.key));
       return;
     }
     if (!window.confirm(`Remove ${row.values.fromYear} to ${row.values.toYear}?`)) return;
-    onSaved(await removeWealthPeriod(prospectId, row.id));
+    onSaved(await removeWealthPeriod(prospectId, id));
   }
 
   const input = (row: Row, field: Key, align: "left" | "right" | "center" = "right") => {
