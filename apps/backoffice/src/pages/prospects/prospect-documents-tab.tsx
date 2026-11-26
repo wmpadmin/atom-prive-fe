@@ -101,7 +101,7 @@ function Started({ prospectId, mayChange, mayDecide, startAdding }: { prospectId
     <div className="space-y-4">
       <ProspectDocuments prospectId={prospectId} mayChange={mayChange} mayDecide={mayDecide} startAdding={startAdding} />
       {mayDecide && (stage === "WITH_COMPLIANCE" || stage === "COMPLIANCE_REVIEW") && (
-        <ComplianceDecision prospectId={prospectId} holders={holders} />
+        <ComplianceDecision prospectId={prospectId} holders={holders} documentsAt={documents.dataUpdatedAt} />
       )}
       {mayDecide && stage === "REJECTED" && <ReopenCompliance prospectId={prospectId} />}
       {stage === "AGREEMENT_PENDING" && (

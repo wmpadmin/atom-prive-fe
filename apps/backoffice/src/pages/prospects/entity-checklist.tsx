@@ -66,7 +66,8 @@ export function EntityChecklist({ prospectId, holder, checks, editable, mayDecid
     <div className="mt-3 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-ink-muted">
-          Rows marked <span className="text-red-600">*</span> need an approved file before Compliance can approve.
+          Every row needs an approved file before Compliance can approve (System rows: marked OK). Rows marked{" "}
+          <span className="text-red-600">*</span> are needed before it can be sent.
         </p>
         <span className="rounded-full bg-primary-50 px-3 py-1 text-sm font-semibold text-primary-700">Total sections: {sections.length}</span>
       </div>
@@ -181,6 +182,13 @@ function Item({ prospectId, paper, index, check, editable, mayDecide, sending, o
             {paper.title}{paper.required && <span className="text-red-600"> *</span>}
           </span>
         </button>
+        {/* Asked once the client is onboarded, not of a prospect (26 Nov 2026): listed, not counted by Approve everything.
+            Read off the line until the API client is next generated. */}
+        {(paper as { afterOnboarding?: boolean }).afterOnboarding && (
+          <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-bold text-primary-700">
+            After onboarding · not needed now
+          </span>
+        )}
         {withFiles && (
           <span className="shrink-0 text-sm text-ink-muted">
             {paper.files.length === 0 ? "No file" : paper.files.length === 1 ? "1 file" : `${paper.files.length} files`}

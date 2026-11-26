@@ -83,7 +83,8 @@ export function CallNotes(props: Subject & { mayWrite: boolean }) {
   return (
     <section className="space-y-4">
       <p className="max-w-3xl text-sm text-ink-muted">
-        Every contact with them, oldest first. Each note is signed by whoever adds it, with their role, and is never changed after: a correction is a new note.
+        Every contact with them, oldest first. Each note is signed by whoever adds it, with their role; only they can edit it
+        after, and the wording it had before is kept on the note.
       </p>
       {problem && <Alert tone="danger">{problem}</Alert>}
       {notes.isError && <p className="text-sm text-red-700">The call notes couldn't be loaded.</p>}
@@ -125,6 +126,7 @@ export function CallNotes(props: Subject & { mayWrite: boolean }) {
                   {one.status === "SIGNED" ? (
                     <div className="mt-3 border-t border-dashed border-line pt-2.5">
                       <SignedLine name={one.signature ?? one.writtenBy} role={one.signedAs} at={one.signedAt} />
+                      <EditedLine one={one} />
                     </div>
                   ) : <SignOffTrail one={one} />}
                   {(one.mayEdit || one.mayVet || one.maySign) && (
@@ -149,6 +151,49 @@ export function CallNotes(props: Subject & { mayWrite: boolean }) {
       {vetting && <VetDialog one={vetting} onClose={() => setVetting(null)} onDone={() => { setVetting(null); refresh(); }} />}
       {signing && <SignDialog one={signing} onClose={() => setSigning(null)} onDone={() => { setSigning(null); refresh(); }} />}
     </section>
+  );
+}
+
+/** A wording a signed note had before it was edited (26 Nov 2026); read off the note until the API client is next generated. */
+type EarlierWording = { happenedOn: string; mode: string; place: string | null; attendees: string | null; discussion: string;
+  replacedAt: string; replacedBy: string };
+
+/**
+ * Who edited a signed note and when (26 Nov 2026), and the wording it had before each edit, opened from here. Nothing
+ * for a note still as it was signed.
+ */
+function EditedLine({ one }: { one: CallNoteRow }) {
+  const edited = one as CallNoteRow & { editedBy?: string | null; editedAt?: string | null; earlier?: EarlierWording[] };
+  const [open, setOpen] = useState(false);
+  if (!edited.editedAt) return null;
+  const earlier = edited.earlier ?? [];
+  return (
+    <div className="mt-1.5 text-xs text-ink-muted">
+      <span>Edited by {edited.editedBy ?? "whoever signed it"} on {formatDateTime(edited.editedAt)}</span>
+      {earlier.length > 0 && (
+        <>
+          {" · "}
+          <button type="button" onClick={() => setOpen((was) => !was)} aria-expanded={open}
+            className="font-semibold text-primary-700 hover:underline">
+            {open ? "Hide earlier wording" : `See earlier wording (${earlier.length})`}
+          </button>
+        </>
+      )}
+      {open && (
+        <ol className="mt-2 space-y-2">
+          {earlier.map((was, at) => (
+            <li key={at} className="rounded-lg border border-line bg-slate-50 px-3 py-2">
+              <p className="font-semibold text-ink-soft">
+                {formatDate(was.happenedOn)} · {MODES[was.mode as CallNoteRequestMode] ?? was.mode}{was.place ? ` · ${was.place}` : ""}
+                {was.attendees ? ` · With ${was.attendees}` : ""}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-ink-soft">{was.discussion}</p>
+              <p className="mt-1 text-2xs">Replaced by {was.replacedBy} on {formatDateTime(was.replacedAt)}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 
@@ -231,6 +276,9 @@ function NoteForm({ subject, editing, onDone, onCancel }: {
   return (
     <div className="space-y-4 rounded-xl border border-primary-200 bg-primary-50/30 p-4">
       <p className="text-sm font-semibold">{editing ? "Change the call note" : "Add a note"}</p>
+      {editing?.status === "SIGNED" && (
+        <p className="text-xs text-ink-muted">It stays signed by you, marked as edited; the wording it has now is kept on the note.</p>
+      )}
       {editing?.status === "RETURNED" && editing.vettingComment && (
         <Alert tone="warning">Operations sent it back: {editing.vettingComment}</Alert>
       )}

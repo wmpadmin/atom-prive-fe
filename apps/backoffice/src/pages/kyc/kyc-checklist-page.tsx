@@ -36,6 +36,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createElement, useState } from "react";
+import { useSearchParams } from "react-router";
+import { HowOftenAsked } from "./how-often-asked";
 
 type ClientType = ChecklistForA["clientType"];
 type Reach = "ALL" | "NEW" | "EXISTING";
@@ -119,6 +121,8 @@ export function KycChecklistPage() {
 }
 
 function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => void }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "often" ? "often" : "checklist";
   const [managing, setManaging] = useState(false);
   // The paper whose clients are being changed, or null while adding a new one.
   const [editing, setEditing] = useState<PaperRow | null>(null);
@@ -186,6 +190,21 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
         </dl>
       </header>
 
+      {/* Two tabs since 26 Nov 2026: the checklist itself, and how often each paper is asked for again. Kept in the
+          address, so a reload or a link opens the same one. */}
+      <div role="tablist" aria-label="What KYC asks for" className="flex gap-2">
+        {([["checklist", "The firm's checklist"], ["often", "How often it's asked"]] as const).map(([key, label]) => (
+          <button key={key} type="button" role="tab" aria-selected={tab === key}
+            onClick={() => setSearchParams(key === "checklist" ? {} : { tab: key }, { replace: true })}
+            className={cn("rounded-xl border px-4 py-2 text-sm font-semibold",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600",
+              tab === key ? "border-primary-600 bg-primary-600 text-white" : "border-line bg-white text-ink-soft hover:text-ink")}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "often" ? <HowOftenAsked view={view} /> : (
       <section className="rounded-2xl border border-line bg-white">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 pt-5">
           <div>
@@ -275,6 +294,7 @@ function Checklist({ view, onChanged }: { view: ChecklistView; onChanged: () => 
           })}
         </ul>
       </section>
+      )}
 
       {setting && settingsOf(setting.clientType, setting.paper.id) && (
         <SettingsDialog paper={setting.paper} clientType={setting.clientType}

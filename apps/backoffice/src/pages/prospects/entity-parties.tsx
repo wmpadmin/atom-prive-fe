@@ -41,7 +41,7 @@ const ROLES: { id: Role; label: string; has: (one: PartyRow) => boolean }[] = [
   { id: "UBO", label: "UBOs", has: (one) => one.ubo },
 ];
 
-const KIND_LABEL: Record<PartyRow["kind"], string> = { PERSON: "Person", TRUST: "Trust", COMPANY: "Company" };
+const KIND_LABEL: Record<PartyRow["kind"], string> = { PERSON: "Person", TRUST: "Entity", COMPANY: "Company" };
 
 const OVER = 25;
 
