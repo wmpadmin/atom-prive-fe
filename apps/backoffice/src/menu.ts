@@ -9,6 +9,7 @@ import {
   UserMinus,
   Clock,
   Contact,
+  Database,
   Eye,
   FileCheck,
   FileCheck2,
@@ -154,6 +155,8 @@ const ADMINS_MENU: { to: string; label?: string; under?: string }[] = [
   { to: "/ingestion", label: "Bank feeds" },
   // The banks' holdings files, which the Admin uploads as well as the portfolio desk.
   { to: "/bank-holdings" },
+  // Each day's Bloomberg security data, which the Admin uploads as well as the portfolio desk (26 Nov 2026).
+  { to: "/security-master" },
   // Reading back: the reports, then the narrower trail before the wider one - family access is one question
   // asked of the trail, and the audit log is every question at once.
   { to: "/reports" },
@@ -254,6 +257,16 @@ const allNavigation: {
     label: "Bank holdings",
     icon: Landmark,
     authority: READS_BANK_HOLDINGS,
+    onlyFor: ["PORTFOLIO_MANAGER", "ADMIN"],
+  },
+  {
+    // Each day's security data from Bloomberg, in the client's template (26 Nov 2026). The portfolio desk and the
+    // Admin to begin with; who else opens it is the permission matrix's Screens tab alone, so it asks no permission
+    // of its own here — an Admin opening it to a role there is all it takes.
+    to: "/security-master",
+    label: "Security master",
+    icon: Database,
+    authority: null,
     onlyFor: ["PORTFOLIO_MANAGER", "ADMIN"],
   },
   {

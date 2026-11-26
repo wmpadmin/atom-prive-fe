@@ -5657,6 +5657,7 @@ export const ScreenGrantScreen = {
   BOOK_OVERVIEW: 'BOOK_OVERVIEW',
   CLIENT_DIRECTORY: 'CLIENT_DIRECTORY',
   BANK_HOLDINGS: 'BANK_HOLDINGS',
+  SECURITY_MASTER: 'SECURITY_MASTER',
   MODEL_PORTFOLIOS: 'MODEL_PORTFOLIOS',
   MODEL_PERFORMANCE: 'MODEL_PERFORMANCE',
   DRIFT: 'DRIFT',
@@ -6094,6 +6095,38 @@ export interface SendBackRequest {
   reason: string;
   /** @nullable */
   toStaff: string | null;
+}
+
+export interface SecurityMasterUpload {
+  id: string;
+  asOf: string;
+  fileName: string;
+  rowCount: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  /** @nullable */
+  uploadedByRole: string | null;
+  /** @nullable */
+  replacedAt: string | null;
+}
+
+export interface SecurityMasterProblem {
+  /** @nullable */
+  row: number | null;
+  /** @nullable */
+  column: string | null;
+  problem: string;
+}
+
+export interface SecurityMasterCheck {
+  fileName: string;
+  /** @nullable */
+  asOf: string | null;
+  rowCount: number;
+  examplesSkipped: number;
+  problemCount: number;
+  problems: SecurityMasterProblem[];
+  replaces: SecurityMasterUpload | null;
 }
 
 export interface MeetingCompleteRequest {
@@ -8979,6 +9012,47 @@ export interface ClientWhoSignedIn {
   /** @nullable */
   mark: string | null;
   latest: Session | null;
+}
+
+export interface SecurityMasterColumn {
+  column: string;
+  key: string;
+  label: string;
+  category: string;
+  bloomberg: string;
+  type: string;
+  /** @nullable */
+  decimals: number | null;
+  appliesTo: string[];
+  requiredFor: string[];
+  description: string;
+  frozen: boolean;
+}
+
+export interface SecurityMaster {
+  columns: SecurityMasterColumn[];
+  days: SecurityMasterUpload[];
+  uploads: SecurityMasterUpload[];
+  canUpload: boolean;
+}
+
+export type SecurityMasterRowCells = {[key: string]: string};
+
+export interface SecurityMasterRow {
+  rowNo: number;
+  cells: SecurityMasterRowCells;
+}
+
+export type SecurityMasterRowsCounts = {[key: string]: number};
+
+export interface SecurityMasterRows {
+  upload: SecurityMasterUpload;
+  current: SecurityMasterUpload | null;
+  counts: SecurityMasterRowsCounts;
+  total: number;
+  page: number;
+  size: number;
+  rows: SecurityMasterRow[];
 }
 
 export interface HoldingHit {
@@ -14125,6 +14199,7 @@ export const ScreenOptionScreen = {
   BOOK_OVERVIEW: 'BOOK_OVERVIEW',
   CLIENT_DIRECTORY: 'CLIENT_DIRECTORY',
   BANK_HOLDINGS: 'BANK_HOLDINGS',
+  SECURITY_MASTER: 'SECURITY_MASTER',
   MODEL_PORTFOLIOS: 'MODEL_PORTFOLIOS',
   MODEL_PERFORMANCE: 'MODEL_PERFORMANCE',
   DRIFT: 'DRIFT',
@@ -14218,6 +14293,18 @@ body: string;
 
 export type ReplyToMyStaffTicketBody = {
   files?: (Blob | File)[];
+};
+
+export type UploadSecurityMasterParams = {
+replace?: boolean;
+};
+
+export type UploadSecurityMasterBody = {
+  file: Blob | File;
+};
+
+export type CheckSecurityMasterBody = {
+  file: Blob | File;
 };
 
 export type ListEntriesParams = {
@@ -14579,6 +14666,13 @@ query?: string;
 
 export type ListPacksToSignParams = {
 waiting?: boolean;
+page?: number;
+size?: number;
+};
+
+export type GetSecurityMasterRowsParams = {
+assetClass?: string;
+search?: string;
 page?: number;
 size?: number;
 };
@@ -22852,7 +22946,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     }
 
 export const getUpdateRoleScreenUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
-    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',) => {
+    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'SECURITY_MASTER' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',) => {
 
 
 
@@ -22861,7 +22955,7 @@ export const getUpdateRoleScreenUrl = (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' 
 }
 
 export const updateRoleScreen = async (role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN',
-    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',
+    screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'SECURITY_MASTER' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL',
     updateRoleScreenRequest: UpdateRoleScreenRequest, options?: Parameters<typeof http>[1]): Promise<RoleScreensView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
@@ -22923,7 +23017,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRoleScreenMutationResult = NonNullable<Awaited<ReturnType<typeof updateRoleScreen>>>
     export type UpdateRoleScreenMutationBody = UpdateRoleScreenRequest
     export type UpdateRoleScreenMutationError = unknown
-    export type UpdateRoleScreenMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL';data: UpdateRoleScreenRequest}
+    export type UpdateRoleScreenMutationVariables = {role: 'ADMIN' | 'ADVISOR' | 'COMPLIANCE' | 'OPERATIONS' | 'PORTFOLIO_MANAGER' | 'IT_ADMIN';screen: 'DASHBOARD' | 'APPROVALS' | 'ASSISTANT' | 'MY_CLEARANCES' | 'MY_DECLARATIONS' | 'SUPPORT' | 'SETTINGS' | 'CLIENT_MANAGEMENT' | 'PROSPECTIVE_CLIENTS' | 'ALL_CLIENTS' | 'ASSIGNED_CUSTOMERS' | 'DEACTIVATION_REQUESTS' | 'ARCHIVED_CLIENTS' | 'CLIENT_DOCUMENTS' | 'FORMS' | 'POST_ONBOARDING' | 'TRADE_LOGS' | 'BOOK_OVERVIEW' | 'CLIENT_DIRECTORY' | 'BANK_HOLDINGS' | 'SECURITY_MASTER' | 'MODEL_PORTFOLIOS' | 'MODEL_PERFORMANCE' | 'DRIFT' | 'BULK_REBALANCING' | 'MIS' | 'REPORTS' | 'PORTFOLIO_SETTINGS' | 'KYC_REVIEW' | 'KYC_DOCUMENTS' | 'KYC_CHECKLIST' | 'ENTITY_DETAILS' | 'AML_RISK' | 'AML_RISK_MATRIX' | 'BANK_FEEDS' | 'SYNC_ERRORS' | 'HOLDINGS_CHECK' | 'BANK_CREDENTIALS' | 'STAFF_USERS' | 'PERMISSION_MATRIX' | 'STAFF_TRACKER' | 'STAFF_DECLARATIONS' | 'CONFIG' | 'SIGN_IN_AS' | 'AUDIT_LOG' | 'TRAILS' | 'FAMILY_ACCESS_TRAIL';data: UpdateRoleScreenRequest}
 
     export const useUpdateRoleScreen = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRoleScreen>>, TError,UpdateRoleScreenMutationVariables, TContext>, request?: SecondParameter<typeof http>}
@@ -24660,6 +24754,158 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getSendFormBackMutationOptions(options), queryClient);
+    }
+
+export const getUploadSecurityMasterUrl = (params?: UploadSecurityMasterParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/security-master/uploads?${stringifiedParams}` : `/api/backoffice/security-master/uploads`
+}
+
+export const uploadSecurityMaster = async (uploadSecurityMasterBody?: UploadSecurityMasterBody,
+    params?: UploadSecurityMasterParams, options?: Parameters<typeof http>[1]): Promise<SecurityMasterUpload> => {
+    const formData = new FormData();
+if(uploadSecurityMasterBody?.file !== undefined) {
+ formData.append(`file`, uploadSecurityMasterBody.file);
+ }
+
+  return http<SecurityMasterUpload>(getUploadSecurityMasterUrl(params),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadSecurityMasterMutationKey = () => ['uploadSecurityMaster'] as const;
+
+export const getUploadSecurityMasterMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadSecurityMaster>>, TError,UploadSecurityMasterMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadSecurityMaster>>, TError,UploadSecurityMasterMutationVariables, TContext> => {
+
+const mutationKey = getUploadSecurityMasterMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadSecurityMaster>>, UploadSecurityMasterMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  uploadSecurityMaster(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadSecurityMasterMutationResult = NonNullable<Awaited<ReturnType<typeof uploadSecurityMaster>>>
+    export type UploadSecurityMasterMutationBody = UploadSecurityMasterBody | undefined
+    export type UploadSecurityMasterMutationError = unknown
+    export type UploadSecurityMasterMutationVariables = {data?: UploadSecurityMasterBody;params?: UploadSecurityMasterParams}
+
+    export const useUploadSecurityMaster = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadSecurityMaster>>, TError,UploadSecurityMasterMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadSecurityMaster>>,
+        TError,
+        UploadSecurityMasterMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadSecurityMasterMutationOptions(options), queryClient);
+    }
+
+export const getCheckSecurityMasterUrl = () => {
+
+
+
+
+  return `/api/backoffice/security-master/check`
+}
+
+export const checkSecurityMaster = async (checkSecurityMasterBody?: CheckSecurityMasterBody, options?: Parameters<typeof http>[1]): Promise<SecurityMasterCheck> => {
+    const formData = new FormData();
+if(checkSecurityMasterBody?.file !== undefined) {
+ formData.append(`file`, checkSecurityMasterBody.file);
+ }
+
+  return http<SecurityMasterCheck>(getCheckSecurityMasterUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getCheckSecurityMasterMutationKey = () => ['checkSecurityMaster'] as const;
+
+export const getCheckSecurityMasterMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkSecurityMaster>>, TError,CheckSecurityMasterMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkSecurityMaster>>, TError,CheckSecurityMasterMutationVariables, TContext> => {
+
+const mutationKey = getCheckSecurityMasterMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkSecurityMaster>>, CheckSecurityMasterMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  checkSecurityMaster(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckSecurityMasterMutationResult = NonNullable<Awaited<ReturnType<typeof checkSecurityMaster>>>
+    export type CheckSecurityMasterMutationBody = CheckSecurityMasterBody | undefined
+    export type CheckSecurityMasterMutationError = unknown
+    export type CheckSecurityMasterMutationVariables = {data?: CheckSecurityMasterBody}
+
+    export const useCheckSecurityMaster = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkSecurityMaster>>, TError,CheckSecurityMasterMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkSecurityMaster>>,
+        TError,
+        CheckSecurityMasterMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCheckSecurityMasterMutationOptions(options), queryClient);
     }
 
 export const getListEntriesUrl = (kind: 'PRODUCT_TYPE' | 'RELATIONSHIP_TYPE' | 'EXCLUDABLE_SECTOR',
@@ -43756,6 +44002,306 @@ export function useClientSessionHistory<TData = Awaited<ReturnType<typeof client
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getClientSessionHistoryQueryOptions(clientLoginId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSecurityMasterUrl = () => {
+
+
+
+
+  return `/api/backoffice/security-master`
+}
+
+export const getSecurityMaster = async ( options?: Parameters<typeof http>[1]): Promise<SecurityMaster> => {
+
+  return http<SecurityMaster>(getGetSecurityMasterUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSecurityMasterQueryKey = () => {
+    return [
+    `/api/backoffice/security-master`
+    ] as const;
+    }
+
+
+export const getGetSecurityMasterQueryOptions = <TData = Awaited<ReturnType<typeof getSecurityMaster>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSecurityMasterQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSecurityMaster>>> = ({ signal }) => getSecurityMaster({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSecurityMasterQueryResult = NonNullable<Awaited<ReturnType<typeof getSecurityMaster>>>
+export type GetSecurityMasterQueryError = unknown
+
+
+export function useGetSecurityMaster<TData = Awaited<ReturnType<typeof getSecurityMaster>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMaster>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMaster>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMaster<TData = Awaited<ReturnType<typeof getSecurityMaster>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMaster>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMaster>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMaster<TData = Awaited<ReturnType<typeof getSecurityMaster>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSecurityMaster<TData = Awaited<ReturnType<typeof getSecurityMaster>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMaster>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSecurityMasterQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSecurityMasterRowsUrl = (id: string,
+    params?: GetSecurityMasterRowsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/backoffice/security-master/uploads/${id}/rows?${stringifiedParams}` : `/api/backoffice/security-master/uploads/${id}/rows`
+}
+
+export const getSecurityMasterRows = async (id: string,
+    params?: GetSecurityMasterRowsParams, options?: Parameters<typeof http>[1]): Promise<SecurityMasterRows> => {
+
+  return http<SecurityMasterRows>(getGetSecurityMasterRowsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSecurityMasterRowsQueryKey = (id: string,
+    params?: GetSecurityMasterRowsParams,) => {
+    return [
+    `/api/backoffice/security-master/uploads/${id}/rows`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSecurityMasterRowsQueryOptions = <TData = Awaited<ReturnType<typeof getSecurityMasterRows>>, TError = unknown>(id: string,
+    params?: GetSecurityMasterRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSecurityMasterRowsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSecurityMasterRows>>> = ({ signal }) => getSecurityMasterRows(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSecurityMasterRowsQueryResult = NonNullable<Awaited<ReturnType<typeof getSecurityMasterRows>>>
+export type GetSecurityMasterRowsQueryError = unknown
+
+
+export function useGetSecurityMasterRows<TData = Awaited<ReturnType<typeof getSecurityMasterRows>>, TError = unknown>(
+ id: string,
+    params: undefined |  GetSecurityMasterRowsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMasterRows>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMasterRows>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMasterRows<TData = Awaited<ReturnType<typeof getSecurityMasterRows>>, TError = unknown>(
+ id: string,
+    params?: GetSecurityMasterRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMasterRows>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMasterRows>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMasterRows<TData = Awaited<ReturnType<typeof getSecurityMasterRows>>, TError = unknown>(
+ id: string,
+    params?: GetSecurityMasterRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSecurityMasterRows<TData = Awaited<ReturnType<typeof getSecurityMasterRows>>, TError = unknown>(
+ id: string,
+    params?: GetSecurityMasterRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterRows>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSecurityMasterRowsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSecurityMasterTemplateUrl = () => {
+
+
+
+
+  return `/api/backoffice/security-master/template`
+}
+
+export const getSecurityMasterTemplate = async ( options?: Parameters<typeof http>[1]): Promise<string> => {
+
+  return http<string>(getGetSecurityMasterTemplateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSecurityMasterTemplateQueryKey = () => {
+    return [
+    `/api/backoffice/security-master/template`
+    ] as const;
+    }
+
+
+export const getGetSecurityMasterTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSecurityMasterTemplateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSecurityMasterTemplate>>> = ({ signal }) => getSecurityMasterTemplate({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSecurityMasterTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getSecurityMasterTemplate>>>
+export type GetSecurityMasterTemplateQueryError = unknown
+
+
+export function useGetSecurityMasterTemplate<TData = Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMasterTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMasterTemplate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMasterTemplate<TData = Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecurityMasterTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getSecurityMasterTemplate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSecurityMasterTemplate<TData = Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSecurityMasterTemplate<TData = Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSecurityMasterTemplate>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSecurityMasterTemplateQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
