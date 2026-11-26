@@ -1,0 +1,30 @@
+/*
+ * The firm's Word agreement and the self-certification on a prospect's Agreement tab (25 Nov 2026, local only): the
+ * Word file drawn as pages on a grey desk, its fields light-blue boxes typed into in place.
+ */
+.agreement-paper { background: #e5e9f0; border-radius: 12px; height: 72vh; overflow: auto; padding: 10px 0; }
+.agreement-paper .docx-wrapper { background: transparent !important; padding: 10px !important; }
+.agreement-paper .docx-wrapper > section.docx { box-shadow: 0 6px 20px -10px rgb(15 23 42 / 0.35); margin-bottom: 14px !important; }
+
+/* The clause numbers are written in from the file's own lists (agreement-docx.ts), so the viewer's are not drawn. */
+.agreement-paper p.agreement-numbered::before { content: none !important; }
+.agreement-num { white-space: pre; }
+/* A box sits inline in the paragraph, which hands it its hanging indent: "Type here" was pulled out to the left of
+   its box, and each clause number 24px left of its place. Neither takes the paragraph's indent. */
+.agreement-num, .agreement-field { text-indent: 0; }
+
+.agreement-field {
+  display: inline-block; min-width: 9em; min-height: 1.2em; padding: 0 3px; border-radius: 3px;
+  background: #eaf2ff; outline: 1px dashed #93c5fd; color: #0f172a; cursor: text; vertical-align: baseline;
+}
+.agreement-field:empty::before { content: attr(data-hint); color: #94a3b8; font-style: italic; }
+.agreement-field:focus { background: #fff; outline: 2px solid #2563eb; }
+.agreement-field[contenteditable="false"] { background: #f1f5f9; outline: 1px solid #e2e8f0; cursor: default; }
+.agreement-box { width: 11px; height: 11px; margin: 0 4px 0 0; vertical-align: -1px; accent-color: #2563eb; cursor: pointer; }
+.agreement-box:disabled { cursor: default; }
+
+/* The self-certification as the Download document draws it, a page wide, on the same grey desk. */
+.agreement-cert { position: relative; background: #e5e9f0; border-radius: 12px; height: 72vh; overflow: auto; padding: 16px 10px; }
+.agreement-cert .op-doc { background: #fff; width: 100%; max-width: 182mm; margin: 0 auto; padding: 24px 26px;
+  box-shadow: 0 6px 20px -10px rgb(15 23 42 / 0.35); }
+.agreement-cert .op-doc > section + section { margin-top: 28px; padding-top: 20px; border-top: 2px dashed #cbd5e1; }

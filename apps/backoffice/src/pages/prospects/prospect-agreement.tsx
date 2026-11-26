@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { toFormErrors } from "../../lib/api-errors";
 import { formatDateTime } from "../../lib/labels";
+import { AgreementSelfCertification, AgreementWord } from "./agreement-word";
 
 /**
  * A prospect's Agreement tab (23 Nov 2026). Once Compliance approve everything, the firm's published agreement filled in
@@ -29,27 +30,16 @@ export function ProspectAgreement({ prospectId, entity = false }: { prospectId: 
   const client = view.stage === "ONBOARDED";
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <section aria-labelledby="agreement-wording" className="rounded-2xl border border-line bg-white px-6 py-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="agreement-wording" className="text-lg font-bold">{view.templateName ?? "Agreement"}</h2>
-          {view.templateVersion != null && <span className="text-xs text-ink-muted">Template version {view.templateVersion}</span>}
-        </div>
-        {view.preview && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Preview: how the agreement reads for them today. It is kept for signing once Compliance approve every document and
-            the wealth accumulation; details not on file yet fill in as they are added.
-          </p>
-        )}
-        {view.text ? (
-          <pre className="mt-4 font-sans text-sm leading-6 whitespace-pre-wrap text-ink">{view.text}</pre>
-        ) : view.fileName ? (
-          <p className="mt-4 text-sm text-ink-muted">The agreement is the firm's uploaded file, {view.fileName}.</p>
-        ) : (
-          <Alert tone="warning">No agreement template is in use yet. The Admin chooses one under Config data, Agreement templates.</Alert>
-        )}
-      </section>
+      {/* The firm's Word agreement and the self-certification (25 Nov 2026, local only) in place of the typed template. */}
+      <div className="min-w-0 space-y-5">
+        <AgreementWord prospectId={prospectId} entity={entity} signed={Boolean(view.adminSignedAt)} />
+        <AgreementSelfCertification prospectId={prospectId} entity={entity} />
+      </div>
 
       <aside aria-label="Signatures" className="space-y-4">
+        {!view.templateName && (
+          <Alert tone="warning">Signing needs an agreement template in use. The Admin chooses one under Config data, Agreement templates.</Alert>
+        )}
         <section className="rounded-2xl border border-line bg-white px-5 py-4">
           <h3 className="text-base font-bold">Signatures</h3>
           <ol className="mt-3 space-y-3 text-sm">

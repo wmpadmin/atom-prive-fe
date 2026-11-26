@@ -70,8 +70,10 @@ export function OnboardingCasePage() {
   // review queue and have no Client onboarding to go back to. The link says where it goes: everyone else goes back to
   // All clients, where the case is opened from (24 Nov 2026).
   const fromKyc = location.pathname.startsWith("/kyc");
-  const backTo = fromKyc ? "/kyc" : listHref();
-  const backLabel = fromKyc ? "KYC review queue" : "All clients";
+  // A relationship manager opens a case from Assigned customers, their own clients; All clients is not their screen.
+  const fromOwnClients = user.activeRole === "ADVISOR";
+  const backTo = fromKyc ? "/kyc" : listHref(user.activeRole);
+  const backLabel = fromKyc ? "KYC review queue" : fromOwnClients ? "Assigned customers" : "All clients";
 
   function handleSaved(result: CaseDetail, submitted: boolean) {
     const id = result.summary.id;
@@ -88,10 +90,11 @@ export function OnboardingCasePage() {
     return <Navigate to="/prospective-clients" replace />;
   }
   if (editing) {
-    // A pop-up over All clients (24 Nov 2026), where "Ready to onboard" opens it and the cross goes back to.
+    // A pop-up over All clients (24 Nov 2026), where "Ready to onboard" opens it and the cross goes back to; for a
+    // relationship manager, over their Assigned customers.
     return (
       <>
-        {!fromKyc && <ClientsPage />}
+        {!fromKyc && <ClientsPage mine={fromOwnClients} />}
         <OnboardingWizard caseId={detail?.summary.id ?? null} initial={initial} managers={choosable} listHref={backTo} onSaved={handleSaved} />
       </>
     );
