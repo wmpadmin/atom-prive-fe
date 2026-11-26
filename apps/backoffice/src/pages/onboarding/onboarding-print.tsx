@@ -118,7 +118,11 @@ const PAGES_AT_A_TIME = Math.floor(16_384 / (PAGE_HEIGHT * SCALE));
  * declaration (VI) and the leverage notice (VII), signed. The chosen answers are ticked and written on the paper's
  * lines. Laid out off screen, cut into A4 pages where the paper would turn over, and saved as pictures of those pages.
  */
-export function OnboardingPdf({ application, fileName, onDone }: { application: FormApplication; fileName: string; onDone: (failed: boolean) => void }) {
+export function OnboardingPdf({ application, fileName, onDone, selfCertificationOnly = false }: {
+  application: FormApplication; fileName: string; onDone: (failed: boolean) => void;
+  /** Only the self-certification, as the prospect's Agreement tab downloads it (25 Nov 2026, local only). */
+  selfCertificationOnly?: boolean;
+}) {
   const frame = useRef<HTMLDivElement>(null);
   const flow = useRef<HTMLDivElement>(null);
   // A joint holder whose details were skipped has only a name, so there is nothing of theirs to print.
@@ -168,7 +172,8 @@ export function OnboardingPdf({ application, fileName, onDone }: { application: 
             pdf.addImage(sheet.toDataURL("image/jpeg", 0.88), "JPEG", 14, 14, 182, 267, undefined, "FAST");
             pdf.setFontSize(8);
             pdf.setTextColor(138, 148, 166);
-            pdf.text(entity ? ENTITY_DOCUMENT_TITLE : DOCUMENT_TITLE, 14, 288);
+            pdf.text(selfCertificationOnly ? SELF_CERT_TITLE[entity ? "entity" : "individual"]
+              : entity ? ENTITY_DOCUMENT_TITLE : DOCUMENT_TITLE, 14, 288);
             pdf.text(`Page ${page + 1} of ${pages}`, 196, 288, { align: "right" });
           }
         }
@@ -188,7 +193,11 @@ export function OnboardingPdf({ application, fileName, onDone }: { application: 
   return createPortal(
     <div ref={frame} className="op-capture" aria-hidden="true">
       <div ref={flow} className="op-doc">
-        <PaperDocument application={application} signedAt={signedAt} />
+        {selfCertificationOnly ? (
+          <SignedAt.Provider value={signedAt}><SelfCertificationPages application={application} /></SignedAt.Provider>
+        ) : (
+          <PaperDocument application={application} signedAt={signedAt} />
+        )}
       </div>
     </div>,
     document.body,
@@ -1121,6 +1130,30 @@ function EntityCertification({ application }: { application: FormApplication }) 
           </section>
         );
       })}
+    </>
+  );
+}
+
+/**
+ * The self-certification alone, as it was filled in at onboarding (25 Nov 2026, local only): each account holder's
+ * form, or the entity's with an Annex for each controlling person, then the paper's instructions and definitions.
+ * Shown read-only on the prospect's Agreement tab, each form a section of its own.
+ */
+export function SelfCertificationPages({ application }: { application: FormApplication }) {
+  if (application.clientType === "ENTITY") {
+    return (
+      <>
+        <EntityCertification application={application} />
+        <CertGuide pages={ENTITY_CERT_GUIDE} definitions={ENTITY_CERT_DEFINITIONS} />
+      </>
+    );
+  }
+  // A joint holder whose details were skipped has only a name, so there is nothing of theirs to show.
+  const holders = application.holders.filter((holder, index) => index === 0 || !holder.details.skipped);
+  return (
+    <>
+      {holders.map((holder, index) => <HolderCertification key={index} holder={holder} />)}
+      <CertGuide pages={INDIVIDUAL_CERT_GUIDE} definitions={INDIVIDUAL_CERT_DEFINITIONS} />
     </>
   );
 }

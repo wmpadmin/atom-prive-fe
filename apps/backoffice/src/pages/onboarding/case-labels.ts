@@ -1,5 +1,6 @@
 import type { CaseSummary } from "@atomprive/api-client/backoffice";
 import { countryName } from "../../lib/countries";
+import type { StaffRole } from "../../lib/labels";
 import { categoryLabels, categoryOf } from "./case-category";
 
 export type CaseStatus = CaseSummary["status"];
@@ -35,7 +36,10 @@ export function initialsOf(name: string) {
  * <p>It used to carry the case list's own search and page back with it, so a reader returned to the view
  * they left. That search belonged to the case list's filters — a status and a manager — and All clients
  * has neither, so carrying it would apply nothing and look like it had applied something.
+ *
+ * <p>A relationship manager's list is Assigned customers, not All clients, which their role cannot open (26 Nov 2026:
+ * the cross on "Ready to onboard" sent an RM to "Your role can't open this screen").
  */
-export function listHref() {
-  return "/clients";
+export function listHref(role: StaffRole | null) {
+  return role === "ADVISOR" ? "/my-clients" : "/clients";
 }
