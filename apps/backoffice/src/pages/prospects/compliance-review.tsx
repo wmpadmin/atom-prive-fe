@@ -11,11 +11,14 @@ import {
   type ApprovalDetail,
   type ReviewEvent,
 } from "@atomprive/api-client/backoffice";
+import { http, type ApiError } from "@atomprive/api-client";
 import { Alert, Button, Field, SelectInput, TextArea, cn } from "@atomprive/ui";
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { useStaffUser } from "../../auth/session";
 import { toFormErrors } from "../../lib/api-errors";
+import { hasAuthority } from "../../lib/permissions";
 import { formatDateTime } from "../../lib/labels";
 
 /**
@@ -104,15 +107,40 @@ export function DecideDocument({ prospectId, documentId, fileName }: { prospectI
 type Ask = { customerId: string; paperName: string; instructions: string; dueOn: string };
 
 /**
+ * What Approve everything still waits for (26 Nov 2026), as the server reads it for the decision itself: each listed
+ * document not yet approved ("Title for Name"; a row marked Not applicable is not listed), and whether the wealth
+ * accumulation has been sent.
+ */
+type ApprovalReadiness = { toApprove: string[]; wealthSent: boolean };
+
+/** How many of the documents still to approve the decision box names; the rest are counted, and open on the checklist. */
+const SHOWN_WAITING = 5;
+
+/**
  * Compliance's decision on the whole: approve (on to the agreement), ask for documents and send it back, or reject.
  * `onDecided` lets the KYC review queue's side panel (24 Nov 2026) read its list again and shut once it is decided.
  */
-export function ComplianceDecision({ prospectId, holders, onDecided }: {
+export function ComplianceDecision({ prospectId, holders, documentsAt, onDecided }: {
   prospectId: string;
   holders: { id: string; name: string }[];
+  /** When the documents were last read: any change to them (a file approved, a row marked) reads the readiness again. */
+  documentsAt: number;
   onDecided?: () => void;
 }) {
   const after = useAfterCompliance(prospectId);
+  // Approve everything only once every listed document is approved (26 Nov 2026): greyed out until then, saying what is
+  // left, read off the same rule the server refuses the approval on.
+  // Asked only of whoever decides (Operations read the panel but don't decide, and would be refused), and kept on
+  // screen while a fresh reading comes in, so the button doesn't flicker each time the documents are read again.
+  const decides = hasAuthority(useStaffUser(), "APPROVE_ONBOARDING:CHANGE");
+  const readiness = useQuery<ApprovalReadiness, ApiError>({
+    queryKey: ["prospect-approval-readiness", prospectId, documentsAt],
+    queryFn: () => http<ApprovalReadiness>(`/api/backoffice/prospects/${prospectId}/compliance/readiness`),
+    enabled: decides,
+    placeholderData: keepPreviousData,
+  });
+  const left = readiness.data?.toApprove ?? [];
+  const mayApprove = readiness.data !== undefined && left.length === 0 && readiness.data.wealthSent;
   const [reason, setReason] = useState<ApprovalDecisionRequestReason & string>("DOCUMENT_UNCLEAR_OR_EXPIRED");
   const [note, setNote] = useState("");
   const [asks, setAsks] = useState<Ask[]>([]);
@@ -140,8 +168,8 @@ export function ComplianceDecision({ prospectId, holders, onDecided }: {
     <section className="rounded-2xl border border-primary-200 bg-primary-50/30 px-5 py-4" aria-labelledby="decision-title">
       <h3 id="decision-title" className="text-base font-bold">Compliance decision</h3>
       <p className="text-xs text-ink-muted">
-        Approve once every required document is approved and the wealth table is checked: they go on to the agreement. Or ask for
-        documents to send it back, or reject it.
+        Approve once every listed document is approved and the wealth table is checked: they go on to the agreement. Or ask
+        for documents to send it back, or reject it.
       </p>
       {errors.form && <div className="mt-2"><Alert tone="danger">{errors.form}</Alert></div>}
       <div className="mt-3 grid gap-3 sm:grid-cols-[18rem_1fr]">
@@ -182,10 +210,41 @@ export function ComplianceDecision({ prospectId, holders, onDecided }: {
           Add a document to ask for
         </Button>
       </div>
+      {/* What Approve everything still waits for, in a box of its own right above the buttons (26 Nov 2026). */}
+      {decides && !mayApprove && (
+        <div id="decision-approve-why" role="status"
+          className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {readiness.data ? (
+            <>
+              <p className="flex items-center gap-2 font-semibold">
+                <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+                {left.length > 0
+                  ? `Approve everything waits for ${left.length} document${left.length === 1 ? "" : "s"}`
+                  : "Approve everything waits for the wealth accumulation"}
+              </p>
+              <ul className="mt-1.5 ml-6 list-disc space-y-0.5 pl-4 text-xs">
+                {left.slice(0, SHOWN_WAITING).map((one, at) => <li key={at}>{one}</li>)}
+                {left.length > SHOWN_WAITING && <li>and {left.length - SHOWN_WAITING} more, on the checklist above</li>}
+                {!readiness.data.wealthSent && <li>The wealth accumulation hasn't been sent to Compliance yet</li>}
+              </ul>
+            </>
+          ) : (
+            <p className="text-xs">
+              {readiness.isError
+                ? "Couldn't check whether every document is approved; Approve everything waits until it can."
+                : "Checking every document is approved…"}
+            </p>
+          )}
+        </div>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button id="decision-approve" disabled={busy} onClick={() => void decide("APPROVE")}><Check aria-hidden="true" />Approve everything</Button>
-        <Button id="decision-more" variant="secondary" disabled={busy} onClick={() => void decide("REQUEST_DOCUMENTS")}>Ask for documents · send back</Button>
-        <Button id="decision-reject" variant="ghost" disabled={busy} onClick={() => void decide("REJECT")}><X aria-hidden="true" />Reject</Button>
+        <Button id="decision-approve" disabled={busy || !mayApprove} aria-describedby={mayApprove ? undefined : "decision-approve-why"}
+          onClick={() => void decide("APPROVE")}><Check aria-hidden="true" />Approve everything</Button>
+        {/* Sending back and rejecting need a comment (26 Nov 2026): greyed out until one is written, not refused after. */}
+        <Button id="decision-more" variant="secondary" disabled={busy || !note.trim()} title={note.trim() ? undefined : "Write a comment first"}
+          onClick={() => void decide("REQUEST_DOCUMENTS")}>Ask for documents · send back</Button>
+        <Button id="decision-reject" variant="ghost" disabled={busy || !note.trim()} title={note.trim() ? undefined : "Write a comment first"}
+          onClick={() => void decide("REJECT")}><X aria-hidden="true" />Reject</Button>
       </div>
     </section>
   );

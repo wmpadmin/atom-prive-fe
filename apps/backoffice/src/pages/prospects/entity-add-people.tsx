@@ -13,13 +13,14 @@ const ROLE_LIST: { key: RoleKey; label: string; one: string }[] = [
   { key: "director", label: "Director", one: "director" },
   { key: "owner", label: "Owners", one: "owner" },
   { key: "ubo", label: "UBO", one: "UBO" },
-  // A trust that owns part of the entity (25 Nov 2026): its name and its share, nothing else. Its trustees, settlor and
-  // beneficiaries are people, added under Owners or UBO.
-  { key: "trust", label: "Trust", one: "trust" },
+  // An entity that owns part of this one (25 Nov 2026, a trust until 26 Nov 2026): asked the same details as a person,
+  // with the share it owns. Kept as the trust kind of party, so what was added before reads back the same.
+  { key: "trust", label: "Entity", one: "entity" },
 ];
 
-/** The roles a person holds; a trust is not one of them. */
+/** The roles a person holds; an entity is not one of them, and is asked what an owner is. */
 type PersonRole = Exclude<RoleKey, "trust">;
+const askedAs = (role: RoleKey): PersonRole => (role === "trust" ? "owner" : role);
 
 type Person = {
   key: string; name: string; email: string; phone: string; method: string; details: Record<string, string>;
@@ -27,6 +28,10 @@ type Person = {
   share: string;
   /** Ticked on the person (23 Nov 2026): may sign for the entity. Not a role of its own. */
   signatory: boolean;
+  /** Whose details were filled in from a matching passport number (26 Nov 2026), to say so under it. */
+  filledFrom?: string;
+  /** What the box held before it was filled in, put back if the passport number stops matching. */
+  beforeFill?: Pick<Person, "name" | "email" | "phone" | "method" | "details">;
 };
 
 let made = 0;
@@ -49,6 +54,28 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
   const [problem, setProblem] = useState<string>();
   const [saving, setSaving] = useState(false);
   const methods = view.settings.contactMethods.filter((one) => !one.retired);
+  // A passport number already given for someone, on this prospect or in this box, fills in the rest of their details
+  // (26 Nov 2026): name, email, phone, how they like to be contacted and every other detail, never the share they own.
+  const passportId = view.settings.details.find((one) => !one.retired && /passport/i.test(one.name))?.id;
+  const plain = (value: string) => value.replace(/\s+/g, "").toUpperCase();
+  const rolesOf = (one: { director: boolean; owner: boolean; ubo: boolean }) =>
+    [one.director && "Director", one.owner && "Owner", one.ubo && "UBO"].filter(Boolean).join(", ");
+  function knownBy(passport: string, except: string): Partial<Person> | null {
+    if (!passportId || plain(passport).length < 3) return null;
+    for (const [role, list] of Object.entries(roles) as [RoleKey, Person[] | null][]) {
+      for (const one of list ?? []) {
+        if (one.key !== except && plain(one.details[passportId] ?? "") === plain(passport) && one.name.trim()) {
+          const as = ROLE_LIST.find(({ key }) => key === role)?.one ?? role;
+          return { name: one.name, email: one.email, phone: one.phone, method: one.method, details: { ...one.details },
+            filledFrom: `${one.name.trim()}, the ${as} above` };
+        }
+      }
+    }
+    const saved = view.parties.find((one) => plain(one.details?.[passportId] ?? "") === plain(passport));
+    if (!saved) return null;
+    return { name: saved.fullName, email: saved.email ?? "", phone: saved.phone ?? "", method: saved.contactMethodId ?? "",
+      details: { ...(saved.details ?? {}) }, filledFrom: `${saved.fullName}${rolesOf(saved) ? `, already ${rolesOf(saved)}` : ""}` };
+  }
 
   const toggle = (role: RoleKey, on: boolean) => setRoles((was) => ({ ...was, [role]: on ? (was[role] ?? [blankPerson()]) : null }));
   const change = (role: RoleKey, key: string, patch: Partial<Person>) =>
@@ -66,7 +93,9 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
         label: name,
         body: {
           kind: "TRUST", fullName: name, director: false, owner: true, ubo: false, signatory: false, ownedThrough: null,
-          sharePercent: one.share.trim() ? Number(one.share) : null, email: null, phone: null, contactMethodId: null, details: {},
+          sharePercent: one.share.trim() ? Number(one.share) : null, email: one.email.trim() || null, phone: one.phone.trim() || null,
+          contactMethodId: one.method || null,
+          details: Object.fromEntries(Object.entries(one.details).filter(([, value]) => value.trim()).map(([id, value]) => [id, value.trim()])),
         },
       });
     }
@@ -102,12 +131,17 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
     setProblem(undefined);
     const wrong: Record<string, string> = {};
     if (!ROLE_LIST.some(({ key }) => roles[key])) wrong.roles = "Tick at least one role.";
-    // A trust gives its name and the share it owns, as the server asks.
+    // An entity gives what a person gives, and the share it owns, as the server asks.
     for (const one of roles.trust ?? []) {
       const share = Number(one.share);
-      if (!one.name.trim()) wrong[`${one.key}.name`] = "Enter the trust's name.";
-      if (!one.share.trim()) wrong[`${one.key}.share`] = "Enter the share this trust owns.";
+      if (!one.name.trim()) wrong[`${one.key}.name`] = "Enter the name.";
+      if (!one.email.trim()) wrong[`${one.key}.email`] = "Enter the email.";
+      if (!one.phone.trim()) wrong[`${one.key}.phone`] = "Enter the phone number.";
+      if (!one.share.trim()) wrong[`${one.key}.share`] = "Enter the share this entity owns.";
       else if (!(share > 0 && share <= 100)) wrong[`${one.key}.share`] = "Between 0 and 100.";
+      for (const detail of detailsFor("owner", false, view.settings.details).filter((d) => d.required)) {
+        if (!(one.details[detail.id] ?? "").trim()) wrong[`${one.key}.${detail.id}`] = `Enter the ${detail.name.toLowerCase()}.`;
+      }
     }
     for (const { key: role } of ROLE_LIST) {
       if (role === "trust") continue;
@@ -149,7 +183,7 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
   }
 
   return (
-    <Dialog open size="lg" onClose={onClose} title="Add stakeholder" description="Directors, owners, UBOs and trusts, with their details. Tick Authorised signatory on whoever may sign.">
+    <Dialog open size="lg" onClose={onClose} title="Add stakeholder" description="Directors, owners, UBOs and entities, with their details. Tick Authorised signatory on whoever may sign.">
       <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
         {problem && <Alert tone="danger">{problem}</Alert>}
         <fieldset>
@@ -173,31 +207,7 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
             <section key={role} className="space-y-3 border-t border-line pt-4">
               <h3 className="text-sm font-bold">{label}</h3>
               {(roles[role] ?? []).map((person, i) => {
-                if (role === "trust") {
-                  return (
-                    <div key={person.key} className="space-y-3 rounded-xl border border-line p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-ink-muted">Trust {i + 1}</p>
-                        {(roles.trust ?? []).length > 1 && (
-                          <button type="button" aria-label={`Remove trust ${i + 1}`} onClick={() => drop(role, person.key)}
-                            className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"><X aria-hidden="true" className="size-4" /></button>
-                        )}
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field id={`${person.key}-name`} label="Name of the trust" required error={errors[`${person.key}.name`]}>
-                          <TextInput id={`${person.key}-name`} value={person.name} maxLength={300}
-                            onChange={(event) => change(role, person.key, { name: event.target.value })} />
-                        </Field>
-                        <Field id={`${person.key}-share`} label="Owns (% of the entity)" required error={errors[`${person.key}.share`]}>
-                          <TextInput id={`${person.key}-share`} inputMode="decimal" value={person.share} placeholder="70"
-                            onChange={(event) => change(role, person.key, { share: event.target.value.replace(/[^0-9.]/g, "") })} />
-                        </Field>
-                      </div>
-                      <p className="text-xs text-ink-muted">Its trustees, settlor and beneficiaries are added as people, under Owners or UBO.</p>
-                    </div>
-                  );
-                }
-                const asked = detailsFor(role, person.signatory, view.settings.details);
+                const asked = detailsFor(askedAs(role), person.signatory, view.settings.details);
                 return (
                 <div key={person.key} className="space-y-3 rounded-xl border border-line p-3">
                   <div className="flex items-center justify-between">
@@ -213,7 +223,9 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
                         onChange={(event) => change(role, person.key, { name: event.target.value })} />
                     </Field>
                     <Field id={`${person.key}-phone`} label="Phone" required error={errors[`${person.key}.phone`]}>
-                      <MobileNumberInput id={`${person.key}-phone`} value={person.phone} onChange={(value) => change(role, person.key, { phone: value })} />
+                      {/* Drawn afresh when details are filled in from a passport, as it reads its value only when it first shows. */}
+                      <MobileNumberInput key={`${person.key}-phone-${person.filledFrom ?? ""}`} id={`${person.key}-phone`} value={person.phone}
+                        onChange={(value) => change(role, person.key, { phone: value })} />
                     </Field>
                     <Field id={`${person.key}-email`} label="Email" required error={errors[`${person.key}.email`]}>
                       <TextInput id={`${person.key}-email`} type="email" value={person.email}
@@ -233,22 +245,43 @@ export function AddPeopleDialog({ api, view, onClose }: { api: PartiesApi; view:
                           <Field key={detail.id} id={`${person.key}-${detail.id}`} label={detail.name} required={detail.required}
                             error={errors[`${person.key}.${detail.id}`]}>
                             <TextInput id={`${person.key}-${detail.id}`} value={person.details[detail.id] ?? ""} maxLength={200}
-                              onChange={(event) => change(role, person.key, { details: { ...person.details, [detail.id]: event.target.value.toUpperCase() } })} />
+                              onChange={(event) => {
+                                const value = event.target.value.toUpperCase();
+                                const found = detail.id === passportId ? knownBy(value, person.key) : null;
+                                // What the box held before a fill, kept so a number that stops matching puts it back rather
+                                // than leaving someone else's details on this person (26 Nov 2026).
+                                const before = person.beforeFill
+                                  ?? { name: person.name, email: person.email, phone: person.phone, method: person.method, details: person.details };
+                                if (found) {
+                                  change(role, person.key, { ...found, details: { ...found.details, [detail.id]: value }, beforeFill: before });
+                                } else if (detail.id === passportId && person.filledFrom) {
+                                  change(role, person.key, { ...before, details: { ...before.details, [detail.id]: value },
+                                    filledFrom: undefined, beforeFill: undefined });
+                                } else {
+                                  change(role, person.key, { details: { ...person.details, [detail.id]: value } });
+                                }
+                              }} />
+                            {detail.id === passportId && person.filledFrom && (
+                              <span className="mt-1 block text-xs text-primary-700">Details filled in from {person.filledFrom}. Check them; the share is not copied.</span>
+                            )}
                           </Field>
                         ))}
                       </div>
                     </div>
                   )}
                   <div className="grid items-end gap-3 sm:grid-cols-2">
-                    <Field id={`${person.key}-share`} label="Owns (% of the entity)" error={errors[`${person.key}.share`]}>
+                    <Field id={`${person.key}-share`} label="Owns (% of the entity)" required={role === "trust"} error={errors[`${person.key}.share`]}>
                       <TextInput id={`${person.key}-share`} inputMode="decimal" value={person.share} placeholder="40"
                         onChange={(event) => change(role, person.key, { share: event.target.value.replace(/[^0-9.]/g, "") })} />
                     </Field>
-                    <label className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-medium">
-                      <input type="checkbox" checked={person.signatory}
-                        onChange={(event) => change(role, person.key, { signatory: event.target.checked })} />
-                      Authorised signatory
-                    </label>
+                    {/* Only a person signs: the server keeps no signatory on an entity, so it isn't offered there. */}
+                    {role !== "trust" && (
+                      <label className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-medium">
+                        <input type="checkbox" checked={person.signatory}
+                          onChange={(event) => change(role, person.key, { signatory: event.target.checked })} />
+                        Authorised signatory
+                      </label>
+                    )}
                   </div>
                 </div>
                 );

@@ -32,6 +32,8 @@ import { countryName } from "../../lib/countries";
 import { standingLabels, standings } from "./kyc-labels-review";
 import { reviewStateLabels, reviewStateTones } from "./kyc-labels";
 import { ProspectsReviewTab } from "./prospects-review-tab";
+import { DueAgainTab } from "./due-again-tab";
+import { useDueAgain } from "./fresh-copies";
 import { remindedWhen, SendKycReminder } from "./send-kyc-reminder";
 
 /**
@@ -182,8 +184,12 @@ export function KycReviewQueuePage() {
   // (24 Nov 2026). They are decided on the prospect's own Documents tab; this is the door to it.
   const prospects = useListProspectsForReview<ProspectQueue, ApiError>();
   const waitingProspects = prospects.data?.waiting ?? 0;
-  const [tab, setTab] = useState<"PC" | "CLIENTS">(() =>
-    new URLSearchParams(window.location.search).get("tab") === "clients" ? "CLIENTS" : "PC");
+  const [tab, setTab] = useState<"PC" | "CLIENTS" | "DUE">(() => {
+    const asked = new URLSearchParams(window.location.search).get("tab");
+    return asked === "clients" ? "CLIENTS" : asked === "due" ? "DUE" : "PC";
+  });
+  // Papers due again within 30 days or overdue (26 Nov 2026), counted on the tab.
+  const dueAgain = useDueAgain();
   // Clients who were approved and whose paper has since run out. Not pending, so not in the queue below, and
   // no longer settled either: without this box they were on no list anywhere.
   const expired = useListExpiredClients<ExpiredClient[], ApiError>();
@@ -208,9 +214,13 @@ export function KycReviewQueuePage() {
       </header>
 
       {/* Two queues (24 Nov 2026): prospective clients, whose papers are decided before they become clients, and
-          the clients themselves, whose papers are kept current afterwards. */}
+          the clients themselves, whose papers are kept current afterwards; and since 26 Nov 2026 what is due again. */}
       <div role="tablist" aria-label="Whose KYC" className="flex w-fit rounded-lg border border-line bg-white p-0.5 text-sm font-semibold">
-        {([["PC", `Prospective clients${waitingProspects ? ` (${waitingProspects})` : ""}`], ["CLIENTS", "All clients"]] as const).map(([id, label]) => (
+        {([
+          ["PC", `Prospective clients${waitingProspects ? ` (${waitingProspects})` : ""}`],
+          ["CLIENTS", "All clients"],
+          ["DUE", `Due again${dueAgain.data?.length ? ` (${dueAgain.data.length})` : ""}`],
+        ] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={cn("rounded-md px-4 py-1.5", tab === id ? "bg-primary-600 text-white" : "text-ink-soft hover:bg-canvas")}>
             {label}
@@ -218,7 +228,9 @@ export function KycReviewQueuePage() {
         ))}
       </div>
 
-      {tab === "PC" ? (
+      {tab === "DUE" ? (
+        <DueAgainTab lines={dueAgain.data} failed={dueAgain.isError ? dueAgain.error.message : undefined} />
+      ) : tab === "PC" ? (
         <ProspectsReviewTab data={prospects.data} failed={prospects.isError ? prospects.error.message : undefined} />
       ) : (
       <>

@@ -27,6 +27,7 @@ import { clientLine, fileMark, pageCount, reviewStateLabels, reviewStateTones } 
 import { paperLabels, paperWaitsOn } from "./kyc-labels-review";
 import { DecidedBy, PutOnFileBy } from "./kyc-who";
 import { UploadKycDialog } from "./upload-kyc-dialog";
+import { HOW_OFTEN, useClientFreshCopies, type FreshCopy } from "./fresh-copies";
 import { ReminderSent, SendKycReminder } from "./send-kyc-reminder";
 import { hasAnyAuthority, hasAuthority, UPLOADS_CLIENT_DOCUMENTS } from "../../lib/permissions";
 
@@ -361,6 +362,11 @@ function Checklist({
 }) {
   const stillToCome = checklist.filter((one) => !one.settled);
   const ours = stillToCome.filter((one) => paperWaitsOn[one.stands] === "compliance");
+  // How often each paper is asked and when it is next due (26 Nov 2026): a flag only, the KYC's own reading is unchanged.
+  const freshCopies = useClientFreshCopies(customerId);
+  const freshOf = new Map((freshCopies.data ?? []).map((one) => [one.paperId, one]));
+  const overdue = (freshCopies.data ?? []).filter((one) => one.due === "OVERDUE").length;
+  const dueSoon = (freshCopies.data ?? []).filter((one) => one.due === "DUE_SOON" || one.due === "AFTER_ONBOARDING").length;
   const excused = exceptions.filter((one) => !one.required);
   const reasons = new Map(exceptions.map((one) => [one.paperId, one.why]));
 
@@ -382,6 +388,8 @@ function Checklist({
         {stillToCome.length === 0
           ? "Every paper on the checklist is in and approved."
           : `${stillToCome.length} still to come${ours.length > 0 ? `, ${ours.length} of them with Compliance` : ""} · the KYC reads as approved once every one of these is on file and approved`}
+        {overdue + dueSoon > 0 && ` · ${[overdue ? `${overdue} fresh cop${overdue === 1 ? "y" : "ies"} overdue` : null,
+          dueSoon ? `${dueSoon} due soon` : null].filter(Boolean).join(", ")}`}
       </p>
       {lift.isError && <div className="mt-3"><Alert tone="danger">{lift.error.message}</Alert></div>}
       <ul className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -390,7 +398,9 @@ function Checklist({
             key={one.paperId}
             className={cn(
               "flex items-start gap-2.5 rounded-xl border px-3 py-2.5",
-              one.settled ? "border-emerald-200 bg-emerald-50" : "border-line bg-slate-50",
+              freshOf.get(one.paperId)?.due === "OVERDUE" ? "border-red-200 bg-red-50"
+                : freshOf.get(one.paperId)?.due === "DUE_SOON" ? "border-amber-200 bg-amber-50"
+                : one.settled ? "border-emerald-200 bg-emerald-50" : "border-line bg-slate-50",
             )}
           >
             <span
@@ -421,6 +431,7 @@ function Checklist({
                   {formatDate(one.expiresOn)}
                 </span>
               )}
+              <FreshCopyNote line={freshOf.get(one.paperId)} />
               {one.exceptional && reasons.get(one.paperId) && (
                 <span className="mt-0.5 block text-2xs text-ink-soft italic">{reasons.get(one.paperId)}</span>
               )}
@@ -499,6 +510,32 @@ function Checklist({
  * down is one nobody can answer for; a box that has to be filled to get past it is a box that gets filled
  * with a full stop, and the firm decided otherwise.
  */
+/**
+ * How often a paper is asked and when next (26 Nov 2026): "Once a year · next due 14 Jan 2027", or flagged in amber when
+ * due within 30 days and in red once overdue, with when the RM was reminded. Nothing for a paper asked once before
+ * onboarding.
+ */
+function FreshCopyNote({ line }: { line: FreshCopy | undefined }) {
+  if (!line || line.frequency === "ONCE_BEFORE_ONBOARDING") return null;
+  const reminded = line.reminded.length > 0 ? ` · RM reminded ${line.reminded.map((one) => formatDate(one)).join(", ")}` : "";
+  if (line.due === "OVERDUE" || line.due === "DUE_SOON" || line.due === "AFTER_ONBOARDING") {
+    return (
+      <span className={cn("block text-2xs font-semibold", line.due === "OVERDUE" ? "text-red-700"
+        : line.due === "AFTER_ONBOARDING" ? "text-primary-700" : "text-amber-800")}>
+        {line.due === "OVERDUE" && line.dueOn ? `Overdue since ${formatDate(line.dueOn)} · fresh copy not in`
+          : line.due === "AFTER_ONBOARDING" ? "Asked once after onboarding · due now"
+          : line.dueOn ? `Due again ${formatDate(line.dueOn)}` : ""}
+        {reminded}
+      </span>
+    );
+  }
+  return (
+    <span className="block text-2xs text-ink-muted">
+      {HOW_OFTEN[line.frequency]}{line.dueOn ? ` · next due ${formatDate(line.dueOn)}` : ""}
+    </span>
+  );
+}
+
 function WhyThisClient({
   deciding,
   customerId,

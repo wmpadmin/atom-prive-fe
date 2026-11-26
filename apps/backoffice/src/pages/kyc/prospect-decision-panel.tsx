@@ -91,7 +91,8 @@ export function ProspectDecisionPanel({ row, onClose }: { row: ProspectReviewRow
           {!wealth.data && !wealth.isError && <p className="text-sm text-ink-muted">Loading the wealth accumulation…</p>}
           {wealth.data && <WealthTables prospectId={row.prospectId} prospectName={row.fullName} view={wealth.data} editable={false} />}
 
-          {documents.data && <ComplianceDecision prospectId={row.prospectId} holders={holders} onDecided={decided} />}
+          {documents.data && <ComplianceDecision prospectId={row.prospectId} holders={holders} documentsAt={documents.dataUpdatedAt}
+            onDecided={decided} />}
         </div>
       </section>
     </div>

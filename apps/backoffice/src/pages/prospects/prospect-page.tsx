@@ -78,12 +78,13 @@ export function ProspectPage() {
     ...(!compliance ? [
       { id: "documents" as const, label: "Documents", icon: FolderOpen },
       { id: "wealth" as const, label: "Wealth", icon: Landmark },
-      // Signed by the client on the portal, then by the Admin here, once Compliance approve everything (23 Nov 2026).
-      { id: "agreement" as const, label: "Agreement", icon: Signature },
     ] : []),
     // Meetings and Activity log were taken off (25 Nov 2026): each contact is on Call notes.
     { id: "call-notes", label: "Call notes", icon: NotebookPen },
     ...(detail.mayChange && open && row.email && !row.doNotEmail ? [{ id: "email" as const, label: "Send email", icon: Mail }] : []),
+    // Signed by the client on the portal, then by the Admin here, once Compliance approve everything (23 Nov 2026).
+    // The last tab since 26 Nov 2026, as it is the last step.
+    ...(!compliance ? [{ id: "agreement" as const, label: "Agreement", icon: Signature }] : []),
   ];
   const current = tabs.some((one) => one.id === tab) ? tab : "details";
 
