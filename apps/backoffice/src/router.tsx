@@ -23,6 +23,8 @@ import { SyncErrorsPage } from "./pages/bank-syncs/sync-errors-page";
 import { BankHoldingsClientPage } from "./pages/bank-holdings/bank-holdings-client-page";
 import { BankHoldingsFilePage } from "./pages/bank-holdings/bank-holdings-file-page";
 import { BankHoldingsPage } from "./pages/bank-holdings/bank-holdings-page";
+import { SecurityMasterPage, SecurityMasterUploadPage } from "./pages/security-master/security-master-page";
+import { SecurityMasterHistoryPage } from "./pages/security-master/security-master-history-page";
 import { HoldingsCheckClientPage } from "./pages/bank-syncs/holdings-check-client-page";
 import { HoldingsCheckPage } from "./pages/bank-syncs/holdings-check-page";
 import { SyncRunsPage } from "./pages/bank-syncs/sync-runs-page";
@@ -380,6 +382,13 @@ export const router = createBrowserRouter([
               { path: "bank-holdings/:fileId", element: <BankHoldingsFilePage /> },
             ],
           },
+          // Each day's security data from Bloomberg (26 Nov 2026). Who opens it is the permission matrix's Screens tab
+          // alone (ScreenGate here, the server on every request), so it is not held to a permission of its own.
+          { path: "security-master", element: <SecurityMasterPage /> },
+          // Every day's upload, newest first, on a screen of its own (26 Nov 2026); a row opens that day.
+          { path: "security-master/history", element: <SecurityMasterHistoryPage /> },
+          // One upload opened from the History screen, on a screen of its own with Back to the history; a replaced one too.
+          { path: "security-master/uploads/:uploadId", element: <SecurityMasterUploadPage /> },
           {
             // The bank feeds are the head's: staff work from what has come in, not from the connections.
             element: <RequireAuthority authority="MANAGE_BANK_FEEDS:VIEW" />,
