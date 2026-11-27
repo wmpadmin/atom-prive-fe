@@ -4,8 +4,8 @@ import {
   type ListProspectsStatusItem,
   type ProspectDetail,
 } from "@atomprive/api-client/backoffice";
-import { Button, IconButton, TextInput, cn } from "@atomprive/ui";
-import { Mail } from "lucide-react";
+import { Alert, Button, IconButton, SelectInput, TextInput, cn } from "@atomprive/ui";
+import { Mail, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
@@ -15,6 +15,9 @@ import { ListPageHeader, RecordList } from "../../components/record-list";
 import { useTableView } from "../../lib/table-view";
 import { formatDate } from "../../lib/labels";
 import { hasAuthority } from "../../lib/permissions";
+import { AssignOperationsDialog, type ToAssignOps } from "../clients/assign-operations-dialog";
+import { operationsNotice, useOperationsAssigned } from "../clients/operations-assignments";
+import { StaffStack } from "../clients/staff-stack";
 import { ListReportButton, saidFilters } from "../layout/list-report";
 import { everyPage, toCsv } from "../layout/list-rows";
 import { ProspectForm } from "./prospect-form";
@@ -42,6 +45,7 @@ const COLUMNS = [
   { id: "type", label: "Client type" },
   { id: "source", label: "Source" },
   { id: "assigned", label: "Assigned to" },
+  { id: "operations", label: "Operations" },
   { id: "meeting", label: "Meeting" },
   { id: "next", label: "Next follow up" },
   { id: "status", label: "Status" },
@@ -81,6 +85,13 @@ export function ProspectiveClientsPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [form, setForm] = useState<{ editing: ProspectDetail | null } | null>(null);
+  // Operations narrow the list to the prospects the Head of Operations gave them (26 Nov 2026).
+  const atOperations = user.activeRole === "OPERATIONS";
+  const [mineInOps, setMineInOps] = useState(false);
+  // Prospects ticked for Assign Ops, on the page shown; a new page or tab starts afresh.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [assigningOps, setAssigningOps] = useState<ToAssignOps[] | null>(null);
+  const [notice, setNotice] = useState<string>();
   const view = useTableView("prospective-clients", COLUMNS.map((one) => one.id), HIDDEN_AT_FIRST);
   const show = (id: ColumnId) => view.shown.includes(id);
 
@@ -91,8 +102,16 @@ export function ProspectiveClientsPage() {
       : tab === "COMPLIANCE" ? undefined
       : status === "OPEN" || !OPEN_ONES.includes(status) ? undefined : [status],
     complianceStatus: tab === "COMPLIANCE" ? "TO_CHECK" : undefined,
-  };
+    // Read by cast until the API client is next generated.
+    ...(atOperations && mineInOps ? { operationsId: user.id } : {}),
+  } as Omit<Parameters<typeof listProspects>[0] & object, "page" | "size">;
   const prospects = useListProspects({ ...asked, page, size });
+  const [selectionFor, setSelectionFor] = useState("");
+  const selectionKey = JSON.stringify([asked, page, size]);
+  if (selectionFor !== selectionKey) {
+    setSelectionFor(selectionKey);
+    setSelected(new Set());
+  }
 
   // A prospect opens on a page of its own (22 Nov 2026); the list's own address goes with it so Back returns here.
   const navigate = useNavigate();
@@ -111,7 +130,11 @@ export function ProspectiveClientsPage() {
   const emailFrom = (id: string) => open(id);
 
   const rows = prospects.data?.items ?? [];
-  const filtered = query.trim() !== "" || status !== "OPEN";
+  const filtered = query.trim() !== "" || status !== "OPEN" || (atOperations && mineInOps);
+  // Who in Operations looks after the prospects on this page, and whether this reader may change it.
+  const operations = useOperationsAssigned({ prospectIds: rows.map((row) => row.id) }, rows.length > 0);
+  const canAssignOps = operations.data?.mayAssign ?? false;
+  const operationsOn = (id: string) => operations.data?.prospects[id] ?? [];
 
   return (
     <div className="space-y-6">
@@ -131,6 +154,8 @@ export function ProspectiveClientsPage() {
           Search: query.trim(),
         })} />
       </ListPageHeader>
+
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       <RecordList
         caption="Prospective clients"
@@ -162,6 +187,16 @@ export function ProspectiveClientsPage() {
                 </button>
               ))}
             </div>
+            {atOperations && (
+              <label>
+                <span className="sr-only">Operations</span>
+                <SelectInput id="prospect-operations" value={mineInOps ? "me" : ""} className="w-auto"
+                  onChange={(event) => { setMineInOps(event.target.value === "me"); setPage(0); }}>
+                  <option value="">Every prospect</option>
+                  <option value="me">Assigned to me</option>
+                </SelectInput>
+              </label>
+            )}
             <ColumnPicker
               columns={COLUMNS.map((one) => ({ id: one.id, label: one.label }))}
               shown={new Set(view.shown)}
@@ -178,15 +213,46 @@ export function ProspectiveClientsPage() {
         onClear={() => {
           setQuery("");
           setStatus("OPEN");
+          setMineInOps(false);
           setPage(0);
         }}
+        banner={canAssignOps && selected.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 px-4 py-2.5">
+            <p className="text-sm font-semibold text-primary-700" role="status">
+              {selected.size === 1 ? "1 prospect selected" : `${selected.size} prospects selected`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                Clear selection
+              </Button>
+              <Button size="sm" onClick={() => setAssigningOps(rows.filter((row) => selected.has(row.id))
+                .map((row) => ({ id: row.id, fullName: row.fullName, people: operationsOn(row.id) })))}>
+                <UsersRound aria-hidden="true" />
+                Assign Ops
+              </Button>
+            </div>
+          </div>
+        )}
         head={
           <>
+            {canAssignOps && (
+              <th scope="col" className="w-10 py-3 pl-5">
+                <input
+                  type="checkbox"
+                  aria-label="Select every prospect on this page"
+                  checked={rows.length > 0 && rows.every((row) => selected.has(row.id))}
+                  disabled={rows.length === 0}
+                  onChange={(event) => setSelected(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
+                  className="size-4 rounded border-line text-primary-600"
+                />
+              </th>
+            )}
             <th scope="col" className="px-5 py-3 text-left font-semibold">P-Number</th>
             <th scope="col" className="px-4 py-3 text-left font-semibold">Client name</th>
             {show("type") && <th scope="col" className="px-4 py-3 text-left font-semibold">Client type</th>}
             {show("source") && <th scope="col" className="px-4 py-3 text-left font-semibold">Source</th>}
             {show("assigned") && <th scope="col" className="px-4 py-3 text-left font-semibold">Assigned to</th>}
+            {show("operations") && <th scope="col" className="px-4 py-3 text-left font-semibold">Operations</th>}
             {show("meeting") && <th scope="col" className="px-4 py-3 text-left font-semibold">Meeting</th>}
             {show("next") && <th scope="col" className="px-4 py-3 text-left font-semibold">Next follow up</th>}
             {show("status") && <th scope="col" className="px-4 py-3 text-left font-semibold">Status</th>}
@@ -197,7 +263,7 @@ export function ProspectiveClientsPage() {
             {show("email") && <th scope="col" className="px-4 py-3 text-right font-semibold">Email</th>}
           </>
         }
-        columns={2 + view.shown.length + (tab === "COMPLIANCE" && !show("compliance") ? 1 : 0)}
+        columns={2 + view.shown.length + (tab === "COMPLIANCE" && !show("compliance") ? 1 : 0) + (canAssignOps ? 1 : 0)}
         loading={prospects.isLoading}
         empty={rows.length > 0 ? undefined : filtered
           ? "No prospect matches what you searched for."
@@ -216,8 +282,28 @@ export function ProspectiveClientsPage() {
           <tr
             key={row.id}
             onClick={() => open(row.id)}
-            className={cn("cursor-pointer border-t border-line hover:bg-slate-50/60", opened === row.id && "bg-primary-50/60")}
+            className={cn("cursor-pointer border-t border-line hover:bg-slate-50/60", opened === row.id && "bg-primary-50/60",
+              selected.has(row.id) && "bg-primary-50/40")}
           >
+            {canAssignOps && (
+              <td className="w-10 py-3 pl-5" onClick={(event) => event.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${row.fullName}`}
+                  checked={selected.has(row.id)}
+                  onChange={(event) => {
+                    const wanted = event.target.checked;
+                    setSelected((current) => {
+                      const next = new Set(current);
+                      if (wanted) next.add(row.id);
+                      else next.delete(row.id);
+                      return next;
+                    });
+                  }}
+                  className="size-4 rounded border-line text-primary-600"
+                />
+              </td>
+            )}
             <td className="px-5 py-3 font-mono text-xs whitespace-nowrap text-ink-soft">{row.reference}</td>
             <td className="px-4 py-3 font-semibold text-ink">{row.fullName}</td>
             {show("type") && (
@@ -228,6 +314,12 @@ export function ProspectiveClientsPage() {
             )}
             {show("assigned") && (
               <td className="px-4 py-3">{row.assignedTo?.fullName ?? <span className="text-ink-muted">Nobody yet</span>}</td>
+            )}
+            {show("operations") && (
+              <td className="px-4 py-3">
+                <StaffStack people={operationsOn(row.id)} desk="Operations people"
+                  empty={{ label: "Not assigned", title: "No Operations person yet" }} />
+              </td>
             )}
             {show("meeting") && (
               <td className="px-4 py-3 whitespace-nowrap">
@@ -285,6 +377,18 @@ export function ProspectiveClientsPage() {
           </tr>
         ))}
       </RecordList>
+
+      <AssignOperationsDialog
+        open={assigningOps !== null}
+        records={assigningOps ?? []}
+        kind="prospect"
+        onClose={() => setAssigningOps(null)}
+        onAssigned={(result) => {
+          setAssigningOps(null);
+          setSelected(new Set());
+          setNotice(operationsNotice(result));
+        }}
+      />
 
       {form && (
         <ProspectForm

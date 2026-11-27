@@ -1,7 +1,7 @@
 import { Card } from "@atomprive/ui";
 import { Navigate } from "react-router";
 import { useStaffUser } from "../auth/session";
-import { roleLabels } from "../lib/labels";
+import { deskLabel } from "../lib/labels";
 import { advisesClients, hasAnyAuthority, hasAuthority } from "../lib/permissions";
 
 export function HomePage() {
@@ -57,7 +57,7 @@ export function HomePage() {
   return (
     <Card title={`Welcome, ${user.fullName}`}>
       <p className="text-sm text-slate-600">
-        You're signed in as {user.activeRole ? roleLabels[user.activeRole] : "staff"}. Your screens will appear in the menu as they're released.
+        You're signed in as {user.activeRole ? deskLabel(user.activeRole, user) : "staff"}. Your screens will appear in the menu as they're released.
       </p>
     </Card>
   );

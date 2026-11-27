@@ -28,6 +28,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam } from "../../components/shown-currency";
 
 /**
@@ -134,6 +135,7 @@ function Kpis({ data }: { data: ClientCollectibles }) {
         <div key={one?.key ?? KPI_LABELS[at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
           {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[at]}</p>
+          <SourceTag label={one?.label ?? KPI_LABELS[at]} />
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
               <p className="mt-1.5 text-2xl font-bold tabular-nums">{kpiValue(one, data.currency)}</p>
@@ -188,6 +190,7 @@ function Tiles({ data, filter, onFilter, chart }: { data: ClientCollectibles; fi
               <span className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{category.label}</span>
               <Icon className="size-4 text-ink-muted" aria-hidden="true" />
             </span>
+            <SourceTag label={category.label} />
             {data.bankFile || !one ? <span className="mt-2 block"><NotInFile /></span> : (
               <>
                 <span className="mt-1 block text-xl font-bold tabular-nums">{compact(one.value, data.currency)}</span>
@@ -672,6 +675,7 @@ function Figure({ label, value, tone }: { label: string; value: string; tone?: s
   return (
     <div>
       <dt className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <SourceTag label={label} />
       <dd className={cn("text-xl font-bold tabular-nums", tone)}>{value}</dd>
     </div>
   );
@@ -681,6 +685,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   return (
     <div className="min-w-0">
       <dt className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <SourceTag label={label} />
       <dd className="font-medium break-words">{value ?? "—"}</dd>
     </div>
   );
@@ -788,6 +793,7 @@ function Card({ title, lead, flush, picker, children }: { title: string; lead?: 
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{picker}<TableColumns scope={body} /><CardMenu /></div>

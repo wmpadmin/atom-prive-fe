@@ -1,10 +1,17 @@
 import { ApiError } from "@atomprive/api-client";
-import { getGetRecentClientWorkspacesQueryKey, useRecordClientWorkspaceOpened } from "@atomprive/api-client/backoffice";
+import {
+  getGetRecentClientWorkspacesQueryKey,
+  useGetClientWorkspace,
+  useRecordClientWorkspaceOpened,
+  type ClientWorkspace,
+} from "@atomprive/api-client/backoffice";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Outlet, useParams } from "react-router";
+import { Outlet, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { DrillHost } from "./drill-panel";
+import { SourceTags } from "./source-tags";
+import { WORKSPACE_SCREENS } from "./workspace-screens";
 
 /**
  * One client's workspace: the screen, at the page's full width. Its menu — back to all clients, the client's card
@@ -27,10 +34,18 @@ export function ClientWorkspaceLayout() {
     }
   }, [manager, customerId, noteOpened]);
 
-  // A click on a figure opens its breakdown beside the screen, on every screen of the workspace.
+  // Each card says where its figures come from, for the client whose figures come only from his bank's files. The
+  // workspace is the Overview's own query, so this costs nothing the Overview does not already ask for.
+  const workspace = useGetClientWorkspace<ClientWorkspace, ApiError>(customerId, undefined, { query: { enabled: !!customerId } });
+  const { pathname } = useLocation();
+  const rest = pathname.split(`/client-workspace/${customerId}`)[1]?.replace(/^\//, "").split("/")[0] ?? "";
+  const screen = WORKSPACE_SCREENS.find((one) => one.path === rest)?.id ?? null;
+
   return (
-    <DrillHost customerId={customerId}>
-      <Outlet />
-    </DrillHost>
+    <SourceTags screen={workspace.data?.bankFile ? screen : null}>
+      <DrillHost customerId={customerId}>
+        <Outlet />
+      </DrillHost>
+    </SourceTags>
   );
 }

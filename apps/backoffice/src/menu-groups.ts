@@ -26,10 +26,13 @@ const HEADINGS: Partial<Record<StaffRole, { key: string; routes: string[] }[]>> 
     { key: "client-work", routes: ["/forms", "/client-documents", "/trade-logs"] },
   ],
   COMPLIANCE: [
-    // Prospective Clients and All clients under Client Management, as on the other desks (24 Nov 2026).
+    // Prospective Clients and All clients under Client Management, as on the other desks (24 Nov 2026). The KYC
+    // review queue itself is in the desk's top block (TOP_FOR).
     { key: "kyc",
-      routes: ["/kyc", "/client-management", "/prospective-clients", "/clients", "/kyc-documents", "/kyc-checklist"] },
-    { key: "oversight", routes: ["/trails", "/family-access-trail", "/audit-log", "/aml-risk"] },
+      routes: ["/client-management", "/prospective-clients", "/clients", "/kyc-documents", "/kyc-checklist"] },
+    // Risk straight after the KYC work it follows from, before the trails and the audit (26 Nov 2026).
+    { key: "risk", routes: ["/aml-risk", "/aml-risk/matrix"] },
+    { key: "oversight", routes: ["/trails", "/family-access-trail", "/audit-log"] },
   ],
   OPERATIONS: [
     { key: "clients",
@@ -61,6 +64,14 @@ export const OFF_THE_SIDEBAR: string[] = [];
 /** What every desk starts from, at the top of the list. */
 export const TOP = ["/dashboard", "/approvals", "/assistant"];
 
+/**
+ * A desk whose most urgent queue belongs in its top block, straight under its dashboard (26 Nov 2026): Compliance's
+ * KYC review queue, before the AI Assistant. The top block keeps the menu's own order, which has the queue there.
+ */
+const TOP_FOR: Partial<Record<StaffRole, string[]>> = {
+  COMPLIANCE: [...TOP, "/kyc"],
+};
+
 /** The person's own, last in the list for every desk. */
 export const YOUR_OWN = ["/my-clearances", "/my-declarations"];
 
@@ -74,10 +85,11 @@ export const FOOTER = ["/portfolio-settings", "/support", "/settings"];
 export function arrangeMenu(everything: MenuEntry[], role: StaffRole | null) {
   const items = everything.filter((item) => !OFF_THE_SIDEBAR.includes(item.to));
   const runs = (role && HEADINGS[role]) ?? [];
-  const placed = new Set([...TOP, ...YOUR_OWN, ...FOOTER, ...runs.flatMap((one) => one.routes)]);
+  const top = (role && TOP_FOR[role]) ?? TOP;
+  const placed = new Set([...top, ...YOUR_OWN, ...FOOTER, ...runs.flatMap((one) => one.routes)]);
   const pick = (routes: string[]) => items.filter((item) => routes.includes(item.to));
   const list = [
-    ...pick(TOP),
+    ...pick(top),
     ...runs.flatMap((one) => pick(one.routes)),
     ...items.filter((item) => !placed.has(item.to)),
     ...pick(YOUR_OWN),

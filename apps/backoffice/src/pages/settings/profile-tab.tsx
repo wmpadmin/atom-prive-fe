@@ -5,7 +5,7 @@ import { Camera, IdCard, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useSession } from "../../auth/session";
-import { roleLabels, type StaffRole } from "../../lib/labels";
+import { deskLabel, type StaffRole } from "../../lib/labels";
 import { PhotoField } from "../../components/photo-field";
 import { NotYet, Pair, Panel, Setting, Settings } from "./settings-parts";
 
@@ -62,14 +62,14 @@ export function ProfileTab({ user }: { user: StaffProfile }) {
           <div className="space-y-4">
             <Setting label="Working as">
               <p className="text-sm font-semibold text-ink">
-                {user.activeRole ? roleLabels[user.activeRole] : "Not chosen"}
+                {user.activeRole ? deskLabel(user.activeRole, user) : "Not chosen"}
               </p>
             </Setting>
             <Setting label="Roles you hold">
               <div className="flex flex-wrap gap-1.5">
                 {user.roles.map((role) => (
                   <Badge key={role} tone={role === user.activeRole ? "info" : "neutral"}>
-                    {roleLabels[role as StaffRole]}
+                    {deskLabel(role as StaffRole, user)}
                   </Badge>
                 ))}
               </div>

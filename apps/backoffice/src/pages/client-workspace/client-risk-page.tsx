@@ -17,6 +17,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
@@ -894,6 +895,7 @@ function Card({ title, lead, foot, flush, picker, action, children }: {
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
@@ -911,6 +913,7 @@ function Kpi({ label, value, note, tone, onPick }: { label: string; value: strin
       {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", onClick: onPick,
         onKeyDown: (event: KeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>
     </div>

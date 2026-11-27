@@ -151,6 +151,24 @@ export function StaffProfileFields({
             hint={rolesHint}
             error={fields.roles}
           />
+          {/* The Head of Operations (26 Nov 2026): an Operations person who also chooses which Operations people
+              look after which clients. Everything else stays as Operations has it. */}
+          {roles.includes("OPERATIONS") && (
+            <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-sm hover:border-primary-600">
+              <input
+                type="checkbox"
+                name="headOfOperations"
+                defaultChecked={(user as { headOfOperations?: boolean } | undefined)?.headOfOperations ?? false}
+                className="mt-0.5 size-4 rounded border-line text-primary-600"
+              />
+              <span>
+                <span className="font-semibold text-ink">Head of Operations</span>
+                <span className="block text-xs text-ink-muted">
+                  Everything Operations has, plus choosing which Operations people look after which clients and prospects.
+                </span>
+              </span>
+            </label>
+          )}
         </div>
         {/* Only where there is a choice. One role is the answer when there is only one, and a dropdown
             offering it would be a decision nobody has to make. */}

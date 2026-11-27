@@ -13,7 +13,7 @@ import {
 } from "@atomprive/api-client/backoffice";
 import { Alert, Avatar, Badge, Button, cn, DateInput, SelectInput } from "@atomprive/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { ArrowRight, Briefcase, UserRoundCog } from "lucide-react";
+import { ArrowRight, Briefcase, UserRoundCog, UsersRound } from "lucide-react";
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { BackToOverview } from "../../components/back-to-overview";
@@ -31,8 +31,10 @@ import { useListAddress, useTypedSearch } from "../../lib/use-list-address";
 import { proposalStatusLabels, proposalStatusTones } from "../advisor/proposal-labels";
 import { AssignAdvisorDialog, type ClientToAssign } from "./assign-advisor-dialog";
 import { AssignPortfolioManagerDialog } from "./assign-portfolio-manager-dialog";
+import { AssignOperationsDialog, type ToAssignOps } from "./assign-operations-dialog";
 import { assignmentNotice, clientKindLabels, clientTypeLabels, managerAssignmentNotice } from "./client-labels";
 import { ClientSearch } from "./client-search";
+import { operationsNotice, useOperationsAssigned } from "./operations-assignments";
 import { StaffStack } from "./staff-stack";
 
 
@@ -108,9 +110,11 @@ type Column = {
  * them — a row in a list has room for the button but not for what the button is about, and two buttons on
  * every row of ten made the widest column on the screen the one nobody reads down.
  */
-function movableFor({ mine, newestProposal }: {
+function movableFor({ mine, newestProposal, operationsOn }: {
   mine: boolean;
   newestProposal: Map<string, ProposalRow>;
+  /** The Operations people on a client (26 Nov 2026); the firm-wide list only. */
+  operationsOn: (customerId: string) => StaffMember[];
 }): Column[] {
   return [
     {
@@ -194,6 +198,18 @@ function movableFor({ mine, newestProposal }: {
       // recording who manages a client narrows nothing — it is only the assigning that Operations hold.
       cell: (customer) => <StaffStack people={managersOn(customer)} desk="portfolio managers" />,
     },
+    // Who in Operations is responsible for the client (26 Nov 2026), set by the Head of Operations. Everyone in
+    // Operations still sees every client; this only says whose they are.
+    ...(mine
+      ? []
+      : [{
+          id: "operations",
+          label: "Operations",
+          cell: (customer: CustomerRow) => (
+            <StaffStack people={operationsOn(customer.id)} desk="Operations people"
+              empty={{ label: "Not assigned", title: "No Operations person yet" }} />
+          ),
+        }]),
     ...(mine
       ? [{
           id: "proposal",
@@ -220,6 +236,8 @@ interface Filters {
   to: string;
   size: number;
   page: number;
+  /** Operations only: just the clients assigned to the reader (?ops=me). */
+  mineInOps: boolean;
 }
 
 /** The search, filters and page live in the address (?q=kapoor&from=2026-09-01), so they can be shared. */
@@ -233,6 +251,7 @@ function readFilters(params: URLSearchParams): Filters {
     to: dayParam(params.get("to")),
     size: PAGE_SIZES.includes(size) ? size : PAGE_SIZES[0]!,
     page: Number.isInteger(page) && page > 1 ? page - 1 : 0,
+    mineInOps: params.get("ops") === "me",
   };
 }
 
@@ -260,13 +279,15 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const canAssignManagers = !mine && hasAuthority(user, "ASSIGN_PORTFOLIO_MANAGERS:CHANGE");
   // The tick boxes and the bar above the table are for whichever of the two assignings the reader does, so
   // either one keeps them.
-  const canSelect = canAssignAdvisors || canAssignManagers;
+  const canSelectForStaff = canAssignAdvisors || canAssignManagers;
   // A relationship manager's list is their own, so a client of theirs opens under their own part of the app.
   const opensAt = mine ? "/my-clients" : "/clients";
   const location = useLocation();
   const navigate = useNavigate();
   const { params, update } = useListAddress();
-  const { query, advisorId, from, to, size, page } = readFilters(params);
+  const { query, advisorId, from, to, size, page, mineInOps } = readFilters(params);
+  // Operations narrow the list to the clients the Head of Operations gave them (26 Nov 2026).
+  const atOperations = !mine && user.activeRole === "OPERATIONS";
   const typed = useTypedSearch(query, update);
 
   // Clients ticked for assigning a relationship manager or a portfolio manager, on the page shown;
@@ -280,6 +301,7 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
   const [assigning, setAssigning] = useState<ClientToAssign[] | null>(null);
   // Kept apart from the relationship manager one, so neither dialog can be opened holding the other's answer.
   const [assigningManager, setAssigningManager] = useState<ClientToAssign[] | null>(null);
+  const [assigningOps, setAssigningOps] = useState<ToAssignOps[] | null>(null);
   const [notice, setNotice] = useState<string>();
 
   const filters = {
@@ -287,8 +309,10 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
     registeredFrom: from ? localDay(from).toISOString() : undefined,
     registeredTo: to ? localDay(to, 1).toISOString() : undefined,
   };
+  // operationsId is read by cast until the API client is next generated.
   const everyClient = useListCustomers<CustomerPage, ApiError>(
-    { ...filters, query: query || undefined, page, size },
+    { ...filters, query: query || undefined, page, size,
+      ...(atOperations && mineInOps ? { operationsId: user.id } : {}) } as Parameters<typeof useListCustomers>[0],
     { query: { enabled: !mine, placeholderData: keepPreviousData } },
   );
   // The relationship manager's own list is the same list, narrowed by the API to the clients assigned to them.
@@ -320,17 +344,22 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
 
   function clearFilters() {
     typed.clear();
-    update({ q: null, kyc: null, advisor: null, from: null, to: null });
+    update({ q: null, kyc: null, advisor: null, from: null, to: null, ops: null });
   }
 
   const rows = customers.data?.items ?? [];
+  // Who in Operations looks after the clients on this page, and whether this reader may change it.
+  const operations = useOperationsAssigned({ customerIds: rows.map((row) => row.id) }, !mine && rows.length > 0);
+  const canAssignOps = !mine && (operations.data?.mayAssign ?? false);
+  const operationsOn = (customerId: string) => operations.data?.clients[customerId] ?? [];
+  const canSelect = canSelectForStaff || canAssignOps;
   const total = customers.data?.totalItems ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / size) - 1);
-  const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "";
+  const filtered = query !== "" || advisorId !== "" || from !== "" || to !== "" || (atOperations && mineInOps);
   const canExport = hasAuthority(user, "EXPORT_CUSTOMER_DATA:CHANGE");
 
   const today = new Date();
-  const movable = movableFor({ mine, newestProposal });
+  const movable = movableFor({ mine, newestProposal, operationsOn });
   // Cases still being entered. The server decides whether to send any — first page, nothing filtered —
   // so the screen only has to draw what it is given.
   // Read before the page can send itself anywhere else: how this reader has arranged the table is a thing
@@ -418,6 +447,15 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
         // Prospective Clients, and arrives on this list only once onboarded.
         filters={
           <>
+            {atOperations && (
+              <label>
+                <span className="sr-only">Operations</span>
+                <SelectInput id="client-operations" value={mineInOps ? "me" : ""} onChange={(event) => update({ ops: event.target.value || null })} className="w-auto">
+                  <option value="">Every client</option>
+                  <option value="me">Assigned to me</option>
+                </SelectInput>
+              </label>
+            )}
             {!mine && (
               <label>
                   <span className="sr-only">Relationship manager</span>
@@ -484,6 +522,13 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
                   <Button size="sm" onClick={() => setAssigningManager(rows.filter((row) => selected.has(row.id)).flatMap(everyHolderOf))}>
                     <Briefcase aria-hidden="true" />
                     Assign portfolio manager
+                  </Button>
+                )}
+                {canAssignOps && (
+                  <Button size="sm" onClick={() => setAssigningOps(rows.filter((row) => selected.has(row.id))
+                    .map((row) => ({ id: row.id, fullName: row.fullName, people: operationsOn(row.id) })))}>
+                    <UsersRound aria-hidden="true" />
+                    Assign Ops
                   </Button>
                 )}
               </div>
@@ -624,6 +669,18 @@ export function ClientsPage({ mine = false }: { mine?: boolean }) {
           setAssigningManager(null);
           setSelected(new Set());
           setNotice(managerAssignmentNotice(result));
+        }}
+      />
+
+      <AssignOperationsDialog
+        open={assigningOps !== null}
+        records={assigningOps ?? []}
+        kind="client"
+        onClose={() => setAssigningOps(null)}
+        onAssigned={(result) => {
+          setAssigningOps(null);
+          setSelected(new Set());
+          setNotice(operationsNotice(result));
         }}
       />
     </div>

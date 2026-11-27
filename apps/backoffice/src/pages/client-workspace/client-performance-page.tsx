@@ -23,6 +23,7 @@ import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/
 import type { Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
@@ -1258,6 +1259,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
@@ -1279,6 +1281,7 @@ function Kpi({ label, value, note, tone, emphasised, onOpen }: { label: string; 
     <div className={cn("rounded-2xl border bg-white px-4 py-3.5", emphasised ? "border-primary-200 ring-1 ring-primary-200" : "border-line",
       onOpen && "cursor-pointer hover:border-primary-300")} {...opener(onOpen, label)}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       <div className="mt-1 text-xs text-ink-muted">{note}</div>
     </div>
@@ -1289,6 +1292,7 @@ function Small({ label, value, tone, big, onOpen }: { label: string; value: stri
   return (
     <div className={cn(onOpen && "cursor-pointer rounded-sm hover:ring-2 hover:ring-primary-300")} {...opener(onOpen, label)}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <p className={cn("font-bold tabular-nums", big ? "text-2xl" : "text-xl", tone)}>{value}</p>
     </div>
   );
