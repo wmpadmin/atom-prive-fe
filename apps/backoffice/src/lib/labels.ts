@@ -19,6 +19,16 @@ export const roles = Object.keys(roleLabels) as StaffRole[];
 /** The roles the Users screen may give. The IT Admin is set up by the platform, never here. */
 export const assignableRoles = roles.filter((role) => role !== "IT_ADMIN");
 
+/**
+ * A desk as its holder reads it (26 Nov 2026): an Operations person ticked as the Head of Operations sits at the
+ * Operations desk with everything Operations has, and reads "Head of Operations" on it.
+ */
+export function deskLabel(role: StaffRole, user: object) {
+  return role === "OPERATIONS" && (user as { headOfOperations?: boolean }).headOfOperations
+    ? "Head of Operations"
+    : roleLabels[role];
+}
+
 /** Every role someone holds, e.g. "Relationship Manager, Compliance". */
 export function roleList(held: StaffRole[]) {
   return held.map((role) => roleLabels[role]).join(", ");

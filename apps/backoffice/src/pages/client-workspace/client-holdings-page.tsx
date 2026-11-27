@@ -27,6 +27,7 @@ import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/
 import type { Figures } from "../layout/own-cards";
 import { useDrill, type DrillBy } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { ClientBankHoldings } from "../../components/client-bank-holdings";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
@@ -1098,6 +1099,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
@@ -1114,6 +1116,7 @@ function Kpi({ label, value, note, tone, onPick }: { label: string; value: React
       {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", onClick: onPick,
         onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <p className={cn("mt-1.5 text-2xl font-bold tabular-nums", tone)}>{value}</p>
       {note && <div className="mt-1 text-xs text-ink-muted">{note}</div>}
     </div>

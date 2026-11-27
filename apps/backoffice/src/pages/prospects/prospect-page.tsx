@@ -1,15 +1,23 @@
 import { ApiError } from "@atomprive/api-client";
 import { useGetProspect, type ProspectDetail } from "@atomprive/api-client/backoffice";
-import { cn } from "@atomprive/ui";
+import { cn, StaffAvatar } from "@atomprive/ui";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Bookmark, CalendarDays, ChartNoAxesColumn, FileText, Info, Mail, NotebookPen, Pencil,
-  FolderOpen, Landmark, Signature, Users, type LucideIcon,
+  FolderOpen, Landmark, Signature, Users, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useStaffUser } from "../../auth/session";
 import { countryName } from "../../lib/countries";
 import { formatDateTime } from "../../lib/labels";
+import { AssignOperationsDialog } from "../clients/assign-operations-dialog";
+import {
+  OPERATIONS_KEY,
+  operationsNotice,
+  removeOperationsFromProspect,
+  useOperationsAssigned,
+} from "../clients/operations-assignments";
 import { ProspectPipeline } from "./next-step";
 import { CallNotes } from "./call-notes";
 import { EntityParties } from "./entity-parties";
@@ -107,6 +115,7 @@ export function ProspectPage() {
                 {[entity ? "Entity" : "Individual", row.source ? SOURCE_LABELS[row.source] : null, row.assignedTo ? row.assignedTo.fullName : "No RM yet"]
                   .filter(Boolean).join(" • ")}
               </p>
+              <OperationsLine prospect={row} />
             </div>
           </div>
           {/* All alike: none of them is the obvious next step for every prospect. The one that is open is marked. */}
@@ -238,4 +247,63 @@ function initials(name: string) {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length > 1) return (words[0][0] + words[1][0]).toUpperCase();
   return (words[0] ?? "?").slice(0, 3).toUpperCase();
+}
+
+/**
+ * Who in Operations looks after the prospect (26 Nov 2026), carried over to the client it becomes. The Head of
+ * Operations, or an Admin, takes a person off with ✕ and adds people with + Assign Ops; everyone else reads it.
+ */
+function OperationsLine({ prospect }: { prospect: { id: string; fullName: string } }) {
+  const queryClient = useQueryClient();
+  const assigned = useOperationsAssigned({ prospectIds: [prospect.id] });
+  const people = assigned.data?.prospects[prospect.id] ?? [];
+  const mayAssign = assigned.data?.mayAssign ?? false;
+  const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState<string>();
+  const remove = useMutation<void, ApiError, string>({
+    mutationFn: (staffId) => removeOperationsFromProspect(prospect.id, staffId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: OPERATIONS_KEY }),
+  });
+  if (!assigned.data) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-ink-muted">Operations:</span>
+      {people.length === 0 && <span className="text-ink-muted">Not assigned</span>}
+      {people.map((one) => (
+        <span key={one.id} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas py-0.5 pr-2 pl-0.5 font-semibold">
+          <StaffAvatar name={one.fullName} photo={one.photo} className="size-5 text-3xs" />
+          {one.fullName}
+          {mayAssign && (
+            <button
+              type="button"
+              aria-label={`Take ${one.fullName} off this prospect`}
+              title={`Take ${one.fullName} off this prospect`}
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(one.id)}
+              className="text-ink-muted hover:text-danger"
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          )}
+        </span>
+      ))}
+      {mayAssign && (
+        <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-primary-700 hover:underline">
+          + Assign Ops
+        </button>
+      )}
+      {remove.isError && <span className="text-xs text-danger">{remove.error.message}</span>}
+      {notice && <span className="text-xs text-emerald-700" role="status">{notice}</span>}
+      <AssignOperationsDialog
+        open={adding}
+        records={[{ id: prospect.id, fullName: prospect.fullName, people }]}
+        kind="prospect"
+        onClose={() => setAdding(false)}
+        onAssigned={(result) => {
+          setAdding(false);
+          setNotice(operationsNotice(result));
+        }}
+      />
+    </div>
+  );
 }

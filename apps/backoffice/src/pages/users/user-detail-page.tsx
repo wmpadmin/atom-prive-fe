@@ -18,7 +18,7 @@ import { downloadTextFile } from "../../lib/download";
 import { PAGE_SIZES } from "../../lib/page-sizes";
 import { PagedFooter } from "../../lib/paged-rows";
 import { usePagedRows } from "../../lib/paged-rows";
-import { formatDateTime, formatRelative, roleList, statusLabels } from "../../lib/labels";
+import { deskLabel, formatDateTime, formatRelative, statusLabels } from "../../lib/labels";
 import { countryName } from "../../lib/countries";
 import { formatMobileNumber } from "../../lib/mobile-numbers";
 import { ConfirmDialog } from "../config/confirm-dialog";
@@ -202,7 +202,7 @@ export function UserDetailPage() {
                 <Info label="Licence number" value={user.licenceNumber} />
               </InfoCard>
               <InfoCard title="Access & identity">
-                <Info label="Role" value={roleList(user.roles)} />
+                <Info label="Role" value={user.roles.map((role) => deskLabel(role, user)).join(", ")} />
                 <Info
                   label="Account status"
                   value={`${statusLabels[user.status]}${user.mustChangePassword && !deactivated ? " · temporary password" : ""}`}

@@ -39,7 +39,8 @@ export function readStaffProfile(
   const text = (name: string) => String(values.get(name) ?? "").trim();
   const country = mobileCountry(text("phoneCountry")).code;
   const mobile = checkMobileNumber(country, text("phone"));
-  const data: StaffUserRequest = {
+  // Read by cast until the client is generated again: the Head of Operations tick, shown only beside Operations.
+  const data: StaffUserRequest & { headOfOperations: boolean } = {
     fullName: text("fullName"),
     email: text("email"),
     phone: mobile.number ?? "",
@@ -58,6 +59,7 @@ export function readStaffProfile(
     licenceNumber: text("licenceNumber"),
     nationalId: text("nationalId"),
     passportNumber: text("passportNumber"),
+    headOfOperations: roles.includes("OPERATIONS") && values.get("headOfOperations") === "on",
   };
   const missing: Record<string, string> = {};
   for (const field of Object.keys(requiredMessages) as ProfileField[]) {

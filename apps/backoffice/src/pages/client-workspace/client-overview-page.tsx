@@ -27,6 +27,7 @@ import { cardChart, KindChart, type CardChart, type ChartData } from "../layout/
 import type { Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
@@ -313,6 +314,7 @@ function Stat({ label, value, note, file, onPick }: { label: string; value: stri
     <div {...(onPick ? { role: "button", tabIndex: 0, title: "Open its breakdown", className: "-m-1 cursor-pointer rounded-md p-1 hover:bg-canvas",
       onClick: onPick, onKeyDown: (event: KeyboardEvent) => { if (event.key === "Enter") onPick(); } } : {})}>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <p className="mt-0.5 text-xl font-bold tabular-nums">{value ?? (file ? <NotInFile /> : <Muted>—</Muted>)}</p>
       {!file && note && <p className="text-xs text-ink-muted">{note}</p>}
     </div>
@@ -351,6 +353,7 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{label}</p>
+      <SourceTag label={label} />
       <div className="mt-0.5 text-sm">{value}</div>
     </div>
   );
@@ -1288,6 +1291,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>

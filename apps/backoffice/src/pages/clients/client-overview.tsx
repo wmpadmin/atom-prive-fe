@@ -41,8 +41,10 @@ import {
   UserRound,
   UserRoundCog,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Children, isValidElement, useState, type ReactNode } from "react";
 import { useStaffUser } from "../../auth/session";
 import { useBookPanel } from "../../components/book-panel";
@@ -57,8 +59,15 @@ import { column, downloadWorkbook, row } from "../book/overview-export";
 import { saveApiPost } from "../../lib/download";
 import { Popover } from "../book/overview-dialogs";
 import { reviewStateLabels } from "../kyc/kyc-labels";
+import { AssignOperationsDialog } from "./assign-operations-dialog";
 import { accountTypeLabels, bankAccountStatus } from "./bank-account-labels";
 import { clientTypeLabels, kycStatusLabels, kycStatusTones, oneLine } from "./client-labels";
+import {
+  OPERATIONS_KEY,
+  operationsNotice,
+  removeOperationsFromClient,
+  useOperationsAssigned,
+} from "./operations-assignments";
 
 /** The tabs this overview links on to. */
 export type OverviewLink = "family" | "advisors" | "portfolioManagers" | "banks" | "holdings" | "documents" | "activity";
@@ -490,7 +499,7 @@ export function ClientOverviewTab({
             people={portfolioManagers.map((one) => one.manager)}
             onOpen={() => onOpen("portfolioManagers")}
           />
-          <Relation icon={Users} label="Operations" people={[]} empty="Operations team" />
+          <OperationsRelation client={client} />
         </ul>
       </Card>
 
@@ -815,6 +824,70 @@ function Relation({
           <ExternalLink aria-hidden="true" className="size-4" />
         </button>
       )}
+    </li>
+  );
+}
+
+/**
+ * Who in Operations looks after the client (26 Nov 2026). The Head of Operations, or an Admin, takes a person off with
+ * ✕ and adds people here too; everyone else reads it.
+ */
+function OperationsRelation({ client }: { client: { id: string; fullName: string } }) {
+  const queryClient = useQueryClient();
+  const assigned = useOperationsAssigned({ customerIds: [client.id] });
+  const people = assigned.data?.clients[client.id] ?? [];
+  const mayAssign = assigned.data?.mayAssign ?? false;
+  const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState<string>();
+  const remove = useMutation<void, ApiError, string>({
+    mutationFn: (staffId) => removeOperationsFromClient(client.id, staffId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: OPERATIONS_KEY }),
+  });
+  return (
+    <li className="py-2.5">
+      <div className="flex items-center gap-3">
+        <Users aria-hidden="true" className="size-4 shrink-0 text-primary-700" />
+        <span className="flex-1">Operations</span>
+        <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+          {people.length === 0 && <span className="text-ink-muted">{assigned.isPending ? "…" : "Not assigned"}</span>}
+          {people.map((one) => (
+            <span key={one.id} className="flex items-center gap-1.5 font-semibold whitespace-nowrap">
+              <StaffAvatar name={one.fullName} photo={one.photo} className="size-5 text-3xs" />
+              {one.fullName}
+              {mayAssign && (
+                <button
+                  type="button"
+                  aria-label={`Take ${one.fullName} off this client`}
+                  title={`Take ${one.fullName} off this client`}
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(one.id)}
+                  className="text-ink-muted hover:text-danger"
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              )}
+            </span>
+          ))}
+          {mayAssign && (
+            <button type="button" onClick={() => setAdding(true)}
+              className="text-xs font-semibold whitespace-nowrap text-primary-700 hover:underline">
+              + Assign Ops
+            </button>
+          )}
+        </span>
+      </div>
+      {remove.isError && <p className="mt-1 text-right text-xs text-danger">{remove.error.message}</p>}
+      {notice && <p className="mt-1 text-right text-xs text-emerald-700" role="status">{notice}</p>}
+      <AssignOperationsDialog
+        open={adding}
+        records={[{ id: client.id, fullName: client.fullName, people }]}
+        kind="client"
+        onClose={() => setAdding(false)}
+        onAssigned={(result) => {
+          setAdding(false);
+          setNotice(operationsNotice(result));
+        }}
+      />
     </li>
   );
 }

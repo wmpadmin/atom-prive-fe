@@ -20,6 +20,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { seriesFigure, sharesFigure, singleFigure, type Figures } from "../layout/own-cards";
 import { periodName, useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
@@ -110,6 +111,7 @@ function Summary({ data }: { data: ClientIps }) {
     return (
       <section className="rounded-2xl border border-line bg-white p-5">
         <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">Investment policy statement</p>
+        <SourceTag label="Investment policy statement" />
         <div className="mt-2"><NotInFile /></div>
       </section>
     );
@@ -1017,6 +1019,7 @@ function Card({ title, lead, action, picker, children }: { title: string; lead?:
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>

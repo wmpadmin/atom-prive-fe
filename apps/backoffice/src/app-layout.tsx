@@ -68,7 +68,7 @@ import logoLight from "./assets/brand/atom-prive-logo.png";
 import logoDark from "./assets/brand/atom-prive-logo-dark.png";
 import markLight from "./assets/brand/atom-prive-mark.png";
 import markDark from "./assets/brand/atom-prive-mark-dark.png";
-import { roleLabels, type StaffRole } from "./lib/labels";
+import { deskLabel, type StaffRole } from "./lib/labels";
 import { ScreenGate } from "./components/screen-gate";
 import { BookPanelHost } from "./components/book-panel";
 
@@ -324,8 +324,9 @@ function useEnterRole(onEntered?: () => void) {
  * enters it — the menu that comes back is that role's, because the API only ever sends the active role's
  * permissions and the browser cannot know what another role would see.
  */
-function RoleHeader({ role, here, enter }: {
+function RoleHeader({ role, user, here, enter }: {
   role: StaffRole;
+  user: StaffProfile;
   here: boolean;
   enter: ReturnType<typeof useEnterRole>;
 }) {
@@ -346,7 +347,7 @@ function RoleHeader({ role, here, enter }: {
       )}
     >
       <ChevronDown aria-hidden="true" className={cn("size-3 shrink-0 transition-transform", here ? "" : "-rotate-90")} />
-      <span className="min-w-0 flex-1 truncate">{roleLabels[role]}</span>
+      <span className="min-w-0 flex-1 truncate">{deskLabel(role, user)}</span>
     </button>
   );
 }
@@ -374,7 +375,7 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
     };
   }, [open]);
 
-  const role = user.activeRole ? roleLabels[user.activeRole] : "";
+  const role = user.activeRole ? deskLabel(user.activeRole, user) : "";
   const fold = (
     <button
       type="button"
@@ -446,7 +447,7 @@ function WorkspaceHeader({ user, rail, onFold }: { user: StaffProfile; rail: boo
                 className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
                   here ? HERE_CLASS : "text-ink-soft hover:bg-slate-50", enter.isPending && !here && "cursor-wait")}
               >
-                <span className="min-w-0 flex-1 truncate">{roleLabels[one as StaffRole]}</span>
+                <span className="min-w-0 flex-1 truncate">{deskLabel(one as StaffRole, user)}</span>
                 {here && <Check className="size-4 shrink-0" aria-hidden="true" />}
               </button>
             );
@@ -1039,7 +1040,7 @@ export function AppLayout() {
             </button>
           </RailTip>
         ) : <SidebarSearch query={menuQuery} onQuery={setMenuQuery} inputRef={menuSearch} />}
-        {sections && !searching && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} here enter={enter} /></div>}
+        {sections && !searching && <div className="mt-4 shrink-0"><RoleHeader role={user.activeRole as StaffRole} user={user} here enter={enter} /></div>}
         <nav aria-label="Back-office" ref={navRef}
           // The only part of the sidebar that scrolls: the headings and footer around it are pinned, and on a short
           // window it gives way down to about 96px rather than push them out of view.
@@ -1067,7 +1068,7 @@ export function AppLayout() {
           // Pinned with the footer: every other workspace's heading is always in full view, and never scrolls.
           <div className="mt-2 min-w-0 shrink-0 border-t border-line/50 pt-1.5">
             {user.roles.filter((role) => role !== user.activeRole).map((role) => (
-              <RoleHeader key={role} role={role as StaffRole} here={false} enter={enter} />
+              <RoleHeader key={role} role={role as StaffRole} user={user} here={false} enter={enter} />
             ))}
           </div>
         )}
@@ -1090,7 +1091,7 @@ export function AppLayout() {
             5rem; a side panel or a full-screen dialog still opens over it. */}
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between gap-4 bg-canvas px-8">
           <div className="flex min-w-0 items-center gap-4">
-            <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? roleLabels[user.activeRole] : ""}</p>
+            <p className="min-w-0 truncate text-2xl font-bold">{user.activeRole ? deskLabel(user.activeRole, user) : ""}</p>
             <WorkspaceSwitch />
             {/* Only on a client's portfolio screens, for that client: the currency his converted figures are in. */}
             <ClientCurrencySwitch />

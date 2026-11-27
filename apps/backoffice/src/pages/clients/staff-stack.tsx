@@ -25,7 +25,12 @@ const FACES = 2;
  * whoever happened to be first in it. Two faces and a count hold the same width whatever the number, and
  * every name is a press away.
  */
-export function StaffStack({ people: advisors, desk = "people" }: { people: StaffMember[]; desk?: string }) {
+export function StaffStack({ people: advisors, desk = "people", empty }: {
+  people: StaffMember[];
+  desk?: string;
+  /** What an empty cell says, and its tooltip: Operations read "Not assigned" (26 Nov 2026). */
+  empty?: { label: string; title: string };
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -56,8 +61,8 @@ export function StaffStack({ people: advisors, desk = "people" }: { people: Staf
 
   if (advisors.length === 0) {
     return (
-      <span title="No relationship manager yet" className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-muted">
-        Default
+      <span title={empty?.title ?? "No relationship manager yet"} className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-muted">
+        {empty?.label ?? "Default"}
       </span>
     );
   }

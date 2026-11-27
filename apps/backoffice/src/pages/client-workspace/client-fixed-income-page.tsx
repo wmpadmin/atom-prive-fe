@@ -27,6 +27,7 @@ import { cardChart, KindChart, type CardChart } from "../layout/chart-kinds";
 import { kpiFigures, seriesFigure, sharesFigure, type Figures } from "../layout/own-cards";
 import { useDrill } from "./drill-panel";
 import type { FigureDetail } from "./figure-panel";
+import { SourceTag } from "./source-tags";
 import { useCurrencyParam, useInShownCurrency } from "../../components/shown-currency";
 
 /**
@@ -134,6 +135,7 @@ function Kpis({ data }: { data: ClientFixedIncome }) {
         <div key={one?.key ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} className={cn("rounded-2xl border border-line bg-white px-4 py-3.5", one && "cursor-pointer")}
           {...(one ? { role: "button", tabIndex: 0, onClick: () => open(one), onKeyDown: (event: ReactKeyboardEvent) => { if (event.key === "Enter") open(one); } } : {})}>
           <p className="text-2xs font-semibold tracking-wider text-ink-muted uppercase">{one?.label ?? KPI_LABELS[sleeveKpi ? at - 1 : at]}</p>
+          <SourceTag label={one?.label ?? KPI_LABELS[sleeveKpi ? at - 1 : at]} />
           {!one ? <div className="mt-2"><NotInFile /></div> : (
             <>
               <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
@@ -894,6 +896,7 @@ function Card({ title, lead, action, flush, picker, children }: {
       <div className={cn("mb-3 flex flex-wrap items-start justify-between gap-3", flush && "px-5")}>
         <div>
           <h2 className="text-lg font-bold">{label.title}</h2>
+          <SourceTag label={title} />
           {label.lead && <p className="mt-0.5 text-xs text-ink-muted">{label.lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">{action}{picker}<TableColumns scope={body} /><CardMenu /></div>
@@ -907,6 +910,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-3xs font-semibold tracking-wider text-ink-muted uppercase">{label}</dt>
+      <SourceTag label={label} />
       <dd className="font-bold tabular-nums">{value}</dd>
     </div>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { menuFor } from "./menu";
 import { arrangeMenu } from "./menu-groups";
+import { MENU_ORDER } from "./menu-order";
 
 /** The permissions the ADMIN role holds at FULL, as the firm's matrix grants them. */
 const ADMIN_PERMISSIONS = [
@@ -91,5 +92,22 @@ describe("the portfolio desk's sidebar", () => {
     const { list, footer } = arrangeMenu(menuFor(aManager), "PORTFOLIO_MANAGER");
     const drawn = [...list, ...footer].map((item) => item.to);
     expect(drawn.slice(0, 5)).toEqual(["/dashboard", "/approvals", "/assistant", "/book-overview", "/client-directory"]);
+  });
+});
+
+describe("Compliance's sidebar", () => {
+  // Compliance's most urgent work first (26 Nov 2026): the KYC review queue under the dashboard, before the AI
+  // Assistant, and AML risk with its matrix straight after the KYC work, before the trails and the audit log.
+  it("puts the KYC review queue under the dashboard and AML risk before the trails", () => {
+    const template = menuFor(anAdmin(ADMIN_PERMISSIONS))[0]!;
+    const routes = ["/dashboard", "/assistant", "/kyc", "/client-management", "/kyc-documents", "/kyc-checklist",
+      "/trails", "/family-access-trail", "/audit-log", "/aml-risk", "/aml-risk/matrix", "/my-clearances"];
+    // In the menu's own order, as menuFor hands a desk its sections.
+    const at = (to: string) => (MENU_ORDER.includes(to) ? MENU_ORDER.indexOf(to) : MENU_ORDER.length);
+    const items = [...routes].sort((a, b) => at(a) - at(b)).map((to) => ({ ...template, to, label: to }));
+    const { list } = arrangeMenu(items, "COMPLIANCE");
+    expect(list.map((item) => item.to)).toEqual(["/dashboard", "/kyc", "/assistant", "/client-management",
+      "/kyc-documents", "/kyc-checklist", "/aml-risk", "/aml-risk/matrix", "/trails", "/family-access-trail",
+      "/audit-log", "/my-clearances"]);
   });
 });
